@@ -264,10 +264,10 @@
   height: 0;
 }
 
-/* ===== Bullet Lists ===== */
+/* ===== Bullet Lists - Hierarchical: ● ○ ■ — ===== */
 .ProseMirror ul {
   list-style: none;
-  padding-left: 1.2rem;
+  padding-left: 1.4rem;
   margin: 0.1rem 0;
 }
 
@@ -279,36 +279,42 @@
 
 .ProseMirror ul > li::before {
   position: absolute;
-  left: -1rem;
+  left: -1.1rem;
+}
+
+/* Level 1: ● solid circle */
+.ProseMirror ul > li::before {
+  content: "\25CF";
+  font-size: 0.55em;
   top: 0.5em;
 }
 
-/* disc (default): ● */
-.ProseMirror ul[data-bullet-style="disc"] > li::before,
-.ProseMirror ul:not([data-bullet-style]) > li::before {
-  content: "\25CF";
-  font-size: 0.55em;
-}
-
-/* circle: ○ */
-.ProseMirror ul[data-bullet-style="circle"] > li::before {
+/* Level 2: ○ open circle */
+.ProseMirror ul ul > li::before {
   content: "\25CB";
   font-size: 0.6em;
   top: 0.45em;
 }
 
-/* square: ■ */
-.ProseMirror ul[data-bullet-style="square"] > li::before {
+/* Level 3: ■ filled square */
+.ProseMirror ul ul ul > li::before {
   content: "\25A0";
   font-size: 0.5em;
   top: 0.55em;
 }
 
-/* dash: — */
-.ProseMirror ul[data-bullet-style="dash"] > li::before {
+/* Level 4: — dash */
+.ProseMirror ul ul ul ul > li::before {
   content: "\2014";
   font-size: 0.7em;
   top: 0.25em;
+}
+
+/* Level 5+: repeat from disc */
+.ProseMirror ul ul ul ul ul > li::before {
+  content: "\25CF";
+  font-size: 0.45em;
+  top: 0.6em;
 }
 
 .ProseMirror ul > li > p {

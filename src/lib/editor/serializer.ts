@@ -120,10 +120,8 @@ function renderNode(node: JSONContent): string {
     case 'paragraph':
       return `<p>${renderInline(node)}</p>`
 
-    case 'bulletList': {
-      const bulletStyle = (node.attrs?.bulletStyle as string) || 'disc'
-      return `<ul data-bullet-style="${bulletStyle}">${node.content?.map(renderNode).join('') ?? ''}</ul>`
-    }
+    case 'bulletList':
+      return `<ul>${node.content?.map(renderNode).join('') ?? ''}</ul>`
 
     case 'orderedList':
       return `<ol>${node.content?.map(renderNode).join('') ?? ''}</ol>`

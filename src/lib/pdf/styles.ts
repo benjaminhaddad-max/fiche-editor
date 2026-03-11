@@ -266,30 +266,32 @@ export function getPdfStyles(): string {
 
     .pdf-topic-content ul {
       list-style: none;
-      padding-left: 12px;
+      padding-left: 14px;
       margin: 2px 0;
     }
 
-    /* Bullet styles based on data attribute */
-    .pdf-topic-content ul[data-bullet-style="disc"] > li::before,
-    .pdf-topic-content ul:not([data-bullet-style]) > li::before {
+    /* Level 1: ● solid circle */
+    .pdf-topic-content ul > li::before {
       content: "\\25CF  ";
-      font-size: 0.7em;
-    }
-
-    .pdf-topic-content ul[data-bullet-style="circle"] > li::before {
-      content: "\\25CB  ";
-      font-size: 0.7em;
-    }
-
-    .pdf-topic-content ul[data-bullet-style="square"] > li::before {
-      content: "\\25A0  ";
       font-size: 0.6em;
     }
 
-    .pdf-topic-content ul[data-bullet-style="dash"] > li::before {
+    /* Level 2: ○ open circle */
+    .pdf-topic-content ul ul > li::before {
+      content: "\\25CB  ";
+      font-size: 0.65em;
+    }
+
+    /* Level 3: ■ filled square */
+    .pdf-topic-content ul ul ul > li::before {
+      content: "\\25A0  ";
+      font-size: 0.55em;
+    }
+
+    /* Level 4: — dash */
+    .pdf-topic-content ul ul ul ul > li::before {
       content: "\\2014  ";
-      font-size: 0.8em;
+      font-size: 0.75em;
     }
 
     .pdf-topic-content ol {
