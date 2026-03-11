@@ -41,9 +41,25 @@ const FONT_SIZES = [
   '7', '8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '36',
 ]
 
-const TEXT_COLORS = [
-  '#000000', '#8b0000', '#ff0000', '#f0a030', '#ffff00',
-  '#a0b020', '#008000', '#60b0e0', '#2060d0', '#002060', '#7030a0',
+// Word Office theme colors: 10 base colors x 6 rows (base + 5 tint/shade variants)
+const THEME_COLORS = [
+  // Row 1: Base
+  '#FFFFFF', '#000000', '#E7E6E6', '#44546A', '#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47',
+  // Row 2: Tint 80%
+  '#F2F2F2', '#808080', '#D0CECE', '#D6DCE4', '#D9E2F3', '#FBE5D6', '#EDEDED', '#FFF2CC', '#DEEAF6', '#E2EFDA',
+  // Row 3: Tint 60%
+  '#D9D9D9', '#595959', '#AEAAAA', '#ADB9CA', '#B4C7E7', '#F8CBAD', '#DBDBDB', '#FFE599', '#BDD7EE', '#C5E0B4',
+  // Row 4: Tint 40%
+  '#BFBFBF', '#404040', '#757171', '#8497B0', '#8FAADC', '#F4B183', '#C9C9C9', '#FFD966', '#9CC3E5', '#A9D18E',
+  // Row 5: Shade 25%
+  '#A6A6A6', '#262626', '#3B3838', '#333F50', '#2F5597', '#C55A11', '#7B7B7B', '#BF9000', '#2E75B6', '#548235',
+  // Row 6: Shade 50%
+  '#808080', '#0D0D0D', '#171616', '#222A35', '#1F3864', '#843C0C', '#525252', '#806000', '#1F4E79', '#375623',
+]
+
+const STANDARD_COLORS = [
+  '#C00000', '#FF0000', '#FFC000', '#FFFF00', '#92D050',
+  '#00B050', '#00B0F0', '#0070C0', '#002060', '#7030A0',
 ]
 
 const BG_COLORS = [
@@ -147,6 +163,92 @@ function ColorPicker({
               )}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function WordColorPicker({
+  currentColor,
+  onSelect,
+  icon: Icon,
+  title,
+  colorIndicator,
+}: {
+  currentColor?: string
+  onSelect: (color: string) => void
+  icon: React.ElementType
+  title: string
+  colorIndicator?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        title={title}
+        className="p-1.5 rounded text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer flex flex-col items-center"
+      >
+        <Icon size={16} />
+        {colorIndicator && (
+          <div
+            className="w-4 h-1 rounded-full mt-0.5"
+            style={{ backgroundColor: colorIndicator }}
+          />
+        )}
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-2 z-50 min-w-[220px]">
+          {/* Aucune couleur */}
+          <button
+            onClick={() => { onSelect(''); setOpen(false) }}
+            className="w-full text-left text-xs text-gray-500 px-1 py-1 mb-1 hover:bg-gray-100 rounded cursor-pointer"
+          >
+            Automatique (noir)
+          </button>
+          {/* Couleurs du theme */}
+          <div className="text-[9px] text-gray-400 px-0.5 mb-1 font-medium">Couleurs du theme</div>
+          <div className="grid grid-cols-10 gap-0.5 mb-2">
+            {THEME_COLORS.map((color, i) => (
+              <button
+                key={`theme-${i}`}
+                onClick={() => { onSelect(color); setOpen(false) }}
+                className={clsx(
+                  'w-5 h-5 border cursor-pointer transition-transform hover:scale-125 hover:z-10',
+                  currentColor?.toUpperCase() === color.toUpperCase() ? 'ring-2 ring-blue-500 ring-offset-1' : 'border-gray-300'
+                )}
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+          </div>
+          {/* Couleurs standard */}
+          <div className="text-[9px] text-gray-400 px-0.5 mb-1 font-medium">Couleurs standard</div>
+          <div className="grid grid-cols-10 gap-0.5">
+            {STANDARD_COLORS.map((color) => (
+              <button
+                key={color}
+                onClick={() => { onSelect(color); setOpen(false) }}
+                className={clsx(
+                  'w-5 h-5 border cursor-pointer transition-transform hover:scale-125 hover:z-10',
+                  currentColor?.toUpperCase() === color.toUpperCase() ? 'ring-2 ring-blue-500 ring-offset-1' : 'border-gray-300'
+                )}
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -563,11 +665,17 @@ export function EditorToolbar({ editor }: ToolbarProps) {
 
           <ToolbarSeparator />
 
-          <ColorPicker
-            colors={TEXT_COLORS}
-            onSelect={(color) => editor.chain().focus().setColor(color).run()}
+          <WordColorPicker
+            onSelect={(color) => {
+              if (!color) {
+                editor.chain().focus().unsetColor().run()
+              } else {
+                editor.chain().focus().setColor(color).run()
+              }
+            }}
             icon={Type}
             title="Couleur du texte"
+            currentColor={editor.getAttributes('textStyle').color || '#000000'}
             colorIndicator={editor.getAttributes('textStyle').color || '#000000'}
           />
           <ColorPicker
