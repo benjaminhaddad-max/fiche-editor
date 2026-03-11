@@ -15,10 +15,18 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { AnnotationType } from '@/lib/editor/extensions/annotation-mark'
+import type { BulletStyle } from '@/lib/editor/extensions/custom-bullet-list'
 
 interface ToolbarProps {
   editor: Editor | null
 }
+
+const BULLET_STYLES: { style: BulletStyle; symbol: string; label: string }[] = [
+  { style: 'disc', symbol: '●', label: 'Disque plein' },
+  { style: 'circle', symbol: '○', label: 'Cercle vide' },
+  { style: 'square', symbol: '■', label: 'Carre plein' },
+  { style: 'dash', symbol: '—', label: 'Tiret' },
+]
 
 const TEXT_COLORS = [
   '#000000', '#1e40af', '#dc2626', '#16a34a', '#ca8a04',
@@ -127,6 +135,95 @@ function ColorPicker({
               )}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BulletStylePicker({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const isActive = editor.isActive('bulletList')
+  const currentStyle = (editor.getAttributes('bulletList').bulletStyle as BulletStyle) || 'disc'
+
+  return (
+    <div className="relative flex" ref={ref}>
+      {/* Main button: toggle bullet list */}
+      <button
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        title="Liste a puces"
+        className={clsx(
+          'p-1.5 rounded-l transition-colors cursor-pointer',
+          isActive
+            ? 'bg-blue-100 text-blue-700'
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        )}
+      >
+        <List size={16} />
+      </button>
+      {/* Dropdown arrow */}
+      <button
+        onClick={() => setOpen(!open)}
+        title="Choisir le style de puce"
+        className={clsx(
+          'px-0.5 rounded-r transition-colors cursor-pointer border-l border-gray-200',
+          isActive
+            ? 'bg-blue-100 text-blue-700'
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        )}
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+          <path d="M1 2.5L4 5.5L7 2.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-1.5 z-50 min-w-[160px]">
+          <div className="text-[10px] text-gray-400 px-2 py-1 font-medium">Style de puce</div>
+          {BULLET_STYLES.map(({ style, symbol, label }) => (
+            <button
+              key={style}
+              onClick={() => {
+                editor.chain().focus().setBulletStyle(style).run()
+                setOpen(false)
+              }}
+              className={clsx(
+                'w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors cursor-pointer',
+                isActive && currentStyle === style
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              )}
+            >
+              <span className="w-5 text-center text-base leading-none">{symbol}</span>
+              <span>{label}</span>
+            </button>
+          ))}
+          {isActive && (
+            <>
+              <div className="border-t border-gray-100 my-1" />
+              <button
+                onClick={() => {
+                  editor.chain().focus().toggleBulletList().run()
+                  setOpen(false)
+                }}
+                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <span className="w-5 text-center text-xs leading-none">✕</span>
+                <span>Aucune</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -422,13 +519,7 @@ export function EditorToolbar({ editor }: ToolbarProps) {
 
           <ToolbarSeparator />
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            active={editor.isActive('bulletList')}
-            title="Liste a puces"
-          >
-            <List size={16} />
-          </ToolbarButton>
+          <BulletStylePicker editor={editor} />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             active={editor.isActive('orderedList')}

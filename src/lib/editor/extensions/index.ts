@@ -3,7 +3,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
-import BulletList from '@tiptap/extension-bullet-list'
+import { CustomBulletList } from './custom-bullet-list'
 import OrderedList from '@tiptap/extension-ordered-list'
 import ListItem from '@tiptap/extension-list-item'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -52,7 +52,7 @@ export const ficheExtensions = [
   Subscript,
   Superscript,
   // Lists
-  BulletList,
+  CustomBulletList,
   OrderedList,
   ListItem,
   // Text alignment

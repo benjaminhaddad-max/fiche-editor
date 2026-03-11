@@ -270,19 +270,26 @@ export function getPdfStyles(): string {
       margin: 2px 0;
     }
 
-    .pdf-topic-content ul > li::before {
-      content: "\\2022  ";
-      font-weight: bold;
+    /* Bullet styles based on data attribute */
+    .pdf-topic-content ul[data-bullet-style="disc"] > li::before,
+    .pdf-topic-content ul:not([data-bullet-style]) > li::before {
+      content: "\\25CF  ";
+      font-size: 0.7em;
     }
 
-    .pdf-topic-content ul ul > li::before {
-      content: "o  ";
-      font-weight: normal;
+    .pdf-topic-content ul[data-bullet-style="circle"] > li::before {
+      content: "\\25CB  ";
+      font-size: 0.7em;
     }
 
-    .pdf-topic-content ul ul ul > li::before {
-      content: "\\00A7  ";
-      font-weight: normal;
+    .pdf-topic-content ul[data-bullet-style="square"] > li::before {
+      content: "\\25A0  ";
+      font-size: 0.6em;
+    }
+
+    .pdf-topic-content ul[data-bullet-style="dash"] > li::before {
+      content: "\\2014  ";
+      font-size: 0.8em;
     }
 
     .pdf-topic-content ol {

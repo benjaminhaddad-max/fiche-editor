@@ -264,7 +264,7 @@
   height: 0;
 }
 
-/* ===== Bullet Lists - Word levels: ● ○ ■ ● ===== */
+/* ===== Bullet Lists ===== */
 .ProseMirror ul {
   list-style: none;
   padding-left: 1.2rem;
@@ -277,34 +277,38 @@
   margin: 0.05rem 0;
 }
 
-/* Level 1: ● solid circle */
 .ProseMirror ul > li::before {
-  content: "\25CF";
   position: absolute;
   left: -1rem;
-  font-size: 0.55em;
   top: 0.5em;
 }
 
-/* Level 2: ○ open circle */
-.ProseMirror ul ul > li::before {
+/* disc (default): ● */
+.ProseMirror ul[data-bullet-style="disc"] > li::before,
+.ProseMirror ul:not([data-bullet-style]) > li::before {
+  content: "\25CF";
+  font-size: 0.55em;
+}
+
+/* circle: ○ */
+.ProseMirror ul[data-bullet-style="circle"] > li::before {
   content: "\25CB";
   font-size: 0.6em;
   top: 0.45em;
 }
 
-/* Level 3: ■ filled square */
-.ProseMirror ul ul ul > li::before {
+/* square: ■ */
+.ProseMirror ul[data-bullet-style="square"] > li::before {
   content: "\25A0";
   font-size: 0.5em;
   top: 0.55em;
 }
 
-/* Level 4: ● solid circle again */
-.ProseMirror ul ul ul ul > li::before {
-  content: "\25CF";
-  font-size: 0.45em;
-  top: 0.6em;
+/* dash: — */
+.ProseMirror ul[data-bullet-style="dash"] > li::before {
+  content: "\2014";
+  font-size: 0.7em;
+  top: 0.25em;
 }
 
 .ProseMirror ul > li > p {
