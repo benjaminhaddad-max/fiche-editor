@@ -1,0 +1,232 @@
+/* ===== ProseMirror Editor Styles ===== */
+
+.ProseMirror {
+  outline: none;
+  min-height: 300px;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0;
+}
+
+/* ===== Section Block ===== */
+.section-block-wrapper {
+  margin-bottom: 1.5rem;
+}
+
+/* ===== Section Header (editable text inside the blue bar) ===== */
+.section-header {
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: white;
+  min-height: 1.5em;
+}
+
+.section-header p {
+  margin: 0;
+  color: white;
+}
+
+.section-header .is-empty::before {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ===== Topic Row Grid ===== */
+.topic-row-wrapper {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.topic-row-wrapper:last-child {
+  border-bottom: none;
+}
+
+.topic-row-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  min-height: 2.5rem;
+}
+
+/* ===== Topic Label (left column) ===== */
+.topic-label {
+  background-color: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #374151;
+  word-break: break-word;
+}
+
+.topic-label p {
+  margin: 0;
+}
+
+/* ===== Topic Content (right column) ===== */
+.topic-content {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+.topic-content p {
+  margin: 0.15rem 0;
+}
+
+.topic-content p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ===== Bullet Lists - Multi-level ===== */
+.ProseMirror ul {
+  list-style: none;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+
+.ProseMirror ul > li {
+  position: relative;
+  padding-left: 0;
+}
+
+.ProseMirror ul > li::before {
+  content: "\2022  ";
+  font-weight: bold;
+  position: absolute;
+  left: -1rem;
+}
+
+/* Level 2 */
+.ProseMirror ul ul > li::before {
+  content: "o  ";
+  font-weight: normal;
+}
+
+/* Level 3 */
+.ProseMirror ul ul ul > li::before {
+  content: "\00A7  ";
+  font-weight: normal;
+}
+
+.ProseMirror ul > li > p {
+  margin: 0.1rem 0;
+}
+
+/* ===== Ordered List ===== */
+.ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.ProseMirror ol > li {
+  padding-left: 0.25rem;
+}
+
+.ProseMirror ol > li > p {
+  margin: 0.1rem 0;
+}
+
+/* ===== Annotations ===== */
+.annotation {
+  position: relative;
+}
+
+.annotation-notion-nouvelle {
+  border-bottom: 2px solid #eab308;
+  background-color: rgba(234, 179, 8, 0.08);
+}
+
+.annotation-notion-nouvelle::before {
+  content: "\26A1 ";
+  font-size: 0.75em;
+}
+
+.annotation-tombee-concours {
+  border-bottom: 2px solid #3b82f6;
+  background-color: rgba(59, 130, 246, 0.08);
+}
+
+.annotation-tombee-concours::before {
+  content: "\1F3AF ";
+  font-size: 0.75em;
+}
+
+.annotation-astuce {
+  border-bottom: 2px solid #22c55e;
+  background-color: rgba(34, 197, 94, 0.08);
+}
+
+.annotation-astuce::before {
+  content: "\1F4A1 ";
+  font-size: 0.75em;
+}
+
+/* ===== Nested Sub-Table ===== */
+.nested-sub-table {
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.nested-sub-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nested-sub-row:last-child {
+  border-bottom: none;
+}
+
+.nested-sub-label {
+  background-color: #f3f4f6;
+  border-right: 1px solid #e5e7eb;
+  padding: 0.35rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+.nested-sub-label p {
+  margin: 0;
+}
+
+.nested-sub-content {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+.nested-sub-content p {
+  margin: 0.1rem 0;
+}
+
+/* ===== Highlight/Background Colors ===== */
+.ProseMirror mark {
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* ===== Placeholder ===== */
+.ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ===== Selection ===== */
+.ProseMirror ::selection {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* ===== Dropcursor ===== */
+.ProseMirror .ProseMirror-dropcursor {
+  border-color: #3b82f6;
+}
