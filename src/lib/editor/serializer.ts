@@ -70,18 +70,20 @@ function renderNode(node: JSONContent): string {
 
     case 'sectionBlock': {
       const num = (node.attrs?.sectionNumber as number) ?? 1
-      const color = (node.attrs?.headerColor as string) ?? '#1e40af'
+      const color = (node.attrs?.headerColor as string) ?? '#374151'
       const header = node.content?.find((c) => c.type === 'sectionHeader')
       const rows = node.content?.filter((c) => c.type === 'topicRow') ?? []
 
-      const headerText = header ? renderInline(header) : ''
-      const subtitle = (header?.attrs?.subtitle as string) ?? ''
+      const titleNode = header?.content?.find((c) => c.type === 'sectionTitle')
+      const subtitleNode = header?.content?.find((c) => c.type === 'sectionSubtitle')
+      const titleText = titleNode ? renderInline(titleNode) : ''
+      const subtitleText = subtitleNode ? renderInline(subtitleNode) : ''
 
       return `
         <div class="pdf-section">
           <div class="pdf-section-header" style="background-color:${color}">
-            <div class="pdf-section-num">${toRoman(num)}. ${headerText}</div>
-            ${subtitle ? `<div class="pdf-section-subtitle">${escapeHtml(subtitle)}</div>` : ''}
+            <div class="pdf-section-num">${toRoman(num)}. ${titleText}</div>
+            ${subtitleText ? `<div class="pdf-section-subtitle">${subtitleText}</div>` : ''}
           </div>
           <div class="pdf-section-body">
             ${rows.map(renderNode).join('')}

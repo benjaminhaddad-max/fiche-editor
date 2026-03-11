@@ -35,6 +35,7 @@ export function FicheEditor({ ficheId, initialContent }: FicheEditorProps) {
   )
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: ficheExtensions,
     content: initialContent,
     onUpdate: ({ editor }) => {

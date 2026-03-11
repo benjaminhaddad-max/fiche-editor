@@ -7,15 +7,24 @@ import BulletList from '@tiptap/extension-bullet-list'
 import OrderedList from '@tiptap/extension-ordered-list'
 import ListItem from '@tiptap/extension-list-item'
 import Placeholder from '@tiptap/extension-placeholder'
+import Image from '@tiptap/extension-image'
+import Subscript from '@tiptap/extension-subscript'
+import Superscript from '@tiptap/extension-superscript'
+import TextAlign from '@tiptap/extension-text-align'
 
+import { FicheDoc } from './fiche-doc'
 import { SectionBlock } from './section-block'
-import { SectionHeader } from './section-header'
+import { SectionHeader, SectionTitle, SectionSubtitle } from './section-header'
 import { TopicRow, TopicLabel, TopicContent } from './topic-row'
 import { NestedSubTable, NestedSubRow, NestedSubLabel, NestedSubContent } from './nested-sub-table'
 import { AnnotationMark } from './annotation-mark'
+import { LatexNode } from './latex-node'
 
 export const ficheExtensions = [
+  // Custom Doc: only allows sectionBlocks (no free text)
+  FicheDoc,
   StarterKit.configure({
+    document: false,
     bulletList: false,
     orderedList: false,
     listItem: false,
@@ -24,6 +33,8 @@ export const ficheExtensions = [
   // Custom nodes
   SectionBlock,
   SectionHeader,
+  SectionTitle,
+  SectionSubtitle,
   TopicRow,
   TopicLabel,
   TopicContent,
@@ -31,22 +42,37 @@ export const ficheExtensions = [
   NestedSubRow,
   NestedSubLabel,
   NestedSubContent,
+  LatexNode,
   // Marks
   AnnotationMark,
   TextStyle,
   Color,
   Highlight.configure({ multicolor: true }),
   Underline,
+  Subscript,
+  Superscript,
   // Lists
   BulletList,
   OrderedList,
   ListItem,
+  // Text alignment
+  TextAlign.configure({
+    types: ['paragraph', 'heading'],
+  }),
+  // Images
+  Image.configure({
+    inline: true,
+    allowBase64: true,
+  }),
   // UX
   Placeholder.configure({
     placeholder: ({ node }) => {
-      if (node.type.name === 'sectionHeader') return 'Titre de la section...'
+      if (node.type.name === 'sectionTitle') return 'Titre de la section...'
+      if (node.type.name === 'sectionSubtitle') return 'Description / Theme...'
       if (node.type.name === 'topicLabel') return 'Label...'
       if (node.type.name === 'topicContent') return 'Contenu...'
+      if (node.type.name === 'nestedSubLabel') return 'Label...'
+      if (node.type.name === 'nestedSubContent') return 'Contenu...'
       if (node.type.name === 'paragraph') return ''
       return ''
     },

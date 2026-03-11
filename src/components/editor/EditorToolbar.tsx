@@ -1,12 +1,17 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import {
-  Bold, Italic, Underline, List,
+  Bold, Italic, Underline as UnderlineIcon, Strikethrough,
+  List, ListOrdered,
   Zap, Target, Lightbulb,
-  Type, Highlighter, Plus, TableProperties,
+  Type, Highlighter, Paintbrush,
+  Plus, TableProperties, ImagePlus,
   Undo2, Redo2,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  Subscript, Superscript,
+  Sigma,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { AnnotationType } from '@/lib/editor/extensions/annotation-mark'
@@ -18,11 +23,13 @@ interface ToolbarProps {
 const TEXT_COLORS = [
   '#000000', '#1e40af', '#dc2626', '#16a34a', '#ca8a04',
   '#9333ea', '#0891b2', '#ea580c', '#64748b', '#be185d',
+  '#7c3aed', '#059669', '#b91c1c', '#1d4ed8', '#a16207',
 ]
 
 const BG_COLORS = [
   'transparent', '#fef3c7', '#dcfce7', '#dbeafe', '#fce7f3',
   '#f3e8ff', '#ccfbf1', '#fee2e2', '#e2e8f0', '#fef9c3',
+  '#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#c4b5fd',
 ]
 
 function ToolbarButton({
@@ -31,12 +38,14 @@ function ToolbarButton({
   disabled,
   title,
   children,
+  className,
 }: {
   onClick: () => void
   active?: boolean
   disabled?: boolean
   title: string
   children: React.ReactNode
+  className?: string
 }) {
   return (
     <button
@@ -44,10 +53,11 @@ function ToolbarButton({
       disabled={disabled}
       title={title}
       className={clsx(
-        'p-1.5 rounded transition-colors cursor-pointer',
+        'p-1.5 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed',
         active
           ? 'bg-blue-100 text-blue-700'
-          : 'text-gray-600 hover:bg-gray-100'
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+        className
       )}
     >
       {children}
@@ -61,12 +71,14 @@ function ColorPicker({
   onSelect,
   icon: Icon,
   title,
+  colorIndicator,
 }: {
   colors: string[]
   currentColor?: string
   onSelect: (color: string) => void
   icon: React.ElementType
   title: string
+  colorIndicator?: string
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -86,24 +98,34 @@ function ColorPicker({
       <button
         onClick={() => setOpen(!open)}
         title={title}
-        className="p-1.5 rounded text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+        className="p-1.5 rounded text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer flex flex-col items-center"
       >
         <Icon size={16} />
+        {colorIndicator && (
+          <div
+            className="w-4 h-1 rounded-full mt-0.5"
+            style={{ backgroundColor: colorIndicator === 'transparent' ? '#e5e7eb' : colorIndicator }}
+          />
+        )}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50 grid grid-cols-5 gap-1">
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-2 z-50 grid grid-cols-5 gap-1.5 min-w-[140px]">
           {colors.map((color) => (
             <button
               key={color}
               onClick={() => { onSelect(color); setOpen(false) }}
               className={clsx(
-                'w-6 h-6 rounded border cursor-pointer',
-                currentColor === color ? 'ring-2 ring-blue-500' : 'border-gray-200',
-                color === 'transparent' ? 'bg-white relative after:absolute after:inset-0 after:border after:border-red-400 after:rotate-45 after:origin-center' : ''
+                'w-6 h-6 rounded border-2 cursor-pointer transition-transform hover:scale-110',
+                currentColor === color ? 'ring-2 ring-blue-500 ring-offset-1' : 'border-gray-200',
+                color === 'transparent' ? 'bg-white relative overflow-hidden' : ''
               )}
               style={color !== 'transparent' ? { backgroundColor: color } : undefined}
               title={color === 'transparent' ? 'Aucun' : color}
-            />
+            >
+              {color === 'transparent' && (
+                <div className="absolute inset-0 flex items-center justify-center text-red-400 text-xs font-bold">/</div>
+              )}
+            </button>
           ))}
         </div>
       )}
@@ -111,15 +133,29 @@ function ColorPicker({
   )
 }
 
-export function EditorToolbar({ editor }: ToolbarProps) {
-  if (!editor) return null
+function ToolbarSeparator() {
+  return <div className="w-px h-7 bg-gray-200 mx-1 shrink-0" />
+}
 
-  function addSection() {
+function ToolbarGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="flex items-center gap-0.5">
+        {children}
+      </div>
+      <span className="text-[9px] text-gray-400 mt-0.5 leading-none">{label}</span>
+    </div>
+  )
+}
+
+export function EditorToolbar({ editor }: ToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const addSection = useCallback(() => {
     if (!editor) return
     const { state } = editor
     const endPos = state.doc.content.size
 
-    // Count existing sections to auto-number
     let sectionCount = 0
     state.doc.descendants((node) => {
       if (node.type.name === 'sectionBlock') sectionCount++
@@ -131,173 +167,339 @@ export function EditorToolbar({ editor }: ToolbarProps) {
       content: [
         {
           type: 'sectionHeader',
-          attrs: { subtitle: '' },
-          content: [{ type: 'text', text: 'Nouvelle section' }],
+          content: [
+            { type: 'sectionTitle' },
+            { type: 'sectionSubtitle' },
+          ],
         },
         {
           type: 'topicRow',
           content: [
-            {
-              type: 'topicLabel',
-              content: [{ type: 'text', text: 'Label' }],
-            },
-            {
-              type: 'topicContent',
-              content: [{ type: 'paragraph' }],
-            },
+            { type: 'topicLabel' },
+            { type: 'topicContent', content: [{ type: 'paragraph' }] },
           ],
         },
       ],
     }
 
     editor.chain().focus().insertContentAt(endPos, newSection).run()
-  }
+  }, [editor])
 
-  function addSubTable() {
+  const addSubTable = useCallback(() => {
+    if (!editor) return
     const subTable = {
       type: 'nestedSubTable',
       content: [
         {
           type: 'nestedSubRow',
           content: [
-            {
-              type: 'nestedSubLabel',
-              content: [{ type: 'text', text: 'Label' }],
-            },
-            {
-              type: 'nestedSubContent',
-              content: [{ type: 'paragraph' }],
-            },
+            { type: 'nestedSubLabel' },
+            { type: 'nestedSubContent', content: [{ type: 'paragraph' }] },
           ],
         },
       ],
     }
+    editor.chain().focus().insertContent(subTable).run()
+  }, [editor])
 
-    editor?.chain().focus().insertContent(subTable).run()
-  }
+  const addRow = useCallback(() => {
+    if (!editor) return
+    const { $from } = editor.state.selection
 
-  function toggleAnnotation(type: AnnotationType) {
+    for (let depth = $from.depth; depth >= 0; depth--) {
+      const node = $from.node(depth)
+      if (node.type.name === 'topicRow') {
+        const pos = $from.before(depth)
+        const endPos = pos + node.nodeSize
+        const newRow = {
+          type: 'topicRow',
+          content: [
+            { type: 'topicLabel' },
+            { type: 'topicContent', content: [{ type: 'paragraph' }] },
+          ],
+        }
+        editor.chain().focus().insertContentAt(endPos, newRow).run()
+        return
+      }
+      if (node.type.name === 'sectionBlock') {
+        const pos = $from.before(depth)
+        const endPos = pos + node.nodeSize - 1
+        const newRow = {
+          type: 'topicRow',
+          content: [
+            { type: 'topicLabel' },
+            { type: 'topicContent', content: [{ type: 'paragraph' }] },
+          ],
+        }
+        editor.chain().focus().insertContentAt(endPos, newRow).run()
+        return
+      }
+    }
+  }, [editor])
+
+  const toggleAnnotation = useCallback((type: AnnotationType) => {
     editor?.chain().focus().toggleAnnotation(type).run()
-  }
+  }, [editor])
+
+  const insertImage = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !editor) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const src = reader.result as string
+      editor.chain().focus().setImage({ src }).run()
+    }
+    reader.readAsDataURL(file)
+
+    e.target.value = ''
+  }, [editor])
+
+  const insertLatex = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().insertLatex('x^2').run()
+  }, [editor])
+
+  if (!editor) return null
 
   return (
-    <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-1 flex-wrap">
-      {/* Undo / Redo */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        title="Annuler (Ctrl+Z)"
-      >
-        <Undo2 size={16} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        title="Refaire (Ctrl+Y)"
-      >
-        <Redo2 size={16} />
-      </ToolbarButton>
-
-      <div className="w-px h-6 bg-gray-200 mx-1" />
-
-      {/* Text formatting */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        active={editor.isActive('bold')}
-        title="Gras (Ctrl+B)"
-      >
-        <Bold size={16} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        active={editor.isActive('italic')}
-        title="Italique (Ctrl+I)"
-      >
-        <Italic size={16} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        active={editor.isActive('underline')}
-        title="Souligne (Ctrl+U)"
-      >
-        <Underline size={16} />
-      </ToolbarButton>
-
-      <div className="w-px h-6 bg-gray-200 mx-1" />
-
-      {/* Colors */}
-      <ColorPicker
-        colors={TEXT_COLORS}
-        onSelect={(color) => editor.chain().focus().setColor(color).run()}
-        icon={Type}
-        title="Couleur du texte"
-      />
-      <ColorPicker
-        colors={BG_COLORS}
-        onSelect={(color) => {
-          if (color === 'transparent') {
-            editor.chain().focus().unsetHighlight().run()
-          } else {
-            editor.chain().focus().toggleHighlight({ color }).run()
-          }
-        }}
-        icon={Highlighter}
-        title="Surlignage"
+    <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
+      {/* Hidden file input for image upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
       />
 
-      <div className="w-px h-6 bg-gray-200 mx-1" />
+      <div className="px-3 py-1.5 flex items-end gap-3 flex-wrap">
+        {/* Undo / Redo */}
+        <ToolbarGroup label="Historique">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            title="Annuler (Ctrl+Z)"
+          >
+            <Undo2 size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            title="Refaire (Ctrl+Y)"
+          >
+            <Redo2 size={16} />
+          </ToolbarButton>
+        </ToolbarGroup>
 
-      {/* Lists */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        active={editor.isActive('bulletList')}
-        title="Liste a puces"
-      >
-        <List size={16} />
-      </ToolbarButton>
+        <ToolbarSeparator />
 
-      <div className="w-px h-6 bg-gray-200 mx-1" />
+        {/* Text formatting */}
+        <ToolbarGroup label="Police">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            active={editor.isActive('bold')}
+            title="Gras (Ctrl+B)"
+          >
+            <Bold size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            active={editor.isActive('italic')}
+            title="Italique (Ctrl+I)"
+          >
+            <Italic size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            active={editor.isActive('underline')}
+            title="Souligne (Ctrl+U)"
+          >
+            <UnderlineIcon size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            active={editor.isActive('strike')}
+            title="Barre"
+          >
+            <Strikethrough size={16} />
+          </ToolbarButton>
 
-      {/* Annotations */}
-      <ToolbarButton
-        onClick={() => toggleAnnotation('notion-nouvelle')}
-        active={editor.isActive('annotation', { type: 'notion-nouvelle' })}
-        title="Notion nouvelle"
-      >
-        <Zap size={16} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => toggleAnnotation('tombee-concours')}
-        active={editor.isActive('annotation', { type: 'tombee-concours' })}
-        title="Tombee au concours"
-      >
-        <Target size={16} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => toggleAnnotation('astuce')}
-        active={editor.isActive('annotation', { type: 'astuce' })}
-        title="Astuce et methode"
-      >
-        <Lightbulb size={16} />
-      </ToolbarButton>
+          <ToolbarSeparator />
 
-      <div className="w-px h-6 bg-gray-200 mx-1" />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleSubscript().run()}
+            active={editor.isActive('subscript')}
+            title="Indice (x₂)"
+          >
+            <Subscript size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleSuperscript().run()}
+            active={editor.isActive('superscript')}
+            title="Exposant (x²)"
+          >
+            <Superscript size={16} />
+          </ToolbarButton>
 
-      {/* Structure */}
-      <button
-        onClick={addSection}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-      >
-        <Plus size={14} />
-        Section
-      </button>
-      <button
-        onClick={addSubTable}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-      >
-        <TableProperties size={14} />
-        Sous-tableau
-      </button>
+          <ToolbarSeparator />
+
+          <ColorPicker
+            colors={TEXT_COLORS}
+            onSelect={(color) => editor.chain().focus().setColor(color).run()}
+            icon={Type}
+            title="Couleur du texte"
+            colorIndicator={editor.getAttributes('textStyle').color || '#000000'}
+          />
+          <ColorPicker
+            colors={BG_COLORS}
+            onSelect={(color) => {
+              if (color === 'transparent') {
+                editor.chain().focus().unsetHighlight().run()
+              } else {
+                editor.chain().focus().toggleHighlight({ color }).run()
+              }
+            }}
+            icon={Highlighter}
+            title="Couleur de surlignage"
+            colorIndicator={editor.getAttributes('highlight').color || 'transparent'}
+          />
+          <ToolbarButton
+            onClick={() => {
+              editor.chain().focus()
+                .unsetColor()
+                .unsetHighlight()
+                .unsetBold()
+                .unsetItalic()
+                .unsetUnderline()
+                .unsetStrike()
+                .unsetSubscript()
+                .unsetSuperscript()
+                .run()
+            }}
+            title="Effacer la mise en forme"
+          >
+            <Paintbrush size={16} />
+          </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        {/* Alignment + Lists */}
+        <ToolbarGroup label="Paragraphe">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+            active={editor.isActive({ textAlign: 'left' })}
+            title="Aligner a gauche"
+          >
+            <AlignLeft size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+            active={editor.isActive({ textAlign: 'center' })}
+            title="Centrer"
+          >
+            <AlignCenter size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+            active={editor.isActive({ textAlign: 'right' })}
+            title="Aligner a droite"
+          >
+            <AlignRight size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+            active={editor.isActive({ textAlign: 'justify' })}
+            title="Justifier"
+          >
+            <AlignJustify size={16} />
+          </ToolbarButton>
+
+          <ToolbarSeparator />
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            active={editor.isActive('bulletList')}
+            title="Liste a puces"
+          >
+            <List size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            active={editor.isActive('orderedList')}
+            title="Liste numerotee"
+          >
+            <ListOrdered size={16} />
+          </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        {/* Annotations */}
+        <ToolbarGroup label="Annotations">
+          <ToolbarButton
+            onClick={() => toggleAnnotation('notion-nouvelle')}
+            active={editor.isActive('annotation', { type: 'notion-nouvelle' })}
+            title="Notion nouvelle"
+          >
+            <Zap size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => toggleAnnotation('tombee-concours')}
+            active={editor.isActive('annotation', { type: 'tombee-concours' })}
+            title="Tombee au concours"
+          >
+            <Target size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => toggleAnnotation('astuce')}
+            active={editor.isActive('annotation', { type: 'astuce' })}
+            title="Astuce et methode"
+          >
+            <Lightbulb size={16} />
+          </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        {/* Insert */}
+        <ToolbarGroup label="Inserer">
+          <ToolbarButton onClick={insertImage} title="Inserer une image">
+            <ImagePlus size={16} />
+          </ToolbarButton>
+          <ToolbarButton onClick={insertLatex} title="Formule LaTeX">
+            <Sigma size={16} />
+          </ToolbarButton>
+          <ToolbarButton onClick={addSubTable} title="Sous-tableau">
+            <TableProperties size={16} />
+          </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        {/* Structure */}
+        <ToolbarGroup label="Structure">
+          <button
+            onClick={addSection}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition-colors cursor-pointer border border-blue-200"
+          >
+            <Plus size={13} />
+            Section
+          </button>
+          <button
+            onClick={addRow}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-50 rounded hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200"
+          >
+            <Plus size={13} />
+            Ligne
+          </button>
+        </ToolbarGroup>
+      </div>
     </div>
   )
 }

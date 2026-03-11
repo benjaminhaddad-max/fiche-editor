@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { FicheEditor } from '@/components/editor/FicheEditor'
 import { MetadataForm } from '@/components/metadata/MetadataForm'
 import { Button } from '@/components/ui/Button'
-import { ArrowLeft, Download, Loader2 } from 'lucide-react'
+import { CoverPagePreview } from '@/components/editor/CoverPagePreview'
+import { ArrowLeft, Download, Eye, Loader2 } from 'lucide-react'
 import type { Fiche } from '@/lib/types/fiche'
 import Link from 'next/link'
 
@@ -17,6 +18,7 @@ export default function FicheEditorPage() {
   const [fiche, setFiche] = useState<Fiche | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [showCoverPreview, setShowCoverPreview] = useState(false)
 
   useEffect(() => {
     fetch(`/api/fiches/${ficheId}`)
@@ -81,17 +83,26 @@ export default function FicheEditorPage() {
           </div>
         </div>
 
-        <Button
-          onClick={handleExportPdf}
-          disabled={exporting}
-          size="sm"
-        >
-          {exporting ? (
-            <><Loader2 size={14} className="animate-spin mr-2" />Export...</>
-          ) : (
-            <><Download size={14} className="mr-2" />Exporter PDF</>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowCoverPreview(true)}
+            variant="secondary"
+            size="sm"
+          >
+            <Eye size={14} className="mr-2" />Page de garde
+          </Button>
+          <Button
+            onClick={handleExportPdf}
+            disabled={exporting}
+            size="sm"
+          >
+            {exporting ? (
+              <><Loader2 size={14} className="animate-spin mr-2" />Export...</>
+            ) : (
+              <><Download size={14} className="mr-2" />Exporter PDF</>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Metadata bar */}
@@ -101,6 +112,14 @@ export default function FicheEditorPage() {
       <div className="flex-1 overflow-hidden">
         <FicheEditor ficheId={fiche.id} initialContent={fiche.content} />
       </div>
+
+      {showCoverPreview && (
+        <CoverPagePreview
+          fiche={fiche}
+          editorContent={fiche.content}
+          onClose={() => setShowCoverPreview(false)}
+        />
+      )}
     </div>
   )
 }

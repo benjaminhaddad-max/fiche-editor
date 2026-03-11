@@ -73,24 +73,18 @@ export async function POST(request: NextRequest) {
         content: [
           {
             type: 'sectionHeader',
-            attrs: { label: 'Nouvelle section', subtitle: 'Sous-titre' },
-            content: [{ type: 'text', text: 'Nouvelle section' }],
+            content: [
+              { type: 'sectionTitle' },
+              { type: 'sectionSubtitle' },
+            ],
           },
           {
             type: 'topicRow',
             content: [
-              {
-                type: 'topicLabel',
-                content: [{ type: 'text', text: 'Label' }],
-              },
+              { type: 'topicLabel' },
               {
                 type: 'topicContent',
-                content: [
-                  {
-                    type: 'paragraph',
-                    content: [{ type: 'text', text: 'Contenu...' }],
-                  },
-                ],
+                content: [{ type: 'paragraph' }],
               },
             ],
           },

@@ -26,40 +26,63 @@ export function getPdfStyles(): string {
       flex-direction: column;
     }
 
+    /* --- Header --- */
     .cover-header {
+      margin-bottom: 12px;
+    }
+
+    .cover-header-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 0 10px 0;
-      border-bottom: 2px solid #333;
-      margin-bottom: 20px;
+      background: #A5A5A5;
+      padding: 10px 16px;
     }
 
     .cover-logo {
-      font-size: 22pt;
-      font-weight: 900;
-      color: #1a1a1a;
+      height: 38px;
+      width: auto;
     }
 
-    .cover-logo-sub {
-      font-size: 8pt;
-      color: #666;
+    .cover-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .cover-revisions-label {
+      font-size: 9pt;
+      font-weight: bold;
+      color: white;
+      text-transform: lowercase;
     }
 
     .cover-revisions {
       display: flex;
-      gap: 4px;
+      gap: 2px;
     }
 
     .cover-revision-box {
-      width: 20px;
-      height: 20px;
-      border: 1px solid #999;
+      width: 12mm;
+      height: 8mm;
+      border: 1pt solid #1D1D1B;
+      background: white;
       display: inline-block;
     }
 
-    .cover-meta {
-      text-align: right;
+    .cover-header-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1pt solid #1D1D1B;
+      border-top: none;
+      padding: 6px 16px;
+    }
+
+    .cover-faculte {
+      font-size: 10pt;
+      font-weight: bold;
+      text-transform: uppercase;
     }
 
     .cover-annee {
@@ -67,92 +90,119 @@ export function getPdfStyles(): string {
       font-weight: bold;
     }
 
-    .cover-faculte {
-      font-size: 9pt;
-      color: #444;
-      border: 1px solid #999;
-      padding: 2px 8px;
-      display: inline-block;
-      margin-top: 2px;
-    }
-
-    .cover-title-band {
+    /* --- Fiche identification row --- */
+    .cover-fiche-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      background: #f5f5f5;
-      border: 2px solid #333;
-      padding: 12px 16px;
-      margin-bottom: 20px;
+      gap: 12px;
+      margin-bottom: 12px;
+      min-height: 54px;
     }
 
     .cover-matiere {
-      font-size: 14pt;
+      font-size: 18pt;
       font-weight: 900;
-    }
-
-    .cover-fiche-numero {
-      font-size: 11pt;
-      font-weight: bold;
-      background: #333;
-      color: white;
-      padding: 4px 16px;
-      border-radius: 4px;
-    }
-
-    .cover-titre {
-      font-size: 12pt;
-      font-style: italic;
-      color: #333;
-    }
-
-    .cover-plan {
-      border: 1px solid #ddd;
-      padding: 16px 20px;
-      margin-bottom: 20px;
       flex: 1;
     }
 
-    .cover-plan h2 {
-      font-size: 13pt;
+    .cover-fiche-numero {
+      width: 54px;
+      height: 54px;
+      border: 1pt solid #1D1D1B;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .fiche-label {
+      font-size: 8pt;
+      text-transform: uppercase;
       font-weight: bold;
+      line-height: 1;
+    }
+
+    .fiche-number {
+      font-size: 18pt;
+      font-weight: 900;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .cover-titre {
+      font-size: 18pt;
+      flex: 1;
+      text-align: right;
+    }
+
+    /* --- Plan --- */
+    .cover-plan {
+      flex: 1;
       margin-bottom: 12px;
+      padding: 0 8px;
     }
 
     .cover-plan ol {
       list-style: none;
       padding: 0;
+      margin: 0;
     }
 
     .cover-plan li {
-      padding: 3px 0;
-      font-size: 10pt;
+      padding: 6px 0;
+      font-size: 11pt;
+      display: flex;
+      align-items: baseline;
+      border-bottom: 0.5pt solid #ddd;
     }
 
-    .cover-plan li span.num {
-      font-weight: bold;
-      margin-right: 12px;
-      min-width: 30px;
+    .cover-plan li:last-child {
+      border-bottom: none;
+    }
+
+    .plan-num {
+      font-weight: 900;
+      min-width: 36px;
       display: inline-block;
+      font-size: 11pt;
     }
 
+    .plan-text {
+      flex: 1;
+    }
+
+    /* --- Légende --- */
     .cover-legende {
-      border: 1px solid #ddd;
-      padding: 12px 16px;
+      border-top: 1pt solid #1D1D1B;
+      padding: 8px 0;
     }
 
-    .cover-legende h2 {
-      font-size: 10pt;
-      font-weight: bold;
-      margin-bottom: 8px;
+    .cover-legende-title {
+      font-size: 9pt;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin-bottom: 6px;
     }
 
     .cover-legende-items {
       display: flex;
       gap: 24px;
+    }
+
+    .cover-legende-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       font-size: 8pt;
       font-style: italic;
-      color: #555;
+      color: #333;
+    }
+
+    .legende-icon {
+      width: 14px;
+      height: 14px;
     }
 
     /* ===== CONTENT PAGES ===== */

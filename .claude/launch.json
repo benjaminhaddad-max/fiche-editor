@@ -3,9 +3,11 @@
   "configurations": [
     {
       "name": "fiche-editor",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeExecutable": "/Users/benjaminhaddad-diplomasante/.local/node/bin/node",
+      "runtimeArgs": ["/Users/benjaminhaddad-diplomasante/.local/node/bin/npx", "next", "dev"],
+      "env": { "PATH": "/Users/benjaminhaddad-diplomasante/.local/node/bin:/usr/bin:/bin" },
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

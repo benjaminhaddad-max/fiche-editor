@@ -21,10 +21,12 @@ export function extractPlan(content: JSONContent): PlanItem[] {
     if (node.type === 'sectionBlock') {
       const header = node.content?.find((c) => c.type === 'sectionHeader')
       if (header) {
+        const titleNode = header.content?.find((c) => c.type === 'sectionTitle')
+        const subtitleNode = header.content?.find((c) => c.type === 'sectionSubtitle')
         sections.push({
           number: (node.attrs?.sectionNumber as number) ?? sections.length + 1,
-          title: extractText(header),
-          subtitle: (header.attrs?.subtitle as string) ?? '',
+          title: titleNode ? extractText(titleNode) : extractText(header),
+          subtitle: subtitleNode ? extractText(subtitleNode) : '',
         })
       }
     }

@@ -1,14 +1,10 @@
 'use client'
 
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react'
-import { GripVertical, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
-import { toRoman } from '@/lib/editor/utils'
+import { Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react'
 import type { NodeViewProps } from '@tiptap/react'
 
 export function SectionBlockView({ node, getPos, editor }: NodeViewProps) {
-  const sectionNumber = node.attrs.sectionNumber || 1
-  const headerColor = node.attrs.headerColor || '#1e40af'
-
   function deleteSection() {
     if (!confirm('Supprimer cette section ?')) return
     const pos = getPos()
@@ -20,16 +16,16 @@ export function SectionBlockView({ node, getPos, editor }: NodeViewProps) {
     const pos = getPos()
     if (pos === undefined) return
     const { doc, tr } = editor.state
-    const resolvedPos = doc.resolve(pos)
-    const parentOffset = resolvedPos.parentOffset
 
-    if (direction === 'up' && parentOffset === 0) return
+    if (direction === 'up') {
+      const resolvedPos = doc.resolve(pos)
+      if (resolvedPos.parentOffset === 0) return
+    }
     if (direction === 'down') {
       const nextPos = pos + node.nodeSize
       if (nextPos >= doc.content.size) return
     }
 
-    // Simple move: cut and paste
     const nodeSlice = doc.slice(pos, pos + node.nodeSize)
     tr.delete(pos, pos + node.nodeSize)
 
@@ -38,7 +34,6 @@ export function SectionBlockView({ node, getPos, editor }: NodeViewProps) {
       const beforeStart = $before.before($before.depth)
       tr.insert(beforeStart, nodeSlice.content)
     } else {
-      // After deletion, get the current node at pos (which was the next sibling)
       const $after = tr.doc.resolve(Math.min(pos, tr.doc.content.size))
       if ($after.nodeAfter) {
         const afterEnd = pos + $after.nodeAfter.nodeSize
@@ -51,49 +46,45 @@ export function SectionBlockView({ node, getPos, editor }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
+  function addRow() {
+    const pos = getPos()
+    if (pos === undefined) return
+    const endPos = pos + node.nodeSize - 1
+
+    const newRow = {
+      type: 'topicRow',
+      content: [
+        { type: 'topicLabel' },
+        { type: 'topicContent', content: [{ type: 'paragraph' }] },
+      ],
+    }
+
+    editor.chain().focus().insertContentAt(endPos, newRow).run()
+  }
+
   return (
-    <NodeViewWrapper className="section-block-wrapper mb-6" data-drag-handle>
-      <div
-        className="section-header-bar flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-white"
-        style={{ backgroundColor: headerColor }}
-        contentEditable={false}
-      >
-        <div className="flex items-center gap-1 mr-2 opacity-60">
-          <button
-            onClick={() => moveSection('up')}
-            className="hover:opacity-100 transition-opacity cursor-pointer"
-            title="Monter"
-          >
-            <ChevronUp size={16} />
-          </button>
-          <button
-            onClick={() => moveSection('down')}
-            className="hover:opacity-100 transition-opacity cursor-pointer"
-            title="Descendre"
-          >
-            <ChevronDown size={16} />
-          </button>
-          <GripVertical size={16} className="cursor-grab" />
-        </div>
-
-        <span className="font-bold text-sm whitespace-nowrap mr-2">
-          {toRoman(sectionNumber)}.
-        </span>
-
-        <div className="flex-1 min-w-0" />
-
-        <button
-          onClick={deleteSection}
-          className="opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
-          title="Supprimer la section"
-        >
-          <Trash2 size={16} />
+    <NodeViewWrapper className="section-block">
+      {/* Hover controls */}
+      <div className="section-controls" contentEditable={false}>
+        <button onClick={() => moveSection('up')} title="Monter" className="section-ctrl-btn">
+          <ChevronUp size={14} />
+        </button>
+        <button onClick={() => moveSection('down')} title="Descendre" className="section-ctrl-btn">
+          <ChevronDown size={14} />
+        </button>
+        <button onClick={deleteSection} title="Supprimer" className="section-ctrl-btn section-ctrl-danger">
+          <Trash2 size={14} />
         </button>
       </div>
 
-      <div className="section-content border border-t-0 border-gray-200 rounded-b-lg overflow-hidden bg-white">
-        <NodeViewContent />
-      </div>
+      {/* sectionHeader (blue bar via CSS) + topicRows */}
+      <NodeViewContent className="section-inner" />
+
+      {/* Add row button at bottom */}
+      <button onClick={addRow} className="section-add-row" contentEditable={false}>
+        <Plus size={14} />
+        <span>Ajouter une ligne</span>
+      </button>
     </NodeViewWrapper>
   )
 }
