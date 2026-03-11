@@ -27,6 +27,20 @@ const BULLET_LEVELS = [
   { level: 3, symbol: '—', label: 'Puce niveau 4' },
 ]
 
+const FONT_FAMILIES = [
+  { value: 'Calibri, sans-serif', label: 'Calibri' },
+  { value: 'Arial, sans-serif', label: 'Arial' },
+  { value: 'Times New Roman, serif', label: 'Times New Roman' },
+  { value: 'Verdana, sans-serif', label: 'Verdana' },
+  { value: 'Georgia, serif', label: 'Georgia' },
+  { value: 'Trebuchet MS, sans-serif', label: 'Trebuchet MS' },
+  { value: 'Courier New, monospace', label: 'Courier New' },
+]
+
+const FONT_SIZES = [
+  '7', '8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '36',
+]
+
 const TEXT_COLORS = [
   '#000000', '#1e40af', '#dc2626', '#16a34a', '#ca8a04',
   '#9333ea', '#0891b2', '#ea580c', '#64748b', '#be185d',
@@ -140,13 +154,108 @@ function ColorPicker({
   )
 }
 
-function getBulletDepth(editor: Editor): number {
-  const { $from } = editor.state.selection
-  let depth = 0
-  for (let d = $from.depth; d >= 0; d--) {
-    if ($from.node(d).type.name === 'bulletList') depth++
-  }
-  return Math.max(0, depth - 1) // 0-indexed: first bulletList = level 0
+function FontPicker({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const currentFont = editor.getAttributes('textStyle').fontFamily || ''
+  const currentLabel = FONT_FAMILIES.find(f => f.value === currentFont)?.label || 'Calibri'
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        title="Police"
+        className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200 min-w-[100px] justify-between"
+      >
+        <span className="truncate" style={{ fontFamily: currentFont || 'Calibri, sans-serif' }}>{currentLabel}</span>
+        <svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-1 z-50 min-w-[160px]">
+          {FONT_FAMILIES.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => {
+                if (value === 'Calibri, sans-serif') {
+                  editor.chain().focus().unsetFontFamily().run()
+                } else {
+                  editor.chain().focus().setFontFamily(value).run()
+                }
+                setOpen(false)
+              }}
+              className={clsx(
+                'w-full text-left px-2 py-1.5 rounded text-sm transition-colors cursor-pointer',
+                currentLabel === label ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+              )}
+              style={{ fontFamily: value }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FontSizePicker({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const currentSize = editor.getAttributes('textStyle').fontSize?.replace('pt', '') || '9'
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        title="Taille de police"
+        className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200 min-w-[44px] justify-between"
+      >
+        <span>{currentSize}</span>
+        <svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-1 z-50 min-w-[50px] max-h-[200px] overflow-y-auto">
+          {FONT_SIZES.map((size) => (
+            <button
+              key={size}
+              onClick={() => {
+                if (size === '9') {
+                  editor.chain().focus().unsetFontSize().run()
+                } else {
+                  editor.chain().focus().setFontSize(`${size}pt`).run()
+                }
+                setOpen(false)
+              }}
+              className={clsx(
+                'w-full text-center px-2 py-1 rounded text-sm transition-colors cursor-pointer',
+                currentSize === size ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+              )}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function BulletStylePicker({ editor }: { editor: Editor }) {
@@ -162,26 +271,17 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
   }, [])
 
   const isActive = editor.isActive('bulletList')
-  const currentDepth = isActive ? getBulletDepth(editor) : -1
+  const currentLevel = isActive ? ((editor.getAttributes('listItem').bulletLevel as number) || 0) : -1
 
   const setLevel = useCallback((targetLevel: number) => {
     if (!isActive) {
-      // Create bullet list first, then sink to target
       editor.chain().focus().toggleBulletList().run()
-      for (let i = 0; i < targetLevel; i++) {
-        editor.chain().focus().sinkListItem('listItem').run()
-      }
+      // After creating the list, set the bullet level
+      setTimeout(() => {
+        editor.commands.setBulletLevel(targetLevel)
+      }, 0)
     } else {
-      const current = getBulletDepth(editor)
-      if (targetLevel > current) {
-        for (let i = 0; i < targetLevel - current; i++) {
-          editor.chain().focus().sinkListItem('listItem').run()
-        }
-      } else if (targetLevel < current) {
-        for (let i = 0; i < current - targetLevel; i++) {
-          editor.chain().focus().liftListItem('listItem').run()
-        }
-      }
+      editor.commands.setBulletLevel(targetLevel)
     }
   }, [editor, isActive])
 
@@ -216,7 +316,7 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
               onClick={() => { setLevel(level); setOpen(false) }}
               className={clsx(
                 'w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors cursor-pointer',
-                isActive && currentDepth === level ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                isActive && currentLevel === level ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
               )}
             >
               <span style={{ paddingLeft: `${level * 10}px` }} className="text-base leading-none">{symbol}</span>
@@ -406,8 +506,16 @@ export function EditorToolbar({ editor }: ToolbarProps) {
 
         <ToolbarSeparator />
 
-        {/* Text formatting */}
+        {/* Font family & size */}
         <ToolbarGroup label="Police">
+          <FontPicker editor={editor} />
+          <FontSizePicker editor={editor} />
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        {/* Text formatting */}
+        <ToolbarGroup label="Format">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive('bold')}

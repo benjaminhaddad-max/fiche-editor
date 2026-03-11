@@ -31,11 +31,16 @@ function renderMarks(text: string, marks?: JSONContent['marks']): string {
       case 'underline':
         result = `<u>${result}</u>`
         break
-      case 'textStyle':
-        if (mark.attrs?.color) {
-          result = `<span style="color:${mark.attrs.color}">${result}</span>`
+      case 'textStyle': {
+        const styles: string[] = []
+        if (mark.attrs?.color) styles.push(`color:${mark.attrs.color}`)
+        if (mark.attrs?.fontFamily) styles.push(`font-family:${mark.attrs.fontFamily}`)
+        if (mark.attrs?.fontSize) styles.push(`font-size:${mark.attrs.fontSize}`)
+        if (styles.length > 0) {
+          result = `<span style="${styles.join(';')}">${result}</span>`
         }
         break
+      }
       case 'highlight':
         if (mark.attrs?.color) {
           result = `<mark style="background-color:${mark.attrs.color}">${result}</mark>`
@@ -126,8 +131,11 @@ function renderNode(node: JSONContent): string {
     case 'orderedList':
       return `<ol>${node.content?.map(renderNode).join('') ?? ''}</ol>`
 
-    case 'listItem':
-      return `<li>${node.content?.map(renderNode).join('') ?? ''}</li>`
+    case 'listItem': {
+      const bulletLevel = (node.attrs?.bulletLevel as number) ?? 0
+      const levelAttr = bulletLevel > 0 ? ` data-bullet-level="${bulletLevel}"` : ''
+      return `<li${levelAttr}>${node.content?.map(renderNode).join('') ?? ''}</li>`
+    }
 
     case 'hardBreak':
       return '<br />'

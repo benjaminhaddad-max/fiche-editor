@@ -270,26 +270,35 @@ export function getPdfStyles(): string {
       margin: 2px 0;
     }
 
-    /* Level 1: ● solid circle */
+    /* Level 0 (default): ● solid circle */
     .pdf-topic-content ul > li::before {
       content: "\\25CF  ";
       font-size: 0.6em;
     }
 
-    /* Level 2: ○ open circle */
-    .pdf-topic-content ul ul > li::before {
+    /* Level 1: ○ open circle + indent */
+    .pdf-topic-content ul > li[data-bullet-level="1"] {
+      margin-left: 14px;
+    }
+    .pdf-topic-content ul > li[data-bullet-level="1"]::before {
       content: "\\25CB  ";
       font-size: 0.65em;
     }
 
-    /* Level 3: ■ filled square */
-    .pdf-topic-content ul ul ul > li::before {
+    /* Level 2: ■ filled square + more indent */
+    .pdf-topic-content ul > li[data-bullet-level="2"] {
+      margin-left: 28px;
+    }
+    .pdf-topic-content ul > li[data-bullet-level="2"]::before {
       content: "\\25A0  ";
       font-size: 0.55em;
     }
 
-    /* Level 4: — dash */
-    .pdf-topic-content ul ul ul ul > li::before {
+    /* Level 3: — dash + most indent */
+    .pdf-topic-content ul > li[data-bullet-level="3"] {
+      margin-left: 42px;
+    }
+    .pdf-topic-content ul > li[data-bullet-level="3"]::before {
       content: "\\2014  ";
       font-size: 0.75em;
     }

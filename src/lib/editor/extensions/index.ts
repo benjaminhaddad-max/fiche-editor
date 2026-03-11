@@ -1,11 +1,13 @@
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
+import FontFamily from '@tiptap/extension-font-family'
+import { FontSize } from './font-size'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
 import BulletList from '@tiptap/extension-bullet-list'
 import OrderedList from '@tiptap/extension-ordered-list'
-import ListItem from '@tiptap/extension-list-item'
+import { CustomListItem } from './custom-list-item'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Subscript from '@tiptap/extension-subscript'
@@ -47,6 +49,8 @@ export const ficheExtensions = [
   AnnotationMark,
   TextStyle,
   Color,
+  FontFamily,
+  FontSize,
   Highlight.configure({ multicolor: true }),
   Underline,
   Subscript,
@@ -54,7 +58,7 @@ export const ficheExtensions = [
   // Lists
   BulletList,
   OrderedList,
-  ListItem,
+  CustomListItem,
   // Text alignment
   TextAlign.configure({
     types: ['paragraph', 'heading'],

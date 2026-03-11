@@ -264,7 +264,7 @@
   height: 0;
 }
 
-/* ===== Bullet Lists - Hierarchical: ● ○ ■ — ===== */
+/* ===== Bullet Lists - Hierarchical via data-bullet-level: ● ○ ■ — ===== */
 .ProseMirror ul {
   list-style: none;
   padding-left: 1.4rem;
@@ -282,39 +282,41 @@
   left: -1.1rem;
 }
 
-/* Level 1: ● solid circle */
+/* Level 0 (default): ● solid circle */
 .ProseMirror ul > li::before {
   content: "\25CF";
   font-size: 0.55em;
   top: 0.5em;
 }
 
-/* Level 2: ○ open circle */
-.ProseMirror ul ul > li::before {
+/* Level 1: ○ open circle + indent */
+.ProseMirror ul > li[data-bullet-level="1"] {
+  margin-left: 1.2rem;
+}
+.ProseMirror ul > li[data-bullet-level="1"]::before {
   content: "\25CB";
   font-size: 0.6em;
   top: 0.45em;
 }
 
-/* Level 3: ■ filled square */
-.ProseMirror ul ul ul > li::before {
+/* Level 2: ■ filled square + more indent */
+.ProseMirror ul > li[data-bullet-level="2"] {
+  margin-left: 2.4rem;
+}
+.ProseMirror ul > li[data-bullet-level="2"]::before {
   content: "\25A0";
   font-size: 0.5em;
   top: 0.55em;
 }
 
-/* Level 4: — dash */
-.ProseMirror ul ul ul ul > li::before {
+/* Level 3: — dash + most indent */
+.ProseMirror ul > li[data-bullet-level="3"] {
+  margin-left: 3.6rem;
+}
+.ProseMirror ul > li[data-bullet-level="3"]::before {
   content: "\2014";
   font-size: 0.7em;
   top: 0.25em;
-}
-
-/* Level 5+: repeat from disc */
-.ProseMirror ul ul ul ul ul > li::before {
-  content: "\25CF";
-  font-size: 0.45em;
-  top: 0.6em;
 }
 
 .ProseMirror ul > li > p {
