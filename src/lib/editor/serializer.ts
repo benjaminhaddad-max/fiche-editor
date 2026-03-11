@@ -99,10 +99,12 @@ function renderNode(node: JSONContent): string {
     case 'topicRow': {
       const label = node.content?.find((c) => c.type === 'topicLabel')
       const content = node.content?.find((c) => c.type === 'topicContent')
+      const labelBg = label?.attrs?.backgroundColor ? ` style="background-color:${label.attrs.backgroundColor}"` : ''
+      const contentBg = content?.attrs?.backgroundColor ? ` style="background-color:${content.attrs.backgroundColor}"` : ''
       return `
         <div class="pdf-topic-row">
-          <div class="pdf-topic-label">${label ? renderInline(label) : ''}</div>
-          <div class="pdf-topic-content">${content ? renderBlockContent(content) : ''}</div>
+          <div class="pdf-topic-label"${labelBg}>${label ? renderInline(label) : ''}</div>
+          <div class="pdf-topic-content"${contentBg}>${content ? renderBlockContent(content) : ''}</div>
         </div>`
     }
 

@@ -32,7 +32,14 @@ export const TopicLabel = Node.create({
 
   addAttributes() {
     return {
-      backgroundColor: { default: '#f3f4f6' },
+      backgroundColor: {
+        default: null,
+        parseHTML: (element) => element.style.backgroundColor || null,
+        renderHTML: (attributes) => {
+          if (!attributes.backgroundColor) return {}
+          return { style: `background-color: ${attributes.backgroundColor}` }
+        },
+      },
     }
   },
 
@@ -56,6 +63,19 @@ export const TopicContent = Node.create({
   name: 'topicContent',
   content: 'block+',
   defining: true,
+
+  addAttributes() {
+    return {
+      backgroundColor: {
+        default: null,
+        parseHTML: (element) => element.style.backgroundColor || null,
+        renderHTML: (attributes) => {
+          if (!attributes.backgroundColor) return {}
+          return { style: `background-color: ${attributes.backgroundColor}` }
+        },
+      },
+    }
+  },
 
   parseHTML() {
     return [{ tag: 'div[data-type="topic-content"]' }]

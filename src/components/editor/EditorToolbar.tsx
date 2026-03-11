@@ -11,7 +11,7 @@ import {
   Undo2, Redo2,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Subscript, Superscript,
-  Sigma,
+  Sigma, PaintBucket,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { AnnotationType } from '@/lib/editor/extensions/annotation-mark'
@@ -573,6 +573,26 @@ export function EditorToolbar({ editor }: ToolbarProps) {
     editor.chain().focus().insertLatex('x^2').run()
   }, [editor])
 
+  const setCellBgColor = useCallback((color: string) => {
+    if (!editor) return
+    const { $from } = editor.state.selection
+    const cellTypes = ['topicLabel', 'topicContent', 'nestedSubLabel', 'nestedSubContent']
+    for (let d = $from.depth; d >= 0; d--) {
+      const node = $from.node(d)
+      if (cellTypes.includes(node.type.name)) {
+        const pos = $from.before(d)
+        editor.chain().focus().command(({ tr }) => {
+          tr.setNodeMarkup(pos, undefined, {
+            ...node.attrs,
+            backgroundColor: color || null,
+          })
+          return true
+        }).run()
+        return
+      }
+    }
+  }, [editor])
+
   if (!editor) return null
 
   return (
@@ -690,6 +710,13 @@ export function EditorToolbar({ editor }: ToolbarProps) {
             icon={Highlighter}
             title="Couleur de surlignage"
             colorIndicator={editor.getAttributes('highlight').color || 'transparent'}
+          />
+          <WordColorPicker
+            onSelect={(color) => setCellBgColor(color)}
+            icon={PaintBucket}
+            title="Remplissage de cellule"
+            currentColor={''}
+            colorIndicator={'#e5e7eb'}
           />
           <ToolbarButton
             onClick={() => {
