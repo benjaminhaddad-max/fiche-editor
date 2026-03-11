@@ -294,24 +294,6 @@ export function getPdfStyles(): string {
       font-size: 0.75em;
     }
 
-    /* Manual overrides */
-    .pdf-topic-content ul[data-bullet-style="disc"] > li::before {
-      content: "\\25CF  ";
-      font-size: 0.6em;
-    }
-    .pdf-topic-content ul[data-bullet-style="circle"] > li::before {
-      content: "\\25CB  ";
-      font-size: 0.65em;
-    }
-    .pdf-topic-content ul[data-bullet-style="square"] > li::before {
-      content: "\\25A0  ";
-      font-size: 0.55em;
-    }
-    .pdf-topic-content ul[data-bullet-style="dash"] > li::before {
-      content: "\\2014  ";
-      font-size: 0.75em;
-    }
-
     .pdf-topic-content ol {
       padding-left: 16px;
       margin: 2px 0;

@@ -15,18 +15,16 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { AnnotationType } from '@/lib/editor/extensions/annotation-mark'
-import type { BulletStyle } from '@/lib/editor/extensions/custom-bullet-list'
 
 interface ToolbarProps {
   editor: Editor | null
 }
 
-const BULLET_STYLES: { style: BulletStyle; symbol: string; label: string }[] = [
-  { style: 'auto', symbol: '●○■', label: 'Auto (par niveau)' },
-  { style: 'disc', symbol: '●', label: 'Disque plein' },
-  { style: 'circle', symbol: '○', label: 'Cercle vide' },
-  { style: 'square', symbol: '■', label: 'Carre plein' },
-  { style: 'dash', symbol: '—', label: 'Tiret' },
+const BULLET_LEVELS = [
+  { level: 0, symbol: '●', label: 'Puce niveau 1' },
+  { level: 1, symbol: '○', label: 'Puce niveau 2' },
+  { level: 2, symbol: '■', label: 'Puce niveau 3' },
+  { level: 3, symbol: '—', label: 'Puce niveau 4' },
 ]
 
 const TEXT_COLORS = [
@@ -142,6 +140,15 @@ function ColorPicker({
   )
 }
 
+function getBulletDepth(editor: Editor): number {
+  const { $from } = editor.state.selection
+  let depth = 0
+  for (let d = $from.depth; d >= 0; d--) {
+    if ($from.node(d).type.name === 'bulletList') depth++
+  }
+  return Math.max(0, depth - 1) // 0-indexed: first bulletList = level 0
+}
+
 function BulletStylePicker({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -155,7 +162,28 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
   }, [])
 
   const isActive = editor.isActive('bulletList')
-  const currentStyle = (editor.getAttributes('bulletList').bulletStyle as BulletStyle) || 'auto'
+  const currentDepth = isActive ? getBulletDepth(editor) : -1
+
+  const setLevel = useCallback((targetLevel: number) => {
+    if (!isActive) {
+      // Create bullet list first, then sink to target
+      editor.chain().focus().toggleBulletList().run()
+      for (let i = 0; i < targetLevel; i++) {
+        editor.chain().focus().sinkListItem('listItem').run()
+      }
+    } else {
+      const current = getBulletDepth(editor)
+      if (targetLevel > current) {
+        for (let i = 0; i < targetLevel - current; i++) {
+          editor.chain().focus().sinkListItem('listItem').run()
+        }
+      } else if (targetLevel < current) {
+        for (let i = 0; i < current - targetLevel; i++) {
+          editor.chain().focus().liftListItem('listItem').run()
+        }
+      }
+    }
+  }, [editor, isActive])
 
   return (
     <div className="relative flex" ref={ref}>
@@ -171,7 +199,7 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
       </button>
       <button
         onClick={() => setOpen(!open)}
-        title="Choisir le style de puce"
+        title="Choisir le niveau de puce"
         className={clsx(
           'px-1 py-1.5 rounded-r transition-colors cursor-pointer border-l border-gray-200',
           isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -180,21 +208,18 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
         <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-1.5 z-50 min-w-[170px]">
-          <div className="text-[10px] text-gray-400 px-2 py-1 font-medium">Style de puce</div>
-          {BULLET_STYLES.map(({ style, symbol, label }) => (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-1.5 z-50 min-w-[180px]">
+          <div className="text-[10px] text-gray-400 px-2 py-1 font-medium">Niveau de puce</div>
+          {BULLET_LEVELS.map(({ level, symbol, label }) => (
             <button
-              key={style}
-              onClick={() => {
-                editor.chain().focus().setBulletStyle(style).run()
-                setOpen(false)
-              }}
+              key={level}
+              onClick={() => { setLevel(level); setOpen(false) }}
               className={clsx(
-                'w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors cursor-pointer',
-                isActive && currentStyle === style ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors cursor-pointer',
+                isActive && currentDepth === level ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
               )}
             >
-              <span className="w-6 text-center text-sm leading-none">{symbol}</span>
+              <span style={{ paddingLeft: `${level * 10}px` }} className="text-base leading-none">{symbol}</span>
               <span>{label}</span>
             </button>
           ))}
@@ -203,9 +228,9 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
               <div className="border-t border-gray-100 my-1" />
               <button
                 onClick={() => { editor.chain().focus().toggleBulletList().run(); setOpen(false) }}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <span className="w-6 text-center text-xs">✕</span>
+                <span className="text-xs">✕</span>
                 <span>Supprimer la liste</span>
               </button>
             </>

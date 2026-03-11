@@ -317,31 +317,6 @@
   top: 0.6em;
 }
 
-/* Manual overrides via data-bullet-style (higher specificity) */
-.ProseMirror ul[data-bullet-style="disc"] > li::before {
-  content: "\25CF";
-  font-size: 0.55em;
-  top: 0.5em;
-}
-
-.ProseMirror ul[data-bullet-style="circle"] > li::before {
-  content: "\25CB";
-  font-size: 0.6em;
-  top: 0.45em;
-}
-
-.ProseMirror ul[data-bullet-style="square"] > li::before {
-  content: "\25A0";
-  font-size: 0.5em;
-  top: 0.55em;
-}
-
-.ProseMirror ul[data-bullet-style="dash"] > li::before {
-  content: "\2014";
-  font-size: 0.7em;
-  top: 0.25em;
-}
-
 .ProseMirror ul > li > p {
   margin: 0.02rem 0;
 }
