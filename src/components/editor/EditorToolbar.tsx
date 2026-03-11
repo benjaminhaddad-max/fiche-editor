@@ -173,11 +173,11 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
         onClick={() => setOpen(!open)}
         title="Choisir le style de puce"
         className={clsx(
-          'px-0.5 rounded-r transition-colors cursor-pointer border-l border-gray-200',
+          'px-1 py-1.5 rounded-r transition-colors cursor-pointer border-l border-gray-200',
           isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         )}
       >
-        <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5L4 5.5L7 2.5" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
       </button>
       {open && (
         <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-1.5 z-50 min-w-[170px]">
