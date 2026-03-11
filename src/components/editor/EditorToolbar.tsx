@@ -48,9 +48,9 @@ const TEXT_COLORS = [
 ]
 
 const BG_COLORS = [
-  'transparent', '#fef3c7', '#dcfce7', '#dbeafe', '#fce7f3',
-  '#f3e8ff', '#ccfbf1', '#fee2e2', '#e2e8f0', '#fef9c3',
-  '#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#c4b5fd',
+  'transparent', '#ffff00', '#00ff00', '#00ffff', '#ff00ff', '#0000ff',
+  '#ff0000', '#000080', '#008080', '#008000', '#800080',
+  '#800000', '#808000', '#808080', '#c0c0c0', '#000000',
 ]
 
 function ToolbarButton({
