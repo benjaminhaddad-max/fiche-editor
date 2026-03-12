@@ -486,6 +486,30 @@
   border: none;
   margin: -0.25rem -0.4rem;
   width: calc(100% + 0.8rem);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.nested-sub-row {
+  flex: 1;
+}
+
+/* When topic-content contains a sub-table, remove padding and fill height */
+.topic-content:has(.nested-sub-table) {
+  padding: 0;
+  justify-content: stretch;
+}
+
+.topic-content:has(.nested-sub-table) > p:has(> .ProseMirror-trailingBreak:only-child),
+.topic-content:has(.nested-sub-table) > p.is-empty {
+  display: none;
+}
+
+.topic-content:has(.nested-sub-table) .nested-sub-table {
+  margin: 0;
+  width: 100%;
+  flex: 1;
 }
 
 .nested-sub-row {
