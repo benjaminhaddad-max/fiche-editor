@@ -73,7 +73,6 @@
   display: grid;
   grid-template-columns: var(--label-width, 160px) 1fr;
   min-height: 2.2rem;
-  align-items: center;
 }
 
 /* Left: "#575752" dark charcoal - Section ID */
@@ -169,7 +168,6 @@
 .topic-row-grid {
   display: grid;
   grid-template-columns: var(--label-width, 160px) 1fr;
-  align-items: center;
   min-height: 2rem;
 }
 
@@ -512,7 +510,6 @@
   display: grid;
   grid-template-columns: var(--sub-label-width, 130px) 1fr;
   border-bottom: 1px solid #000;
-  align-items: center;
 }
 
 .nested-sub-row:last-child {

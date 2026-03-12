@@ -239,7 +239,6 @@ export function getPdfStyles(): string {
       display: grid;
       grid-template-columns: var(--label-width, 110px) 1fr;
       border-bottom: 0.5pt solid #ccc;
-      align-items: center;
     }
 
     .pdf-topic-row:last-child {
@@ -332,7 +331,6 @@ export function getPdfStyles(): string {
       display: grid;
       grid-template-columns: var(--sub-label-width, 90px) 1fr;
       border-bottom: 0.5pt solid #ccc;
-      align-items: center;
     }
 
     .pdf-sub-row:last-child {
