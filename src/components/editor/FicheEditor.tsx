@@ -1,24 +1,16 @@
 'use client'
 
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, type JSONContent } from '@tiptap/react'
 import { useCallback, useRef, useState } from 'react'
 import { ficheExtensions } from '@/lib/editor/extensions'
 import { EditorToolbar } from './EditorToolbar'
 import { Check, Loader2 } from 'lucide-react'
 import '@/styles/editor.css'
 
-interface JSONNode {
-  type?: string
-  content?: JSONNode[]
-  text?: string
-  marks?: unknown[]
-  attrs?: Record<string, unknown>
-}
-
 // Nodes that changed from inline* to block+ need their inline content wrapped in a paragraph
 const BLOCK_NODES = new Set(['topicLabel', 'nestedSubLabel', 'sectionTitle', 'sectionSubtitle'])
 
-function migrateContent(node: JSONNode): JSONNode {
+function migrateContent(node: JSONContent): JSONContent {
   if (!node.type) return node
 
   if (BLOCK_NODES.has(node.type)) {
@@ -70,7 +62,7 @@ export function FicheEditor({ ficheId, initialContent }: FicheEditorProps) {
   const editor = useEditor({
     immediatelyRender: false,
     extensions: ficheExtensions,
-    content: migrateContent(initialContent as JSONNode),
+    content: migrateContent(initialContent as JSONContent),
     onUpdate: ({ editor }) => {
       // Debounced auto-save
       if (saveTimeout.current) clearTimeout(saveTimeout.current)
