@@ -8,6 +8,22 @@ export const TopicRow = Node.create({
   isolating: true,
   defining: true,
 
+  addAttributes() {
+    return {
+      rowMinHeight: {
+        default: null,
+        parseHTML: (el: HTMLElement) => {
+          const val = el.getAttribute('data-row-min-height')
+          return val ? parseInt(val, 10) : null
+        },
+        renderHTML: (attrs: Record<string, unknown>) => {
+          if (!attrs.rowMinHeight) return {}
+          return { 'data-row-min-height': attrs.rowMinHeight }
+        },
+      },
+    }
+  },
+
   parseHTML() {
     return [{ tag: 'div[data-type="topic-row"]' }]
   },

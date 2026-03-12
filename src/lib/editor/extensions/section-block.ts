@@ -13,6 +13,17 @@ export const SectionBlock = Node.create({
     return {
       sectionNumber: { default: 1 },
       headerColor: { default: '#1e40af' },
+      labelWidth: {
+        default: 160,
+        parseHTML: (el: HTMLElement) => {
+          const val = el.getAttribute('data-label-width')
+          return val ? parseInt(val, 10) : 160
+        },
+        renderHTML: (attrs: Record<string, unknown>) => {
+          if (attrs.labelWidth === 160) return {}
+          return { 'data-label-width': attrs.labelWidth }
+        },
+      },
     }
   },
 

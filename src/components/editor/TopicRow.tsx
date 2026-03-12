@@ -34,7 +34,10 @@ export function TopicRowView({ node, getPos, editor }: NodeViewProps) {
   }
 
   return (
-    <NodeViewWrapper className="topic-row">
+    <NodeViewWrapper
+      className="topic-row"
+      style={node.attrs.rowMinHeight ? { minHeight: `${node.attrs.rowMinHeight}px` } : undefined}
+    >
       <NodeViewContent className="topic-row-grid" />
 
       {/* Row actions on hover */}

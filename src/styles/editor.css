@@ -71,8 +71,9 @@
   counter-increment: section;
   border-bottom: 1px solid #000;
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: var(--label-width, 160px) 1fr;
   min-height: 2.2rem;
+  align-items: center;
 }
 
 /* Left: "#575752" dark charcoal - Section ID */
@@ -167,7 +168,8 @@
 
 .topic-row-grid {
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: var(--label-width, 160px) 1fr;
+  align-items: center;
   min-height: 2rem;
 }
 
@@ -508,8 +510,9 @@
 
 .nested-sub-row {
   display: grid;
-  grid-template-columns: 130px 1fr;
+  grid-template-columns: var(--sub-label-width, 130px) 1fr;
   border-bottom: 1px solid #000;
+  align-items: center;
 }
 
 .nested-sub-row:last-child {
@@ -565,7 +568,7 @@
 
 /* Grandchild sub-labels: proportional column within parent content */
 .nested-sub-content > .nested-sub-table > .nested-sub-row {
-  grid-template-columns: 40% 1fr;
+  grid-template-columns: var(--sub-label-width, 40%) 1fr;
 }
 
 /* ===== Highlight/Background Colors ===== */

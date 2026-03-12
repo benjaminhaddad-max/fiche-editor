@@ -22,6 +22,7 @@ import { TopicRow, TopicLabel, TopicContent } from './topic-row'
 import { NestedSubTable, NestedSubRow, NestedSubLabel, NestedSubContent } from './nested-sub-table'
 import { AnnotationMark } from './annotation-mark'
 import { LatexNode } from './latex-node'
+import { CellResize } from './cell-resize'
 
 export const ficheExtensions = [
   // Custom Doc: only allows sectionBlocks (no free text)
@@ -73,6 +74,8 @@ export const ficheExtensions = [
     inline: true,
     allowBase64: true,
   }),
+  // Cell resize (drag borders)
+  CellResize,
   // UX
   Placeholder.configure({
     placeholder: ({ node }) => {

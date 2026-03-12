@@ -76,6 +76,7 @@ function renderNode(node: JSONContent): string {
     case 'sectionBlock': {
       const num = (node.attrs?.sectionNumber as number) ?? 1
       const color = (node.attrs?.headerColor as string) ?? '#374151'
+      const labelWidth = node.attrs?.labelWidth as number | undefined
       const header = node.content?.find((c) => c.type === 'sectionHeader')
       const rows = node.content?.filter((c) => c.type === 'topicRow') ?? []
 
@@ -84,8 +85,12 @@ function renderNode(node: JSONContent): string {
       const titleText = titleNode ? renderInline(titleNode) : ''
       const subtitleText = subtitleNode ? renderInline(subtitleNode) : ''
 
+      const sectionStyle = labelWidth && labelWidth !== 160
+        ? ` style="--label-width:${labelWidth}px"`
+        : ''
+
       return `
-        <div class="pdf-section">
+        <div class="pdf-section"${sectionStyle}>
           <div class="pdf-section-header" style="background-color:${color}">
             <div class="pdf-section-num">${toRoman(num)}. ${titleText}</div>
             ${subtitleText ? `<div class="pdf-section-subtitle">${subtitleText}</div>` : ''}
@@ -101,24 +106,31 @@ function renderNode(node: JSONContent): string {
       const content = node.content?.find((c) => c.type === 'topicContent')
       const labelBg = label?.attrs?.backgroundColor ? ` style="background-color:${label.attrs.backgroundColor}"` : ''
       const contentBg = content?.attrs?.backgroundColor ? ` style="background-color:${content.attrs.backgroundColor}"` : ''
+      const rowMinHeight = node.attrs?.rowMinHeight as number | undefined
+      const rowStyle = rowMinHeight ? ` style="min-height:${rowMinHeight}px"` : ''
       return `
-        <div class="pdf-topic-row">
+        <div class="pdf-topic-row"${rowStyle}>
           <div class="pdf-topic-label"${labelBg}>${label ? renderInline(label) : ''}</div>
           <div class="pdf-topic-content"${contentBg}>${content ? renderBlockContent(content) : ''}</div>
         </div>`
     }
 
-    case 'nestedSubTable':
+    case 'nestedSubTable': {
+      const subLabelWidth = node.attrs?.subLabelWidth as number | undefined
+      const tableStyle = subLabelWidth ? ` style="--sub-label-width:${subLabelWidth}px"` : ''
       return `
-        <div class="pdf-sub-table">
+        <div class="pdf-sub-table"${tableStyle}>
           ${node.content?.map(renderNode).join('') ?? ''}
         </div>`
+    }
 
     case 'nestedSubRow': {
       const label = node.content?.find((c) => c.type === 'nestedSubLabel')
       const content = node.content?.find((c) => c.type === 'nestedSubContent')
+      const subRowMinHeight = node.attrs?.subRowMinHeight as number | undefined
+      const subRowStyle = subRowMinHeight ? ` style="min-height:${subRowMinHeight}px"` : ''
       return `
-        <div class="pdf-sub-row">
+        <div class="pdf-sub-row"${subRowStyle}>
           <div class="pdf-sub-label">${label ? renderInline(label) : ''}</div>
           <div class="pdf-sub-content">${content ? renderBlockContent(content) : ''}</div>
         </div>`

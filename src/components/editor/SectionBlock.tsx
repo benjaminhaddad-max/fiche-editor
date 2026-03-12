@@ -63,7 +63,10 @@ export function SectionBlockView({ node, getPos, editor }: NodeViewProps) {
   }
 
   return (
-    <NodeViewWrapper className="section-block">
+    <NodeViewWrapper
+      className="section-block"
+      style={{ '--label-width': `${node.attrs.labelWidth ?? 160}px` } as React.CSSProperties}
+    >
       {/* Hover controls */}
       <div className="section-controls" contentEditable={false}>
         <button onClick={() => moveSection('up')} title="Monter" className="section-ctrl-btn">
