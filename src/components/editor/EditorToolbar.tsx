@@ -747,17 +747,28 @@ export function EditorToolbar({ editor }: ToolbarProps) {
 
   const addSubTable = useCallback(() => {
     if (!editor) return
+    const makeRow = () => ({
+      type: 'nestedSubRow',
+      content: [
+        { type: 'nestedSubLabel' },
+        { type: 'nestedSubContent', content: [{ type: 'paragraph' }] },
+      ],
+    })
+
+    // If cursor is inside an existing sub-table, add a row to it
+    const { $from } = editor.state.selection
+    for (let d = $from.depth; d >= 0; d--) {
+      if ($from.node(d).type.name === 'nestedSubTable') {
+        const tableEnd = $from.before(d) + $from.node(d).nodeSize - 1
+        editor.chain().focus().insertContentAt(tableEnd, makeRow()).run()
+        return
+      }
+    }
+
+    // Otherwise insert a new sub-table with 2 rows
     const subTable = {
       type: 'nestedSubTable',
-      content: [
-        {
-          type: 'nestedSubRow',
-          content: [
-            { type: 'nestedSubLabel' },
-            { type: 'nestedSubContent', content: [{ type: 'paragraph' }] },
-          ],
-        },
-      ],
+      content: [makeRow(), makeRow()],
     }
     editor.chain().focus().insertContent(subTable).run()
   }, [editor])
