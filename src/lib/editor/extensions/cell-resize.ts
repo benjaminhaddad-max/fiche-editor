@@ -263,13 +263,11 @@ export const CellResize = Extension.create({
                 dragState.minValue,
                 Math.min(dragState.startValue + delta, dragState.maxValue)
               ))
-              const varName = target.attrName === 'labelWidth' ? '--label-width' : '--sub-label-width'
-              target.containerEl.style.removeProperty(varName)
             } else {
               const delta = event.clientY - dragState.startY
               finalValue = Math.round(Math.max(dragState.minValue, dragState.startValue + delta))
-              target.containerEl.style.removeProperty('min-height')
             }
+            // Keep inline styles — React re-render will overwrite them from the persisted attribute
 
             // Persist via ProseMirror transaction using position found at mousedown
             const pos = dragState.nodePos
