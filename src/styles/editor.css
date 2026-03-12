@@ -481,10 +481,11 @@
 }
 
 /* ===== Nested Sub-Table (simulates vMerge/gridSpan from Word) ===== */
-/* Sub-label: #E8E8E8 in Word */
+/* Sub-label: #E8E8E8 in Word — flush with parent cell, no extra margins */
 .nested-sub-table {
-  border: 1px solid #000;
-  margin: 0.2rem 0;
+  border: none;
+  margin: -0.25rem -0.4rem;
+  width: calc(100% + 0.8rem);
 }
 
 .nested-sub-row {
@@ -516,9 +517,12 @@
 }
 
 .nested-sub-content {
-  padding: 0.2rem 0.4rem;
+  padding: 0.25rem 0.4rem;
   font-size: 9pt;
   line-height: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .nested-sub-content p {
