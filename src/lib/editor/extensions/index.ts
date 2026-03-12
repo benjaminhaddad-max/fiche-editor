@@ -13,6 +13,7 @@ import Image from '@tiptap/extension-image'
 import Subscript from '@tiptap/extension-subscript'
 import Superscript from '@tiptap/extension-superscript'
 import TextAlign from '@tiptap/extension-text-align'
+import { LineSpacing } from './line-spacing'
 
 import { FicheDoc } from './fiche-doc'
 import { SectionBlock } from './section-block'
@@ -61,6 +62,10 @@ export const ficheExtensions = [
   CustomListItem,
   // Text alignment
   TextAlign.configure({
+    types: ['paragraph', 'heading'],
+  }),
+  // Line spacing (paragraph-level)
+  LineSpacing.configure({
     types: ['paragraph', 'heading'],
   }),
   // Images

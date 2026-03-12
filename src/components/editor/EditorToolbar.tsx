@@ -442,6 +442,115 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
   )
 }
 
+const LINE_SPACING_OPTIONS = ['1', '1.15', '1.5', '2', '2.5', '3'] as const
+const SPACE_TOGGLE_VALUE = '12pt'
+
+function LineSpacingIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      {/* Three horizontal lines */}
+      <line x1="5.5" y1="2.5" x2="15" y2="2.5" />
+      <line x1="5.5" y1="8" x2="15" y2="8" />
+      <line x1="5.5" y1="13.5" x2="15" y2="13.5" />
+      {/* Up arrow */}
+      <polyline points="1.5,4.5 3,2 4.5,4.5" fill="none" />
+      {/* Down arrow */}
+      <polyline points="1.5,11.5 3,14 4.5,11.5" fill="none" />
+      {/* Vertical line connecting arrows */}
+      <line x1="3" y1="3" x2="3" y2="13" />
+    </svg>
+  )
+}
+
+function LineSpacingPicker({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const currentLineHeight = editor.getAttributes('paragraph').lineHeight || '1'
+  const currentSpaceBefore = editor.getAttributes('paragraph').spaceBefore || null
+  const currentSpaceAfter = editor.getAttributes('paragraph').spaceAfter || null
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        title="Interligne"
+        className="flex items-center gap-0.5 p-1.5 rounded text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
+      >
+        <LineSpacingIcon size={16} />
+        <svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50 min-w-[260px]">
+          {LINE_SPACING_OPTIONS.map((value) => (
+            <button
+              key={value}
+              onClick={() => {
+                if (value === '1') {
+                  editor.chain().focus().unsetLineHeight().run()
+                } else {
+                  editor.chain().focus().setLineHeight(value).run()
+                }
+                setOpen(false)
+              }}
+              className={clsx(
+                'w-full text-left px-3 py-1.5 text-sm transition-colors cursor-pointer flex items-center gap-2',
+                currentLineHeight === value ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+              )}
+            >
+              <span className="w-4 text-center">{currentLineHeight === value ? '✓' : ''}</span>
+              <span>{value.replace('.', ',')}</span>
+            </button>
+          ))}
+          <div className="h-px bg-gray-200 my-1" />
+          <button
+            onClick={() => {
+              if (currentSpaceBefore) {
+                editor.chain().focus().unsetSpaceBefore().run()
+              } else {
+                editor.chain().focus().setSpaceBefore(SPACE_TOGGLE_VALUE).run()
+              }
+              setOpen(false)
+            }}
+            className={clsx(
+              'w-full text-left px-3 py-1.5 text-sm transition-colors cursor-pointer flex items-center gap-2',
+              currentSpaceBefore ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+            )}
+          >
+            <span className="w-4 text-center">{currentSpaceBefore ? '✓' : ''}</span>
+            <span>Ajouter de l&apos;espace avant le paragraphe</span>
+          </button>
+          <button
+            onClick={() => {
+              if (currentSpaceAfter) {
+                editor.chain().focus().unsetSpaceAfter().run()
+              } else {
+                editor.chain().focus().setSpaceAfter(SPACE_TOGGLE_VALUE).run()
+              }
+              setOpen(false)
+            }}
+            className={clsx(
+              'w-full text-left px-3 py-1.5 text-sm transition-colors cursor-pointer flex items-center gap-2',
+              currentSpaceAfter ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+            )}
+          >
+            <span className="w-4 text-center">{currentSpaceAfter ? '✓' : ''}</span>
+            <span>Ajouter de l&apos;espace apres le paragraphe</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ToolbarSeparator() {
   return <div className="w-px h-7 bg-gray-200 mx-1 shrink-0" />
 }
@@ -769,6 +878,7 @@ export function EditorToolbar({ editor }: ToolbarProps) {
           >
             <AlignJustify size={16} />
           </ToolbarButton>
+          <LineSpacingPicker editor={editor} />
 
           <ToolbarSeparator />
 

@@ -248,12 +248,12 @@
 .topic-content {
   padding: 0.25rem 0.4rem;
   font-size: 9pt;
-  line-height: 1.45;
+  line-height: 1;
   color: #000;
 }
 
 .topic-content p {
-  margin: 0.05rem 0;
+  margin: 0;
 }
 
 .topic-content p.is-empty:first-child::before {
@@ -481,10 +481,11 @@
 .nested-sub-content {
   padding: 0.2rem 0.4rem;
   font-size: 9pt;
+  line-height: 1;
 }
 
 .nested-sub-content p {
-  margin: 0.02rem 0;
+  margin: 0;
 }
 
 /* ===== Highlight/Background Colors ===== */
