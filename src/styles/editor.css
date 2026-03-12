@@ -339,6 +339,15 @@
   margin: 0.02rem 0;
 }
 
+/* Marker inherits bold/italic from the first inline element in the paragraph */
+.ProseMirror ol > li:has(> p:first-child > strong:first-child)::marker {
+  font-weight: bold;
+}
+
+.ProseMirror ol > li:has(> p:first-child > em:first-child)::marker {
+  font-style: italic;
+}
+
 /* Ordered list style variants */
 .ProseMirror ol[data-list-type="upper-roman"] {
   list-style-type: upper-roman;
