@@ -26,7 +26,7 @@ export const SectionHeader = Node.create({
 // Left part: "I. Introduction au tissu sanguin"
 export const SectionTitle = Node.create({
   name: 'sectionTitle',
-  content: 'inline*',
+  content: 'block+',
   defining: true,
 
   parseHTML() {
@@ -48,7 +48,7 @@ export const SectionTitle = Node.create({
 // Right part: "Composition et Caractéristiques"
 export const SectionSubtitle = Node.create({
   name: 'sectionSubtitle',
-  content: 'inline*',
+  content: 'block+',
   defining: true,
 
   parseHTML() {

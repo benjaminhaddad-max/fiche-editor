@@ -43,7 +43,7 @@ export const TopicRow = Node.create({
 
 export const TopicLabel = Node.create({
   name: 'topicLabel',
-  content: 'inline*',
+  content: 'block+',
   defining: true,
 
   addAttributes() {

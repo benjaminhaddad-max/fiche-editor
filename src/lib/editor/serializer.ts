@@ -82,8 +82,8 @@ function renderNode(node: JSONContent): string {
 
       const titleNode = header?.content?.find((c) => c.type === 'sectionTitle')
       const subtitleNode = header?.content?.find((c) => c.type === 'sectionSubtitle')
-      const titleText = titleNode ? renderInline(titleNode) : ''
-      const subtitleText = subtitleNode ? renderInline(subtitleNode) : ''
+      const titleText = titleNode ? renderBlockContent(titleNode) : ''
+      const subtitleText = subtitleNode ? renderBlockContent(subtitleNode) : ''
 
       const sectionStyle = labelWidth && labelWidth !== 160
         ? ` style="--label-width:${labelWidth}px"`
@@ -110,7 +110,7 @@ function renderNode(node: JSONContent): string {
       const rowStyle = rowMinHeight ? ` style="min-height:${rowMinHeight}px"` : ''
       return `
         <div class="pdf-topic-row"${rowStyle}>
-          <div class="pdf-topic-label"${labelBg}>${label ? renderInline(label) : ''}</div>
+          <div class="pdf-topic-label"${labelBg}>${label ? renderBlockContent(label) : ''}</div>
           <div class="pdf-topic-content"${contentBg}>${content ? renderBlockContent(content) : ''}</div>
         </div>`
     }
@@ -131,7 +131,7 @@ function renderNode(node: JSONContent): string {
       const subRowStyle = subRowMinHeight ? ` style="min-height:${subRowMinHeight}px"` : ''
       return `
         <div class="pdf-sub-row"${subRowStyle}>
-          <div class="pdf-sub-label">${label ? renderInline(label) : ''}</div>
+          <div class="pdf-sub-label">${label ? renderBlockContent(label) : ''}</div>
           <div class="pdf-sub-content">${content ? renderBlockContent(content) : ''}</div>
         </div>`
     }

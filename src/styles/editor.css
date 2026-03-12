@@ -87,10 +87,14 @@
   border-right: 1px solid #000;
 }
 
-.section-title::before {
+.section-title::before,
+.section-title.is-empty::before,
+.section-title.is-empty.is-editor-empty::before {
   content: counter(section, upper-roman) ". ";
   font-weight: 700;
   white-space: pre;
+  color: #fff;
+  float: left;
 }
 
 .section-title p {

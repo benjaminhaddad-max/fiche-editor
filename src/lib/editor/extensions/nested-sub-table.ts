@@ -85,7 +85,7 @@ export const NestedSubRow = Node.create({
 
 export const NestedSubLabel = Node.create({
   name: 'nestedSubLabel',
-  content: 'inline*',
+  content: 'block+',
   defining: true,
 
   parseHTML() {

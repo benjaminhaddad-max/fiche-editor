@@ -78,14 +78,21 @@ export const ficheExtensions = [
   CellResize,
   // UX
   Placeholder.configure({
-    placeholder: ({ node }) => {
-      if (node.type.name === 'sectionTitle') return 'Titre de la section...'
-      if (node.type.name === 'sectionSubtitle') return 'Description / Theme...'
-      if (node.type.name === 'topicLabel') return 'Label...'
-      if (node.type.name === 'topicContent') return 'Contenu...'
-      if (node.type.name === 'nestedSubLabel') return 'Label...'
-      if (node.type.name === 'nestedSubContent') return 'Contenu...'
-      if (node.type.name === 'paragraph') return ''
+    includeChildren: true,
+    placeholder: ({ node, pos, editor }) => {
+      if (node.type.name === 'paragraph' && pos !== undefined) {
+        try {
+          const parent = editor.state.doc.resolve(pos).parent
+          switch (parent.type.name) {
+            case 'sectionTitle': return 'Titre de la section...'
+            case 'sectionSubtitle': return 'Description / Theme...'
+            case 'topicLabel': return 'Label...'
+            case 'topicContent': return 'Contenu...'
+            case 'nestedSubLabel': return 'Label...'
+            case 'nestedSubContent': return 'Contenu...'
+          }
+        } catch { /* ignore */ }
+      }
       return ''
     },
   }),
