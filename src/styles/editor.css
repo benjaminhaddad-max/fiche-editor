@@ -587,6 +587,13 @@
   height: 0;
 }
 
+/* Prevent placeholder ::before from becoming a grid item in grid containers */
+.nested-sub-row.is-empty::before,
+.section-header.is-empty::before,
+.nested-sub-table.is-empty::before {
+  display: none;
+}
+
 /* ===== Selection ===== */
 .ProseMirror ::selection {
   background-color: rgba(59, 130, 246, 0.2);

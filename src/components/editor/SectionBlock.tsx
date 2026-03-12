@@ -54,7 +54,7 @@ export function SectionBlockView({ node, getPos, editor }: NodeViewProps) {
     const newRow = {
       type: 'topicRow',
       content: [
-        { type: 'topicLabel' },
+        { type: 'topicLabel', content: [{ type: 'paragraph' }] },
         { type: 'topicContent', content: [{ type: 'paragraph' }] },
       ],
     }
