@@ -6,7 +6,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered,
   Zap, Target, Lightbulb,
-  Type, Highlighter, Paintbrush,
+  Type, Highlighter, Paintbrush, RemoveFormatting,
   Plus, TableProperties, ImagePlus,
   Undo2, Redo2,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -566,8 +566,61 @@ function ToolbarGroup({ label, children }: { label: string; children: React.Reac
   )
 }
 
+interface StoredFormat {
+  bold: boolean
+  italic: boolean
+  underline: boolean
+  strike: boolean
+  subscript: boolean
+  superscript: boolean
+  color: string | null
+  fontFamily: string | null
+  fontSize: string | null
+  highlightColor: string | null
+}
+
+function captureFormat(editor: Editor): StoredFormat {
+  const textStyle = editor.getAttributes('textStyle')
+  const highlight = editor.getAttributes('highlight')
+  return {
+    bold: editor.isActive('bold'),
+    italic: editor.isActive('italic'),
+    underline: editor.isActive('underline'),
+    strike: editor.isActive('strike'),
+    subscript: editor.isActive('subscript'),
+    superscript: editor.isActive('superscript'),
+    color: textStyle.color || null,
+    fontFamily: textStyle.fontFamily || null,
+    fontSize: textStyle.fontSize || null,
+    highlightColor: highlight.color || null,
+  }
+}
+
+function applyFormat(editor: Editor, fmt: StoredFormat) {
+  const chain = editor.chain().focus()
+    // Clear existing formatting first
+    .unsetBold().unsetItalic().unsetUnderline().unsetStrike()
+    .unsetSubscript().unsetSuperscript()
+    .unsetColor().unsetHighlight().unsetFontSize().unsetFontFamily()
+
+  // Apply stored formatting
+  if (fmt.bold) chain.setBold()
+  if (fmt.italic) chain.setItalic()
+  if (fmt.underline) chain.setUnderline()
+  if (fmt.strike) chain.setStrike()
+  if (fmt.subscript) chain.setSubscript()
+  if (fmt.superscript) chain.setSuperscript()
+  if (fmt.color) chain.setColor(fmt.color)
+  if (fmt.fontFamily) chain.setFontFamily(fmt.fontFamily)
+  if (fmt.fontSize) chain.setFontSize(fmt.fontSize)
+  if (fmt.highlightColor) chain.setHighlight({ color: fmt.highlightColor })
+
+  chain.run()
+}
+
 export function EditorToolbar({ editor }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [formatPainterFormat, setFormatPainterFormat] = useState<StoredFormat | null>(null)
 
   const addSection = useCallback(() => {
     if (!editor) return
@@ -702,6 +755,38 @@ export function EditorToolbar({ editor }: ToolbarProps) {
     }
   }, [editor])
 
+  // Format Painter: apply stored format when user makes a new selection
+  useEffect(() => {
+    if (!editor || !formatPainterFormat) return
+
+    const editorEl = editor.view.dom
+    editorEl.style.cursor = 'crosshair'
+
+    const handleMouseUp = () => {
+      const { from, to } = editor.state.selection
+      if (from !== to) {
+        applyFormat(editor, formatPainterFormat)
+        setFormatPainterFormat(null)
+        editorEl.style.cursor = ''
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFormatPainterFormat(null)
+        editorEl.style.cursor = ''
+      }
+    }
+
+    editorEl.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      editorEl.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('keydown', handleKeyDown)
+      editorEl.style.cursor = ''
+    }
+  }, [editor, formatPainterFormat])
+
   if (!editor) return null
 
   return (
@@ -829,6 +914,19 @@ export function EditorToolbar({ editor }: ToolbarProps) {
           />
           <ToolbarButton
             onClick={() => {
+              if (formatPainterFormat) {
+                setFormatPainterFormat(null)
+              } else {
+                setFormatPainterFormat(captureFormat(editor))
+              }
+            }}
+            active={!!formatPainterFormat}
+            title="Reproduire la mise en forme"
+          >
+            <Paintbrush size={16} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => {
               editor.chain().focus()
                 .unsetColor()
                 .unsetHighlight()
@@ -838,11 +936,13 @@ export function EditorToolbar({ editor }: ToolbarProps) {
                 .unsetStrike()
                 .unsetSubscript()
                 .unsetSuperscript()
+                .unsetFontSize()
+                .unsetFontFamily()
                 .run()
             }}
             title="Effacer la mise en forme"
           >
-            <Paintbrush size={16} />
+            <RemoveFormatting size={16} />
           </ToolbarButton>
         </ToolbarGroup>
 
