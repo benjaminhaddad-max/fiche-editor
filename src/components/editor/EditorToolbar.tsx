@@ -755,22 +755,44 @@ export function EditorToolbar({ editor }: ToolbarProps) {
       ],
     })
 
-    // If cursor is inside an existing sub-table, add a row to it
     const { $from } = editor.state.selection
+
+    // Walk up from cursor:
+    // - If we hit a content container (nestedSubContent/topicContent) without a sub-table child → insert new sub-table
+    // - If we hit a nestedSubTable → add a row to it
     for (let d = $from.depth; d >= 0; d--) {
-      if ($from.node(d).type.name === 'nestedSubTable') {
-        const tableEnd = $from.before(d) + $from.node(d).nodeSize - 1
+      const node = $from.node(d)
+      const name = node.type.name
+
+      if (name === 'nestedSubContent' || name === 'topicContent') {
+        let hasSubTable = false
+        node.forEach((child) => {
+          if (child.type.name === 'nestedSubTable') hasSubTable = true
+        })
+        if (!hasSubTable) {
+          // Content cell without sub-table → insert new sub-table (2 rows)
+          editor.chain().focus().insertContent({
+            type: 'nestedSubTable',
+            content: [makeRow(), makeRow()],
+          }).run()
+          return
+        }
+        // Has sub-table already, continue walking up to find it
+      }
+
+      if (name === 'nestedSubTable') {
+        // Inside a sub-table → add a row
+        const tableEnd = $from.before(d) + node.nodeSize - 1
         editor.chain().focus().insertContentAt(tableEnd, makeRow()).run()
         return
       }
     }
 
-    // Otherwise insert a new sub-table with 2 rows
-    const subTable = {
+    // Fallback: insert new sub-table
+    editor.chain().focus().insertContent({
       type: 'nestedSubTable',
       content: [makeRow(), makeRow()],
-    }
-    editor.chain().focus().insertContent(subTable).run()
+    }).run()
   }, [editor])
 
   const addRow = useCallback(() => {

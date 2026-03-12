@@ -79,6 +79,7 @@
 .section-title {
   background-color: #575752;
   color: #fff;
+  caret-color: #fff;
   font-weight: 700;
   font-size: 12pt;
   padding: 0.4rem 0.6rem;
@@ -109,6 +110,7 @@
 .section-subtitle {
   background-color: #808080;
   color: #f2f2f2;
+  caret-color: #fff;
   font-weight: 700;
   font-size: 12pt;
   padding: 0.4rem 0.6rem;
@@ -228,6 +230,7 @@
   font-weight: 700;
   font-size: 10pt;
   color: #000;
+  caret-color: #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -529,6 +532,7 @@
   font-weight: 700;
   font-size: 9pt;
   color: #000;
+  caret-color: #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -547,10 +551,33 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 
 .nested-sub-content p {
   margin: 0;
+}
+
+/* Grandchild sub-tables: when nested-sub-content contains its own sub-table */
+.nested-sub-content:has(.nested-sub-table) {
+  padding: 0;
+  justify-content: stretch;
+}
+
+.nested-sub-content:has(.nested-sub-table) > p:has(> .ProseMirror-trailingBreak:only-child),
+.nested-sub-content:has(.nested-sub-table) > p.is-empty {
+  display: none;
+}
+
+.nested-sub-content:has(.nested-sub-table) .nested-sub-table {
+  margin: 0;
+  width: 100%;
+  flex: 1;
+}
+
+/* Grandchild sub-labels: proportional column within parent content */
+.nested-sub-content > .nested-sub-table > .nested-sub-row {
+  grid-template-columns: 40% 1fr;
 }
 
 /* ===== Highlight/Background Colors ===== */
