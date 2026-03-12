@@ -728,14 +728,14 @@ export function EditorToolbar({ editor }: ToolbarProps) {
         {
           type: 'sectionHeader',
           content: [
-            { type: 'sectionTitle' },
-            { type: 'sectionSubtitle' },
+            { type: 'sectionTitle', content: [{ type: 'paragraph' }] },
+            { type: 'sectionSubtitle', content: [{ type: 'paragraph' }] },
           ],
         },
         {
           type: 'topicRow',
           content: [
-            { type: 'topicLabel' },
+            { type: 'topicLabel', content: [{ type: 'paragraph' }] },
             { type: 'topicContent', content: [{ type: 'paragraph' }] },
           ],
         },
@@ -750,7 +750,7 @@ export function EditorToolbar({ editor }: ToolbarProps) {
     const makeRow = () => ({
       type: 'nestedSubRow',
       content: [
-        { type: 'nestedSubLabel' },
+        { type: 'nestedSubLabel', content: [{ type: 'paragraph' }] },
         { type: 'nestedSubContent', content: [{ type: 'paragraph' }] },
       ],
     })
@@ -807,7 +807,7 @@ export function EditorToolbar({ editor }: ToolbarProps) {
         const newRow = {
           type: 'topicRow',
           content: [
-            { type: 'topicLabel' },
+            { type: 'topicLabel', content: [{ type: 'paragraph' }] },
             { type: 'topicContent', content: [{ type: 'paragraph' }] },
           ],
         }
@@ -820,7 +820,7 @@ export function EditorToolbar({ editor }: ToolbarProps) {
         const newRow = {
           type: 'topicRow',
           content: [
-            { type: 'topicLabel' },
+            { type: 'topicLabel', content: [{ type: 'paragraph' }] },
             { type: 'topicContent', content: [{ type: 'paragraph' }] },
           ],
         }
