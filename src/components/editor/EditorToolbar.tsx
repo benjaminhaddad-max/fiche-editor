@@ -799,7 +799,23 @@ export function EditorToolbar({ editor }: ToolbarProps) {
   }, [editor])
 
   const toggleAnnotation = useCallback((type: AnnotationType) => {
-    editor?.chain().focus().toggleAnnotation(type).run()
+    if (!editor) return
+    const { from, to } = editor.state.selection
+    if (from === to) {
+      // No selection: insert a space with the annotation mark so the icon appears immediately
+      if (editor.isActive('annotation', { type })) {
+        editor.chain().focus().unsetAnnotation().run()
+      } else {
+        editor.chain().focus().insertContent({
+          type: 'text',
+          text: ' ',
+          marks: [{ type: 'annotation', attrs: { type } }],
+        }).run()
+      }
+    } else {
+      // Selection exists: toggle mark on selection
+      editor.chain().focus().toggleAnnotation(type).run()
+    }
   }, [editor])
 
   const insertImage = useCallback(() => {
