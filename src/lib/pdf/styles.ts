@@ -304,8 +304,21 @@ export function getPdfStyles(): string {
     }
 
     .pdf-topic-content ol {
+      list-style-type: decimal;
       padding-left: 16px;
       margin: 2px 0;
+    }
+    .pdf-topic-content ol[data-list-type="upper-roman"] {
+      list-style-type: upper-roman;
+    }
+    .pdf-topic-content ol[data-list-type="upper-alpha"] {
+      list-style-type: upper-alpha;
+    }
+    .pdf-topic-content ol[data-list-type="lower-alpha"] {
+      list-style-type: lower-alpha;
+    }
+    .pdf-topic-content ol[data-list-type="lower-roman"] {
+      list-style-type: lower-roman;
     }
 
     /* ===== Nested Sub-Table ===== */
