@@ -2,7 +2,7 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 
-const RESIZE_THRESHOLD = 5
+const RESIZE_THRESHOLD = 8
 const MIN_LABEL_WIDTH = 60
 const MIN_CONTENT_WIDTH = 100
 const MIN_SUB_LABEL_WIDTH = 40
@@ -96,19 +96,18 @@ function detectColumnTarget(x: number, y: number): ResizeTarget | null {
 }
 
 function detectRowTarget(x: number, y: number): ResizeTarget | null {
-  const el = document.elementFromPoint(x, y) as HTMLElement | null
-  if (!el) return null
-
-  const rowDefs = [
+  // Scan all rows and find one whose bottom border is near the cursor.
+  // This avoids elementFromPoint issues on the 1px border between rows.
+  const rowDefs: { sel: string; node: string; attr: string }[] = [
     { sel: '.topic-row', node: 'topicRow', attr: 'rowMinHeight' },
     { sel: '.nested-sub-row', node: 'nestedSubRow', attr: 'subRowMinHeight' },
   ]
 
   for (const { sel, node, attr } of rowDefs) {
-    const row = el.closest(sel)
-    if (row) {
+    const rows = document.querySelectorAll(sel)
+    for (const row of rows) {
       const rect = row.getBoundingClientRect()
-      if (Math.abs(y - rect.bottom) <= RESIZE_THRESHOLD) {
+      if (Math.abs(y - rect.bottom) <= RESIZE_THRESHOLD && x >= rect.left && x <= rect.right) {
         return {
           type: 'row',
           nodeTypeName: node,
