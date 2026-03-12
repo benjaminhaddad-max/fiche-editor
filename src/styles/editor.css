@@ -338,6 +338,23 @@
   margin: 0.02rem 0;
 }
 
+/* Ordered list style variants */
+.ProseMirror ol[data-list-type="upper-roman"] {
+  list-style-type: upper-roman;
+}
+
+.ProseMirror ol[data-list-type="upper-alpha"] {
+  list-style-type: upper-alpha;
+}
+
+.ProseMirror ol[data-list-type="lower-alpha"] {
+  list-style-type: lower-alpha;
+}
+
+.ProseMirror ol[data-list-type="lower-roman"] {
+  list-style-type: lower-roman;
+}
+
 /* ===== Text Alignment ===== */
 .ProseMirror [style*="text-align: center"] {
   text-align: center;

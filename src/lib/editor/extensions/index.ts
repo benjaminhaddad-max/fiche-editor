@@ -6,7 +6,7 @@ import { FontSize } from './font-size'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
 import BulletList from '@tiptap/extension-bullet-list'
-import OrderedList from '@tiptap/extension-ordered-list'
+import { CustomOrderedList } from './custom-ordered-list'
 import { CustomListItem } from './custom-list-item'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
@@ -58,7 +58,7 @@ export const ficheExtensions = [
   Superscript,
   // Lists
   BulletList,
-  OrderedList,
+  CustomOrderedList,
   CustomListItem,
   // Text alignment
   TextAlign.configure({

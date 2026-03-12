@@ -27,6 +27,14 @@ const BULLET_LEVELS = [
   { level: 3, symbol: '—', label: 'Puce niveau 4' },
 ]
 
+const ORDERED_LIST_STYLES = [
+  { type: null, preview: '1.  2.  3.', label: 'Decimal' },
+  { type: 'upper-roman', preview: 'I.  II.  III.', label: 'Romain majuscule' },
+  { type: 'upper-alpha', preview: 'A.  B.  C.', label: 'Lettres majuscules' },
+  { type: 'lower-alpha', preview: 'a.  b.  c.', label: 'Lettres minuscules' },
+  { type: 'lower-roman', preview: 'i.  ii.  iii.', label: 'Romain minuscule' },
+] as const
+
 const FONT_FAMILIES = [
   { value: 'Calibri, sans-serif', label: 'Calibri' },
   { value: 'Arial, sans-serif', label: 'Arial' },
@@ -429,6 +437,88 @@ function BulletStylePicker({ editor }: { editor: Editor }) {
               <div className="border-t border-gray-100 my-1" />
               <button
                 onClick={() => { editor.chain().focus().toggleBulletList().run(); setOpen(false) }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <span className="text-xs">✕</span>
+                <span>Supprimer la liste</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OrderedListStylePicker({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const isActive = editor.isActive('orderedList')
+  const currentType = isActive ? (editor.getAttributes('orderedList').listType || null) : undefined
+
+  const setListType = useCallback((listType: string | null) => {
+    if (!isActive) {
+      editor.chain().focus().toggleOrderedList().run()
+      setTimeout(() => {
+        editor.commands.setOrderedListType(listType)
+      }, 0)
+    } else {
+      editor.commands.setOrderedListType(listType)
+    }
+  }, [editor, isActive])
+
+  return (
+    <div className="relative flex" ref={ref}>
+      <button
+        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        title="Liste numerotee"
+        className={clsx(
+          'p-1.5 rounded-l transition-colors cursor-pointer',
+          isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        )}
+      >
+        <ListOrdered size={16} />
+      </button>
+      <button
+        onClick={() => setOpen(!open)}
+        title="Choisir le style de numerotation"
+        className={clsx(
+          'px-1 py-1.5 rounded-r transition-colors cursor-pointer border-l border-gray-200',
+          isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        )}
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-1.5 z-50 min-w-[200px]">
+          <div className="text-[10px] text-gray-400 px-2 py-1 font-medium">Style de numerotation</div>
+          {ORDERED_LIST_STYLES.map(({ type, preview, label }) => (
+            <button
+              key={type || 'decimal'}
+              onClick={() => { setListType(type); setOpen(false) }}
+              className={clsx(
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors cursor-pointer',
+                isActive && currentType === type ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+              )}
+            >
+              <span className="text-xs font-mono w-[72px] text-left">{preview}</span>
+              <span className="text-gray-500 text-xs">{label}</span>
+            </button>
+          ))}
+          {isActive && (
+            <>
+              <div className="border-t border-gray-100 my-1" />
+              <button
+                onClick={() => { editor.chain().focus().toggleOrderedList().run(); setOpen(false) }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <span className="text-xs">✕</span>
@@ -983,13 +1073,7 @@ export function EditorToolbar({ editor }: ToolbarProps) {
           <ToolbarSeparator />
 
           <BulletStylePicker editor={editor} />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            active={editor.isActive('orderedList')}
-            title="Liste numerotee"
-          >
-            <ListOrdered size={16} />
-          </ToolbarButton>
+          <OrderedListStylePicker editor={editor} />
         </ToolbarGroup>
 
         <ToolbarSeparator />
