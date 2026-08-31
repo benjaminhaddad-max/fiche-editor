@@ -1,7 +1,7 @@
 import { formatDate, money } from '@/lib/format'
 import { COMPANY } from '@/lib/types'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://diploma-invoice.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 
 /** Enveloppe HTML commune : sobre, lisible dans tous les clients mail. */
 function layout(title: string, body: string, cta?: { label: string; href: string }) {

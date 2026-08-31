@@ -21,7 +21,7 @@ if (existsSync('.env.local')) {
 const APPLY = process.argv.includes('--apply')
 const DELAY_DAYS = Number(process.env.RELANCE_DELAY_DAYS ?? 5)
 const MAX_REMINDERS = Number(process.env.RELANCE_MAX ?? 3)
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://diploma-invoice.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const BREVO = process.env.BREVO_API_KEY

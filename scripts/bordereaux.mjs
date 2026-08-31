@@ -30,7 +30,7 @@ const args = process.argv.slice(2)
 const APPLY = args.includes('--apply')
 const CLOTURE = args.includes('--cloture')
 const moisArg = args[args.indexOf('--mois') + 1]
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://diploma-invoice.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 const BREVO = process.env.BREVO_API_KEY
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
