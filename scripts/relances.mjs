@@ -37,8 +37,8 @@ async function send(to, subject, html, meta) {
     headers: { 'api-key': BREVO, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       sender: {
-        name: process.env.BREVO_SENDER_NAME ?? 'Diploma Santé — Facturation',
-        email: process.env.BREVO_SENDER_EMAIL ?? 'contact@diploma-sante.fr',
+        name: process.env.BREVO_SENDER_NAME ?? 'Facturation Diploma Santé',
+        email: process.env.BREVO_SENDER_EMAIL ?? 'facturation@diploma-sante.fr',
       },
       to: [{ email: to.email, name: to.name }],
       subject, htmlContent: html,

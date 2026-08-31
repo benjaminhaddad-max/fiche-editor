@@ -32,10 +32,10 @@ export function isBrevoConfigured(): boolean {
 
 function sender(): EmailRecipient {
   return {
-    name: process.env.BREVO_SENDER_NAME ?? 'Diploma Santé — Facturation',
+    name: process.env.BREVO_SENDER_NAME ?? 'Facturation Diploma Santé',
     // Doit etre une adresse VALIDEE dans Brevo (Settings > Senders),
     // sinon l'API repond 400 et rien ne part.
-    email: process.env.BREVO_SENDER_EMAIL ?? 'contact@diploma-sante.fr',
+    email: process.env.BREVO_SENDER_EMAIL ?? 'facturation@diploma-sante.fr',
   }
 }
 
