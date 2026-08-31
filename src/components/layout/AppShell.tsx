@@ -55,6 +55,7 @@ const NAV: Record<Role, { section: string; items: NavItem[] }[]> = {
       section: 'Pilotage',
       items: [
         { href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard },
+        { href: '/admin/prestations', label: 'Toutes les prestations', icon: ListChecks },
         { href: '/validation', label: 'Prestations à valider', icon: CheckSquare },
         { href: '/admin/factures', label: 'Factures', icon: Receipt, prefix: true },
         { href: '/admin/contrats', label: 'Contrats de coaching', icon: ScrollText, prefix: true },
@@ -73,9 +74,11 @@ const NAV: Record<Role, { section: string; items: NavItem[] }[]> = {
 
 export function AppShell({
   user,
+  banner,
   children,
 }: {
   user: { full_name: string; email: string; role: Role }
+  banner?: React.ReactNode
   children: React.ReactNode
 }) {
   const router = useRouter()
@@ -161,6 +164,7 @@ export function AppShell({
       </aside>
 
       <main className="flex-1 overflow-x-auto bg-slate-50">
+        {banner}
         <div className="mx-auto max-w-6xl px-8 py-8">{children}</div>
       </main>
     </div>

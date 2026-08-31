@@ -7,6 +7,7 @@ import { ROLE_LABEL } from '@/lib/labels'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
 import { createUserAccount, toggleUserActive } from '../actions'
+import { impersonate } from './actions'
 
 const ROLE_STYLE: Record<string, string> = {
   admin: 'bg-brand-50 text-brand-700 ring-brand-200',
@@ -63,6 +64,19 @@ export default async function UsersPage() {
                   {u.id === me.id ? (
                     <span className="text-xs text-slate-400">vous</span>
                   ) : (
+                    <div className="flex items-center justify-end gap-1">
+                      {u.is_active && u.role !== 'admin' && (
+                        <form action={impersonate}>
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <button
+                            type="submit"
+                            title="Voir la plateforme comme cette personne"
+                            className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
+                          >
+                            Se connecter en tant que
+                          </button>
+                        </form>
+                      )}
                     <form action={toggleUserActive} className="inline">
                       <input type="hidden" name="user_id" value={u.id} />
                       <input
@@ -81,6 +95,7 @@ export default async function UsersPage() {
                         {u.is_active ? 'Désactiver' : 'Réactiver'}
                       </button>
                     </form>
+                    </div>
                   )}
                 </td>
               </tr>

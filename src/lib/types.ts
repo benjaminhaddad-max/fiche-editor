@@ -6,7 +6,11 @@ export type MissionStatus =
   | 'manager_approved'
   | 'approved'
   | 'rejected'
+  | 'contested'
   | 'invoiced'
+/** Origine d'une prestation : contrat signé, saisie manager, ou ajout du prestataire. */
+export type MissionOrigin = 'contract' | 'manager' | 'provider'
+
 export type InvoiceStatus = 'draft' | 'issued' | 'sent' | 'paid'
 export type VatRegime = 'franchise' | 'normal'
 export type PennylaneStatus = 'not_synced' | 'synced' | 'error'
@@ -84,6 +88,7 @@ export interface Mission {
   rejected_by: string | null
   rejection_reason: string | null
   invoice_id: string | null
+  origin: MissionOrigin
   created_at: string
 }
 

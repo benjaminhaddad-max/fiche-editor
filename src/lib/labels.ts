@@ -6,6 +6,7 @@ export const MISSION_STATUS_LABEL: Record<MissionStatus, string> = {
   manager_approved: 'En attente admin',
   approved: 'Validée — facturable',
   rejected: 'Refusée',
+  contested: 'Contestée',
   invoiced: 'Facturée',
 }
 
@@ -15,6 +16,7 @@ export const MISSION_STATUS_STYLE: Record<MissionStatus, string> = {
   manager_approved: 'bg-sky-50 text-sky-700 ring-sky-200',
   approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   rejected: 'bg-red-50 text-red-700 ring-red-200',
+  contested: 'bg-orange-50 text-orange-700 ring-orange-200',
   invoiced: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
 }
 

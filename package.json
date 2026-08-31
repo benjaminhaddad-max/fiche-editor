@@ -15,7 +15,8 @@
     "contrats-coaching": "node --experimental-websocket scripts/contrats-coaching.mjs",
     "echeances": "node --experimental-websocket scripts/echeances.mjs",
     "lab-coaching": "node --experimental-websocket scripts/lab-coaching.mjs",
-    "bordereaux": "node --experimental-websocket scripts/bordereaux.mjs"
+    "bordereaux": "node --experimental-websocket scripts/bordereaux.mjs",
+    "coach-test": "node --experimental-websocket scripts/coach-test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.3.1",
