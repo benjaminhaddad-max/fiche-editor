@@ -27,6 +27,7 @@ if (existsSync('.env.local')) {
 const APPLY = process.argv.includes('--apply')
 const AUJOURD_HUI = process.env.DATE_REFERENCE ?? new Date().toISOString().slice(0, 10)
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+const PROGRAMME = { pass_las_lsps: 'PASS / LAS / LSPS', paes: 'PAES', terminale_sante: 'Terminale Santé' }
 const euro = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
   .format(Number(v)).replace(/ /g, ' ')
 
@@ -34,7 +35,7 @@ const { data: dues, error } = await db
   .from('inv_contract_instalments')
   .select(`id, label, due_date, amount_ht,
            contract:inv_coaching_contracts(
-             id, provider_id, manager_id, category_id, classes_label, program, academic_year, status,
+             id, provider_id, manager_id, category_id, classes_label, program, academic_year, status, headcount,
              provider:inv_providers(legal_name))`)
   .lte('due_date', AUJOURD_HUI)
   .is('mission_id', null)
@@ -59,7 +60,10 @@ for (const e of ouvrables) {
     provider_id: c.provider_id,
     manager_id: c.manager_id,
     category_id: c.category_id,
-    detail: `Coaching ${c.academic_year} — ${e.label} (${c.classes_label})`.slice(0, 500),
+    // Ce libellé part tel quel sur la facture PDF puis dans Pennylane :
+    // il ne doit contenir ni nom de classe interne, ni autre marque.
+    detail: `Coaching pédagogique ${PROGRAMME[c.program] ?? c.program} — ${c.academic_year}`
+      + ` — ${e.label.toLowerCase()} — ${c.headcount} étudiants suivis`,
     start_date: e.due_date,
     end_date: e.due_date,
     pricing_type: 'forfait_mission',
