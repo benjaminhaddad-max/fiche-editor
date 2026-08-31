@@ -30,44 +30,42 @@ if (existsSync('.env.local')) {
 
 const APPLY = process.argv.includes('--apply')
 const ANNEE = process.env.ANNEE_UNIVERSITAIRE ?? '2026-2027'
+const ANNEE_RENTREE = Number(ANNEE.slice(0, 4))
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-/** Mois de démarrage du premier semestre, par programme (0 = janvier). */
-const DEMARRAGE = { pass_las_lsps: 7, paes: 7, terminale_sante: 8 }
-const REPARTITION = [0.3, 0.4, 0.3]
 const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']
 
 /** Dernier jour du mois, en date ISO. */
 function finDeMois(annee, mois) {
-  const d = new Date(Date.UTC(annee, mois + 1, 0))
-  return d.toISOString().slice(0, 10)
+  return new Date(Date.UTC(annee, mois + 1, 0)).toISOString().slice(0, 10)
 }
 
 /**
- * Trois échéances par semestre : mois de départ, +2, +4.
- * Les arrondis vont sur la dernière pour que la somme tombe au centime.
+ * Échéancier d'un contrat, calculé depuis la grille du programme.
+ *
+ * Chaque programme a son propre rythme : six versements pour PASS/LAS/LSPS,
+ * deux pour Terminale Santé. La grille vit en base (inv_coaching_rates.schedule),
+ * pas dans ce script.
+ *
+ * Le reliquat d'arrondi tombe sur la dernière échéance, pour que la somme
+ * corresponde au centime près au montant du contrat.
  */
-function echeances(programme, montantSemestre, anneeDebut, semestre) {
-  const depart = DEMARRAGE[programme] ?? 7
-  const base = depart + (semestre - 1) * 5
-  const out = []
+function echeancesDepuisGrille(schedule, montantAnnuel, anneeRentree) {
   let cumul = 0
-  for (let i = 0; i < 3; i++) {
-    const m = base + i * 2
-    const annee = anneeDebut + Math.floor(m / 12)
-    const mois = m % 12
-    const montant = i === 2
-      ? Math.round((montantSemestre - cumul) * 100) / 100
-      : Math.round(montantSemestre * REPARTITION[i] * 100) / 100
+  return schedule.map((e, i) => {
+    const dernier = i === schedule.length - 1
+    const montant = dernier
+      ? Math.round((montantAnnuel - cumul) * 100) / 100
+      : Math.round(montantAnnuel * e.share * 100) / 100
     cumul += montant
-    out.push({
-      label: `Semestre ${semestre} — échéance fin ${MOIS[mois]} ${annee}`,
-      due_date: finDeMois(annee, mois),
+    const annee = anneeRentree + (e.year_offset ?? 0)
+    return {
+      label: e.label ?? `Échéance fin ${MOIS[e.month]} ${annee}`,
+      due_date: finDeMois(annee, e.month),
       amount_ht: montant,
-      sort_order: (semestre - 1) * 3 + i + 1,
-    })
-  }
-  return out
+      sort_order: i + 1,
+    }
+  })
 }
 
 function motDePasse(nom) {
@@ -92,9 +90,11 @@ for (const c of coachs) {
   const rate = rates.find((r) => r.program === c.bareme.programme)
   if (!rate) { console.error(`  ✗ pas de barème ${ANNEE} pour ${c.bareme.programme}`); continue }
 
+  if (!rate.schedule?.length) { console.error(`  ✗ pas d'échéancier pour ${c.bareme.programme}`); continue }
+
   const semestre = Math.round(Number(rate.base_amount) * c.eleves / rate.base_headcount * 100) / 100
   const total = Math.round(semestre * 2 * 100) / 100
-  const plan = [...echeances(c.bareme.programme, semestre, 2026, 1), ...echeances(c.bareme.programme, semestre, 2026, 2)]
+  const plan = echeancesDepuisGrille(rate.schedule, total, ANNEE_RENTREE)
 
   const ligne = { ...c, programme: c.bareme.programme, semestre, total, plan, mdp: null, etat: 'à créer' }
 
