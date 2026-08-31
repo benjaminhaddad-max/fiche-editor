@@ -2,10 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "fiche-editor",
-      "runtimeExecutable": "/Users/benjaminhaddad-diplomasante/.local/node/bin/node",
-      "runtimeArgs": ["/Users/benjaminhaddad-diplomasante/.local/node/bin/npx", "next", "dev"],
-      "env": { "PATH": "/Users/benjaminhaddad-diplomasante/.local/node/bin:/usr/bin:/bin" },
+      "name": "diploma-invoice",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": true
     }

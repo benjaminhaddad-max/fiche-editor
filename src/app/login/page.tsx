@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input } from '@/components/ui/Field'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -18,56 +18,66 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-
+    const { error } = await createClient().auth.signInWithPassword({ email, password })
     if (error) {
-      setError('Email ou mot de passe incorrect')
+      setError('Email ou mot de passe incorrect.')
       setLoading(false)
       return
     }
 
-    router.push('/fiches')
+    // La destination depend du role : / redirige vers le bon espace.
+    router.push('/')
     router.refresh()
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Diploma Sante</h1>
-          <p className="text-gray-500 mt-1">Editeur de fiches de cours</p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Diploma Invoice
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Prestations et facturation — Diploma Santé
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleLogin}
+          className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <Input
             id="email"
             label="Email"
             type="email"
-            placeholder="votre@email.com"
+            autoComplete="email"
+            placeholder="vous@exemple.fr"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-
           <Input
             id="password"
             label="Mot de passe"
             type="password"
-            placeholder="Mot de passe"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</p>
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
           )}
 
-          <Button type="submit" disabled={loading} className="mt-2">
-            {loading ? 'Connexion...' : 'Se connecter'}
+          <Button type="submit" disabled={loading} className="mt-1">
+            {loading ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>
+
+        <p className="mt-4 text-center text-xs text-slate-500">
+          Votre accès est créé par l’administrateur Diploma Santé.
+        </p>
       </div>
     </div>
   )
