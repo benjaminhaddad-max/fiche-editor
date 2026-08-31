@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Check, Clock } from 'lucide-react'
+import { ArrowLeft, Clock } from 'lucide-react'
 import { Badge, MissionStatusBadge } from '@/components/ui/Badge'
 import { Card, PageHeader } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
