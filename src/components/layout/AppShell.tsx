@@ -12,6 +12,7 @@ import {
   ListChecks,
   LogOut,
   Receipt,
+  ScrollText,
   Tags,
   KeyRound,
   UserCircle,
@@ -56,6 +57,7 @@ const NAV: Record<Role, { section: string; items: NavItem[] }[]> = {
         { href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard },
         { href: '/validation', label: 'Prestations à valider', icon: CheckSquare },
         { href: '/admin/factures', label: 'Factures', icon: Receipt, prefix: true },
+        { href: '/admin/contrats', label: 'Contrats de coaching', icon: ScrollText, prefix: true },
       ],
     },
     {
