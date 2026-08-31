@@ -13,6 +13,7 @@ import {
   LogOut,
   Receipt,
   Tags,
+  KeyRound,
   UserCircle,
   Users,
 } from 'lucide-react'
@@ -129,6 +130,19 @@ export function AppShell({
         </nav>
 
         <div className="border-t border-white/10 p-3">
+          <Link
+            href="/compte"
+            className={clsx(
+              'mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+              pathname === '/compte'
+                ? 'bg-brand-600 font-medium text-white'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            )}
+          >
+            <KeyRound size={17} />
+            Mon compte
+          </Link>
+
           <div className="px-3 py-2">
             <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
             <p className="truncate text-xs text-slate-400">{ROLE_LABEL[user.role]}</p>
