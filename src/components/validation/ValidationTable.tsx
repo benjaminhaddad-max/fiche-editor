@@ -40,7 +40,7 @@ export function ValidationTable({
               <th className="px-4 py-3 font-medium">Prestataire</th>
               <th className="px-4 py-3 font-medium">Prestation</th>
               <th className="px-4 py-3 font-medium">Période</th>
-              {showManager && <th className="px-4 py-3 font-medium">Donneur d’ordre</th>}
+              {showManager && <th className="px-4 py-3 font-medium">Manager</th>}
               <th className="px-4 py-3 text-right font-medium">Montant HT</th>
               <th className="px-4 py-3 text-right font-medium">Décision</th>
             </tr>

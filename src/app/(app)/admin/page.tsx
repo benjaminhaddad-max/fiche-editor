@@ -55,7 +55,7 @@ export default async function AdminDashboard() {
           accent="amber"
         />
         <StatTile
-          label="Chez les donneurs d’ordre"
+          label="Chez les managers"
           value={String(count(['submitted']))}
           sub={money(sum(['submitted']))}
         />

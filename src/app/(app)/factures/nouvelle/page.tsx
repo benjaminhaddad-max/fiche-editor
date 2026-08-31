@@ -59,7 +59,7 @@ export default async function NewInvoicePage() {
       {missions.length === 0 ? (
         <EmptyState
           title="Aucune prestation à facturer"
-          description="Seules les prestations validées par votre donneur d’ordre puis par l’administration peuvent être facturées."
+          description="Seules les prestations validées par votre manager puis par l’administration peuvent être facturées."
           action={
             <Link href="/missions" className="text-sm font-medium text-brand-600 underline">
               Voir mes prestations

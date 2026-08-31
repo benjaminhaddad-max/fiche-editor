@@ -93,7 +93,7 @@ export default async function MissionsPage() {
       {missions.length === 0 ? (
         <EmptyState
           title="Aucune prestation déclarée"
-          description="Commencez par déclarer une mission réalisée pour Diploma Santé. Elle sera validée par votre donneur d’ordre avant d’être facturable."
+          description="Commencez par déclarer une mission réalisée pour Diploma Santé. Elle sera validée par votre manager avant d’être facturable."
           action={
             <Link href="/missions/new">
               <Button>
@@ -111,7 +111,7 @@ export default async function MissionsPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Période</th>
                   <th className="px-4 py-3 font-medium">Prestation</th>
-                  <th className="px-4 py-3 font-medium">Donneur d’ordre</th>
+                  <th className="px-4 py-3 font-medium">Manager</th>
                   <th className="px-4 py-3 text-right font-medium">Montant HT</th>
                   <th className="px-4 py-3 font-medium">Statut</th>
                   <th className="px-4 py-3" />

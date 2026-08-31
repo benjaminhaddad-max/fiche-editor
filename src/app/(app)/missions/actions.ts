@@ -15,7 +15,7 @@ export interface ActionResult {
 
 const MissionSchema = z
   .object({
-    manager_id: z.uuid('Sélectionnez un donneur d’ordre.'),
+    manager_id: z.uuid('Sélectionnez un manager.'),
     category_id: z.uuid('Sélectionnez une catégorie de mission.'),
     detail: z
       .string()

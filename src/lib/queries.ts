@@ -15,7 +15,7 @@ export async function getProviderCategories(): Promise<
   return data ?? []
 }
 
-/** Donneurs d'ordre selectionnables : managers et admins actifs. */
+/** Managers selectionnables : managers et admins actifs. */
 export async function getManagers(): Promise<{ id: string; full_name: string }[]> {
   const supabase = await createServerSupabase()
   const { data } = await supabase

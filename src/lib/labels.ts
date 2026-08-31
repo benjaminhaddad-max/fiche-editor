@@ -2,7 +2,7 @@ import type { InvoiceStatus, MissionStatus, PricingType, Role } from './types'
 
 export const MISSION_STATUS_LABEL: Record<MissionStatus, string> = {
   draft: 'Brouillon',
-  submitted: 'En attente donneur d’ordre',
+  submitted: 'En attente manager',
   manager_approved: 'En attente admin',
   approved: 'Validée — facturable',
   rejected: 'Refusée',
@@ -45,6 +45,6 @@ export const PRICING_UNIT: Record<PricingType, string> = {
 
 export const ROLE_LABEL: Record<Role, string> = {
   prestataire: 'Prestataire',
-  manager: 'Donneur d’ordre',
+  manager: 'Manager',
   admin: 'Administrateur',
 }

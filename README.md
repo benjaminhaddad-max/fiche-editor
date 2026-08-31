@@ -6,7 +6,7 @@ Diploma Santé.
 ## Le flux
 
 ```
-Prestataire            Donneur d'ordre         Admin                  Pennylane
+Prestataire            Manager         Admin                  Pennylane
 -----------            ---------------         -----                  ---------
 déclare une      →     valide ou refuse   →    valide          →      facture d'achat
 prestation             (motif obligatoire)     définitivement          (PDF + ventilation)
@@ -26,7 +26,7 @@ ont été validés, au centime près.
 | Rôle | Ce qu'il fait |
 |---|---|
 | `prestataire` | Déclare ses prestations, complète son profil de facturation, génère et transmet ses factures. |
-| `manager` | Donneur d'ordre : valide ou refuse les prestations qui lui sont soumises. |
+| `manager` | Manager : valide ou refuse les prestations qui lui sont soumises. |
 | `admin` | Validation finale, gestion des prestataires, catégories, comptes, synchronisation Pennylane. |
 
 ## Installation

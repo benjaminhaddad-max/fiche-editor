@@ -3,7 +3,7 @@
  * Parcours complet, joue avec de VRAIES sessions utilisateur (clé anon) pour
  * que la RLS soit réellement exercée, pas contournée :
  *
- *   prestataire déclare → donneur d'ordre valide → admin valide
+ *   prestataire déclare → manager valide → admin valide
  *   → prestataire génère sa facture → contrôle des montants
  *
  * Les comptes de test sont supprimés à la fin.
@@ -148,8 +148,8 @@ const { data: selfApprove } = await asPresta
   .select('id')
 check('le prestataire ne peut pas s’auto-valider', (selfApprove?.length ?? 0) === 0)
 
-// ---------- 3. validation donneur d'ordre ----------
-console.log('\n3. Validation par le donneur d’ordre')
+// ---------- 3. validation manager ----------
+console.log('\n3. Validation par le manager')
 const { data: mgrApproved, error: mgrError } = await asManager
   .from('inv_missions')
   .update({
@@ -166,7 +166,7 @@ const { data: mgrFinal } = await asManager
   .update({ status: 'approved' })
   .eq('id', mission.id)
   .select('id')
-check('le donneur d’ordre ne peut pas valider seul', (mgrFinal?.length ?? 0) === 0)
+check('le manager ne peut pas valider seul', (mgrFinal?.length ?? 0) === 0)
 
 // ---------- 4. validation admin ----------
 console.log('\n4. Validation administrative')
@@ -224,7 +224,7 @@ if (invoiceId) {
 // ---------- 6. cloisonnement entre prestataires ----------
 console.log('\n6. Cloisonnement')
 const { data: otherInvoices } = await asManager.from('inv_invoices').select('id')
-check('le donneur d’ordre ne voit aucune facture', (otherInvoices?.length ?? 0) === 0)
+check('le manager ne voit aucune facture', (otherInvoices?.length ?? 0) === 0)
 
 // ---------- nettoyage ----------
 console.log('\nNettoyage')

@@ -158,7 +158,7 @@ CREATE TABLE inv_invoices (
 CREATE TABLE inv_missions (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   provider_id       UUID NOT NULL REFERENCES inv_providers(id) ON DELETE CASCADE,
-  manager_id        UUID NOT NULL REFERENCES inv_users(id),        -- donneur d'ordre
+  manager_id        UUID NOT NULL REFERENCES inv_users(id),        -- manager
   category_id       UUID NOT NULL REFERENCES inv_categories(id),
 
   detail            TEXT NOT NULL,

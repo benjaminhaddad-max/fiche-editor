@@ -51,7 +51,7 @@ export default async function ValidationPage() {
       <section className="mb-10">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-slate-900">
-            Validées par le donneur d’ordre — en attente de vous
+            Validées par le manager — en attente de vous
           </h2>
           {awaitingAdmin.length > 0 && (
             <span className="text-sm text-slate-600">
@@ -73,14 +73,14 @@ export default async function ValidationPage() {
         <div className="mb-3 flex items-center gap-2">
           <Clock size={15} className="text-slate-400" />
           <h2 className="text-sm font-semibold text-slate-900">
-            En attente du donneur d’ordre
+            En attente du manager
           </h2>
         </div>
         <p className="mb-3 text-xs text-slate-500">
           Vous pouvez valider directement : les deux étapes seront cochées d’un coup.
         </p>
         {awaitingManager.length === 0 ? (
-          <EmptyState title="Aucune prestation en attente côté donneur d’ordre" />
+          <EmptyState title="Aucune prestation en attente côté manager" />
         ) : (
           <ValidationTable missions={awaitingManager} showManager />
         )}

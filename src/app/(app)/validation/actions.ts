@@ -8,10 +8,10 @@ import { createServerSupabase } from '@/lib/supabase/server'
 
 /**
  * Valide une prestation.
- *  - donneur d'ordre : submitted -> manager_approved
+ *  - manager : submitted -> manager_approved
  *  - admin           : submitted | manager_approved -> approved
  *
- * L'admin qui valide une prestation encore au stade "donneur d'ordre" coche
+ * L'admin qui valide une prestation encore au stade "manager" coche
  * les deux etapes d'un coup : c'est le raccourci assume pour les missions
  * qu'il a lui-meme commandees.
  */
@@ -65,7 +65,7 @@ export async function approveMission(formData: FormData): Promise<void> {
       rejected_at: null,
       rejected_by: null,
     }
-    // Raccourci admin : on renseigne aussi l'etape donneur d'ordre si elle
+    // Raccourci admin : on renseigne aussi l'etape manager si elle
     // n'a jamais eu lieu, pour garder une piste d'audit complete.
     if (!mission.manager_approved_at) {
       patch.manager_approved_at = now

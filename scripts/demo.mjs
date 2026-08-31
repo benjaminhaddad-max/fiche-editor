@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Jeu de démonstration : un donneur d'ordre, un prestataire et quelques
+ * Jeu de démonstration : un manager, un prestataire et quelques
  * prestations dans des états différents, pour voir les écrans remplis.
  *
  *   node --experimental-websocket scripts/demo.mjs           crée

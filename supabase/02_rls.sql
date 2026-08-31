@@ -70,7 +70,7 @@ ALTER TABLE inv_audit_log     ENABLE ROW LEVEL SECURITY;
 
 -- ---------- 4. inv_users ----------
 -- Tout utilisateur actif voit l'annuaire interne (necessaire pour afficher
--- le nom du donneur d'ordre / du prestataire).
+-- le nom du manager / du prestataire).
 CREATE POLICY users_select ON inv_users
   FOR SELECT USING (inv_me() IS NOT NULL);
 
@@ -135,7 +135,7 @@ CREATE POLICY missions_delete_own ON inv_missions
     provider_id = inv_my_provider_id() AND status IN ('draft', 'rejected')
   );
 
--- Le donneur d'ordre valide / refuse ce qui lui est soumis.
+-- Le manager valide / refuse ce qui lui est soumis.
 CREATE POLICY missions_update_manager ON inv_missions
   FOR UPDATE
   USING (manager_id = inv_me() AND inv_my_role() = 'manager' AND status = 'submitted')

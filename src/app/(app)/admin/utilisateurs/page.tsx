@@ -30,7 +30,7 @@ export default async function UsersPage() {
     <>
       <PageHeader
         title="Utilisateurs"
-        description="Prestataires, donneurs d’ordre et administrateurs."
+        description="Prestataires, managers et administrateurs."
       />
 
       <div className="mb-8">

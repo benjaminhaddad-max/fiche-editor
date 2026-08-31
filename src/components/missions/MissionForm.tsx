@@ -51,7 +51,7 @@ export function MissionForm({
           <Select
             id="manager_id"
             name="manager_id"
-            label="Donneur d’ordre"
+            label="Manager"
             defaultValue={mission?.manager_id ?? defaultManagerId ?? ''}
             error={errors.manager_id}
             hint="La personne de Diploma Santé qui vous a confié la mission."

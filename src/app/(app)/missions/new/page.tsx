@@ -15,7 +15,7 @@ export default async function NewMissionPage() {
     <>
       <PageHeader
         title="Déclarer une prestation"
-        description="Une prestation validée par votre donneur d’ordre puis par l’administration devient facturable."
+        description="Une prestation validée par votre manager puis par l’administration devient facturable."
       />
       <MissionForm
         action={createMission}

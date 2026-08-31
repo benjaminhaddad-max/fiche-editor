@@ -65,7 +65,7 @@ export function ProviderAdminForm({
           <Select
             id="default_manager_id"
             name="default_manager_id"
-            label="Donneur d’ordre par défaut"
+            label="Manager par défaut"
             defaultValue={provider.default_manager_id ?? ''}
             hint="Pré-sélectionné quand le prestataire déclare une mission."
           >
