@@ -1,6 +1,7 @@
 import type { ReviewMission } from '@/components/validation/ValidationTable'
 import type { MissionStatus } from '@/lib/types'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { getContractContext } from '@/lib/contract-context'
 
 export const MISSION_WITH_RELATIONS = `
   id, detail, start_date, end_date, pricing_type, quantity, unit_amount_ht,
@@ -60,5 +61,8 @@ export async function getMissionsByStatus(
     console.error('[getMissionsByStatus]', error.message)
     return []
   }
-  return (data as unknown as RawMission[]).map(toReviewMission)
+
+  const rows = (data as unknown as RawMission[]).map(toReviewMission)
+  const contexte = await getContractContext(rows.map((r) => r.id))
+  return rows.map((r) => ({ ...r, contract: contexte.get(r.id) }))
 }

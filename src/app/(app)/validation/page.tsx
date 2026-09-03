@@ -1,12 +1,20 @@
+import { Suspense } from 'react'
 import { Clock } from 'lucide-react'
 import { EmptyState, PageHeader } from '@/components/ui/Page'
 import { ValidationTable } from '@/components/validation/ValidationTable'
 import { requireRole } from '@/lib/auth'
 import { money } from '@/lib/format'
 import { getMissionsByStatus } from '@/lib/missions'
+import { ManagerPicker } from '@/components/validation/ManagerPicker'
+import { getManagers } from '@/lib/queries'
 
-export default async function ValidationPage() {
+export default async function ValidationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ manager?: string }>
+}) {
   const user = await requireRole('manager', 'admin')
+  const { manager } = await searchParams
 
   if (user.role === 'manager') {
     const missions = await getMissionsByStatus(['submitted'], { managerId: user.id })
@@ -36,10 +44,23 @@ export default async function ValidationPage() {
     )
   }
 
-  const [awaitingAdmin, awaitingManager] = await Promise.all([
-    getMissionsByStatus(['manager_approved']),
-    getMissionsByStatus(['submitted']),
-  ])
+  // Par défaut on montre ce qui est rattaché à l'administrateur connecté,
+  // mais on signale toujours combien de lignes vivent ailleurs : personne ne
+  // doit rater une prestation parce qu'un filtre la masquait.
+  const choix = manager ?? user.id
+  const filtre = choix === 'tous' ? {} : { managerId: choix }
+
+  const [awaitingAdmin, awaitingManager, tousAdmin, tousManager, managers] =
+    await Promise.all([
+      getMissionsByStatus(['manager_approved'], filtre),
+      getMissionsByStatus(['submitted'], filtre),
+      getMissionsByStatus(['manager_approved']),
+      getMissionsByStatus(['submitted']),
+      getManagers(),
+    ])
+
+  const ailleurs =
+    tousAdmin.length + tousManager.length - awaitingAdmin.length - awaitingManager.length
 
   return (
     <>
@@ -47,6 +68,10 @@ export default async function ValidationPage() {
         title="Prestations à valider"
         description="Validation finale avant que le prestataire puisse générer sa facture."
       />
+
+      <Suspense fallback={null}>
+        <ManagerPicker managers={managers} value={choix} ailleurs={ailleurs} />
+      </Suspense>
 
       <section className="mb-10">
         <div className="mb-3 flex items-baseline justify-between">

@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Page'
 import { formatPeriod, money } from '@/lib/format'
 import { PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
 import type { PricingType } from '@/lib/types'
+import type { ContractContext } from '@/lib/contract-context'
 
 export interface ReviewMission {
   id: string
@@ -20,6 +21,51 @@ export interface ReviewMission {
   category_name: string
   provider_name: string
   manager_name: string
+  contract?: ContractContext
+}
+
+const PROGRAMME: Record<string, string> = {
+  pass_las_lsps: 'PASS / LAS / LSPS',
+  paes: 'PAES',
+  terminale_sante: 'Terminale Santé',
+}
+
+/**
+ * Le raisonnement complet derrière le montant : le barème, l'effectif, ce que
+ * ça donne sur l'année, et où en est le contrat une fois cette échéance payée.
+ */
+function ContractBreakdown({ c }: { c: ContractContext }) {
+  const reste = c.totalHt - c.paidAfter
+  const pct = c.totalHt > 0 ? Math.round((c.paidAfter / c.totalHt) * 100) : 0
+
+  return (
+    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs">
+      {c.rateBaseAmount && c.rateBaseHeadcount && c.headcount ? (
+        <p className="text-slate-700">
+          Barème {PROGRAMME[c.program] ?? c.program} :{' '}
+          <strong>{money(c.rateBaseAmount)} pour {c.rateBaseHeadcount} étudiants</strong> par semestre.
+          {' '}Ce coach en suit <strong>{c.headcount}</strong> →{' '}
+          {money(c.semesterAmount ?? 0)} par semestre, soit{' '}
+          <strong>{money(c.totalHt)} sur l’année</strong>.
+        </p>
+      ) : (
+        <p className="text-slate-700">
+          Forfait négocié : <strong>{money(c.totalHt)}</strong> sur l’année.
+        </p>
+      )}
+
+      <p className="mt-1.5 text-slate-700">
+        Échéance <strong>{c.index} sur {c.count}</strong>. Déjà réglé :{' '}
+        {money(c.paidBefore)}. Après celle-ci :{' '}
+        <strong>{money(c.paidAfter)} sur {money(c.totalHt)}</strong>
+        {reste > 0 ? ` — il restera ${money(reste)}.` : ' — contrat soldé.'}
+      </p>
+
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+        <div className="h-full rounded-full bg-brand-600" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
 }
 
 export function ValidationTable({
@@ -58,6 +104,8 @@ export function ValidationTable({
                     {Number(m.quantity)} {PRICING_UNIT[m.pricing_type]} ×{' '}
                     {money(m.unit_amount_ht)}
                   </p>
+
+                  {m.contract && <ContractBreakdown c={m.contract} />}
 
                   {rejecting === m.id && (
                     <form action={rejectMission} className="mt-3 flex flex-col gap-2">
