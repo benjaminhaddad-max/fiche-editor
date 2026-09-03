@@ -86,21 +86,30 @@ export async function stopImpersonation(): Promise<void> {
   redirect('/login')
 }
 
-/** Envoie (ou renvoie) l'invitation permettant de choisir son mot de passe. */
-export async function inviteUser(formData: FormData): Promise<void> {
+/**
+ * Envoie (ou renvoie) l'invitation permettant de choisir son mot de passe.
+ * Accepte une ou plusieurs personnes : c'est le même geste, qu'on relance
+ * un retardataire ou qu'on ouvre les accès à toute une promotion de coachs.
+ */
+export async function inviteUsers(formData: FormData): Promise<void> {
   const admin = await requireRole('admin')
-  const userId = String(formData.get('user_id') ?? '')
-  if (!userId) return
-
-  const envoye = await sendInvitation(userId)
+  const ids = formData.getAll('user_id').map(String).filter(Boolean)
+  if (ids.length === 0) return
 
   const service = createServiceClient()
-  await logAudit(service, {
-    actorId: admin.id,
-    entityType: 'user',
-    entityId: userId,
-    action: envoye ? 'invitation_sent' : 'invitation_failed',
-  })
+
+  // En série plutôt qu'en parallèle : Brevo limite le débit, et une rafale
+  // de vingt envois simultanés se ferait refuser en partie.
+  for (const id of ids) {
+    const envoye = await sendInvitation(id)
+    await logAudit(service, {
+      actorId: admin.id,
+      entityType: 'user',
+      entityId: id,
+      action: envoye ? 'invitation_sent' : 'invitation_failed',
+      payload: { lot: ids.length },
+    })
+  }
 
   revalidatePath('/admin/utilisateurs')
 }
