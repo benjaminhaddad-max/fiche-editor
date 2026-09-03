@@ -16,8 +16,10 @@ if (existsSync('.env.local')) {
 }
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-const EMAIL = 'coach.test@diploma-sante.fr'
-const MDP = 'CoachTest2026'
+// Adresse réelle : elle doit recevoir les vrais emails (invitation,
+// validation, bordereau) pour que le parcours soit testable de bout en bout.
+const EMAIL = process.env.COACH_TEST_EMAIL ?? 'benhaddad76+test@gmail.com'
+const MDP = 'CoachTest2026'   // remplacé par celui que la personne choisira via l'invitation
 const now = () => new Date().toISOString()
 
 const authUser = async () => {
@@ -64,7 +66,6 @@ const { data: u } = await db.from('inv_users')
   .select('id').single()
 
 const { data: manager } = await db.from('inv_users').select('id').eq('role', 'manager').limit(1).single()
-const { data: admin } = await db.from('inv_users').select('id').eq('role', 'admin').limit(1).single()
 
 // Profil déjà complet : on veut tester la facturation, pas l'onboarding.
 const { data: p } = await db.from('inv_providers').upsert({
@@ -86,17 +87,15 @@ const cas = [
     detail: 'Coaching pédagogique PASS / LAS / LSPS — 2026-2027 — semestre 1 — échéance fin août 2026 — 30 étudiants suivis',
     category_id: cat('Admin'), start_date: '2026-08-31', end_date: '2026-08-31',
     pricing_type: 'forfait_mission', quantity: 1, unit_amount_ht: 300, total_ht: 300,
-    status: 'approved', origin: 'contract',
+    status: 'manager_approved', origin: 'contract',
     submitted_at: now(), manager_approved_at: now(), manager_approved_by: manager.id,
-    admin_approved_at: now(), admin_approved_by: admin.id,
   },
   {
     detail: 'Surveillance concours blanc n°1 — campus Ledru-Rollin',
     category_id: cat('Référent'), start_date: '2026-08-22', end_date: '2026-08-22',
     pricing_type: 'forfait_mission', quantity: 1, unit_amount_ht: 310, total_ht: 310,
-    status: 'approved', origin: 'manager',
+    status: 'manager_approved', origin: 'manager',
     submitted_at: now(), manager_approved_at: now(), manager_approved_by: manager.id,
-    admin_approved_at: now(), admin_approved_by: admin.id,
   },
   {
     detail: 'Oubli : 3 h de permanence méthodo le samedi 15 août',
@@ -119,6 +118,7 @@ if (error) throw new Error(error.message)
 
 console.log(`\n✓ Compte de test prêt\n`)
 console.log(`  ${EMAIL}   mot de passe : ${MDP}\n`)
-console.log(`  ${cas.filter((c) => c.status === 'approved').reduce((s, c) => s + c.total_ht, 0)} € facturables tout de suite (2 lignes : coaching + surveillance)`)
-console.log(`  1 ajout du prestataire en attente de validation (135 €)`)
-console.log(`  1 prestation refusée avec son motif\n`)
+console.log(`  ${cas.filter((c) => c.status === 'manager_approved').reduce((s, c) => s + c.total_ht, 0)} € en attente de VOTRE validation (coaching + surveillance)`)
+console.log(`  135 € ajoutés par le prestataire, en attente de validation`)
+console.log(`  1 prestation refusée avec son motif`)
+console.log(`\n  Validez depuis « Prestations à valider » : un email partira automatiquement.\n`)

@@ -8,6 +8,8 @@ import { homePathFor } from '@/lib/auth'
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { sendInvitation } from '@/lib/email/notify'
+import { revalidatePath } from 'next/cache'
 
 /**
  * Ouvre une session sur le compte d'un autre utilisateur, pour voir la
@@ -82,4 +84,23 @@ export async function stopImpersonation(): Promise<void> {
   store.delete(IMPERSONATION_COOKIE)
 
   redirect('/login')
+}
+
+/** Envoie (ou renvoie) l'invitation permettant de choisir son mot de passe. */
+export async function inviteUser(formData: FormData): Promise<void> {
+  const admin = await requireRole('admin')
+  const userId = String(formData.get('user_id') ?? '')
+  if (!userId) return
+
+  const envoye = await sendInvitation(userId)
+
+  const service = createServiceClient()
+  await logAudit(service, {
+    actorId: admin.id,
+    entityType: 'user',
+    entityId: userId,
+    action: envoye ? 'invitation_sent' : 'invitation_failed',
+  })
+
+  revalidatePath('/admin/utilisateurs')
 }

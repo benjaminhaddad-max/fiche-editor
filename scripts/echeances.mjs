@@ -70,13 +70,15 @@ for (const e of ouvrables) {
     quantity: 1,
     unit_amount_ht: e.amount_ht,
     total_ht: e.amount_ht,
-    // Le contrat signé fait office de validation : rien à revalider.
-    status: 'approved',
+    // Le contrat signé tient lieu d'accord du manager, mais la validation
+    // finale reste à l'administration : c'est elle qui décide quand une
+    // échéance devient facturable, et son accord déclenche l'email au
+    // prestataire.
+    status: 'manager_approved',
+    origin: 'contract',
     submitted_at: new Date().toISOString(),
     manager_approved_at: new Date().toISOString(),
     manager_approved_by: c.manager_id,
-    admin_approved_at: new Date().toISOString(),
-    admin_approved_by: c.manager_id,
   }).select('id').single()
 
   if (mErr) { console.error(`  ✗ ${nom} — ${e.label} : ${mErr.message}`); continue }

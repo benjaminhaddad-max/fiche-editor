@@ -38,6 +38,22 @@ function layout(title: string, body: string, cta?: { label: string; href: string
 }
 
 export const templates = {
+  /** Première prise de contact : la personne choisit son mot de passe. */
+  invitation: (p: { fullName: string; link: string }) => ({
+    subject: 'Créez votre accès à Diploma Invoice',
+    html: layout(
+      'Votre espace de facturation est prêt',
+      `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
+       <p style="margin:0 0 12px;">${COMPANY.name} met à votre disposition un espace pour
+          suivre vos prestations et transmettre vos factures.</p>
+       <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.
+          Vous compléterez ensuite vos informations de facturation — raison sociale, SIRET,
+          adresse et IBAN — nécessaires pour être réglé.</p>
+       <p style="margin:0;color:#64748b;font-size:13px;">Ce lien est personnel et ne fonctionne qu'une fois.</p>`,
+      { label: 'Créer mon accès', href: p.link }
+    ),
+  }),
+
   missionRejected: (p: {
     providerName: string
     detail: string
@@ -64,8 +80,12 @@ export const templates = {
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">${p.count} prestation${p.count > 1 ? 's ont' : ' a'} été validée${p.count > 1 ? 's' : ''},
           pour un total de <strong>${money(p.total)} HT</strong>.</p>
-       <p style="margin:0;">Vous pouvez générer votre facture : elle reprendra exactement ces montants.</p>`,
-      { label: 'Générer ma facture', href: `${APP_URL}/factures/nouvelle` }
+       <p style="margin:0 0 12px;">Rendez-vous dans votre espace pour établir votre facture :
+          la plateforme peut la générer pour vous à partir de ces montants, ou vous pouvez
+          déposer la vôtre si vous l'éditez avec votre propre outil.</p>
+       <p style="margin:0;color:#64748b;font-size:13px;">Dans les deux cas, les montants sont ceux
+          validés ci-dessus : vous n'avez rien à recalculer.</p>`,
+      { label: 'Établir ma facture', href: `${APP_URL}/factures/nouvelle` }
     ),
   }),
 

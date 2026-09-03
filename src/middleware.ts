@@ -33,6 +33,10 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // La page d'invitation doit rester accessible sans session : c'est
+  // justement là qu'on en ouvre une.
+  if (pathname === '/bienvenue') return supabaseResponse
+
   if (pathname === '/login') {
     if (user) {
       const url = request.nextUrl.clone()

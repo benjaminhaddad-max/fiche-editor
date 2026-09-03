@@ -7,7 +7,7 @@ import { ROLE_LABEL } from '@/lib/labels'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
 import { createUserAccount, toggleUserActive } from '../actions'
-import { impersonate } from './actions'
+import { impersonate, inviteUser } from './actions'
 
 const ROLE_STYLE: Record<string, string> = {
   admin: 'bg-brand-50 text-brand-700 ring-brand-200',
@@ -65,6 +65,18 @@ export default async function UsersPage() {
                     <span className="text-xs text-slate-400">vous</span>
                   ) : (
                     <div className="flex items-center justify-end gap-1">
+                      {u.is_active && (
+                        <form action={inviteUser}>
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <button
+                            type="submit"
+                            title="Envoyer un lien pour créer son mot de passe"
+                            className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                          >
+                            Inviter
+                          </button>
+                        </form>
+                      )}
                       {u.is_active && u.role !== 'admin' && (
                         <form action={impersonate}>
                           <input type="hidden" name="user_id" value={u.id} />

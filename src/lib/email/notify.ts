@@ -41,6 +41,46 @@ async function deliver(params: {
   if (error) console.error('[email:log]', error.message)
 }
 
+/**
+ * Invite une personne a creer son acces.
+ *
+ * Le lien porte un jeton a usage unique genere par Supabase : l'invitant ne
+ * connait jamais le mot de passe, et la personne le choisit elle-meme.
+ */
+export async function sendInvitation(userId: string): Promise<boolean> {
+  const supabase = createServiceClient()
+
+  const { data: user } = await supabase
+    .from('inv_users')
+    .select('id, email, full_name, is_active')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!user?.is_active) return false
+
+  const { data: link, error } = await supabase.auth.admin.generateLink({
+    type: 'recovery',
+    email: user.email,
+  })
+  if (error || !link?.properties?.hashed_token) {
+    console.error('[invitation]', error?.message)
+    return false
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
+  const href = `${appUrl}/bienvenue?token_hash=${link.properties.hashed_token}&type=recovery`
+
+  const tpl = templates.invitation({ fullName: user.full_name, link: href })
+  await deliver({
+    to: { email: user.email, name: user.full_name },
+    ...tpl,
+    template: 'invitation',
+    entityType: 'user',
+    entityId: user.id,
+  })
+  return true
+}
+
 /** Prevenir le prestataire qu'une prestation lui revient a corriger. */
 export async function notifyMissionRejected(missionId: string): Promise<void> {
   const supabase = createServiceClient()
