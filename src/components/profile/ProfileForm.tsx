@@ -50,9 +50,10 @@ export function ProfileForm({
             id="siret"
             name="siret"
             label="SIRET"
-            inputMode="numeric"
+            placeholder="12345678900019"
             defaultValue={provider.siret ?? ''}
             error={e.siret}
+            hint="Auto-entreprise encore en création ? Écrivez « en cours », vous le compléterez plus tard."
           />
           <Input id="email" label="Email" value={email} disabled readOnly />
         </div>
@@ -133,15 +134,24 @@ export function ProfileForm({
             <option value="franchise">Franchise en base (auto-entrepreneur)</option>
             <option value="normal">Assujetti — TVA 20 %</option>
           </Select>
-          <Input
-            id="vat_number"
-            name="vat_number"
-            label="Numéro de TVA intracommunautaire"
-            placeholder="FR00123456789"
-            defaultValue={provider.vat_number ?? ''}
-            error={e.vat_number}
-            required={vatRegime === 'normal'}
-          />
+          {vatRegime === 'normal' ? (
+            <Input
+              id="vat_number"
+              name="vat_number"
+              label="Numéro de TVA intracommunautaire"
+              placeholder="FR00123456789"
+              defaultValue={provider.vat_number ?? ''}
+              error={e.vat_number}
+              required
+            />
+          ) : (
+            <div className="flex items-end pb-1">
+              <p className="text-xs text-slate-500">
+                En franchise en base, vous n’avez pas de numéro de TVA
+                intracommunautaire : il n’y a rien à renseigner ici.
+              </p>
+            </div>
+          )}
           <Input
             id="iban"
             name="iban"

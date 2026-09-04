@@ -11,18 +11,33 @@ export interface ProfileResult {
   fieldErrors?: Record<string, string>
 }
 
+/**
+ * Champ facultatif. Tolère aussi l'ABSENCE du champ : un champ masqué à
+ * l'écran — la TVA intracommunautaire quand on est en franchise — n'est pas
+ * envoyé du tout, et doit valoir null plutôt que faire échouer le formulaire.
+ */
 const optional = (schema: z.ZodType<string>) =>
-  z.union([schema, z.literal('')]).transform((v) => (v === '' ? null : v))
+  z
+    .union([schema, z.literal(''), z.undefined()])
+    .transform((v) => (v === '' || v === undefined ? null : v))
 
 const ProfileSchema = z
   .object({
     legal_name: z.string().trim().min(2, 'Raison sociale obligatoire.'),
     legal_form: optional(z.string().trim()),
+    // L'article liminaire du contrat prévoit le cas : « si l'auto-entreprise
+    // est en cours de création, mentionner "en cours" ». On l'accepte donc
+    // tel quel, en le normalisant pour qu'il s'affiche pareil sur toutes les
+    // factures.
     siret: optional(
       z
         .string()
         .trim()
-        .regex(/^\d{9}(\d{5})?$/, 'Le SIRET doit contenir 14 chiffres (ou 9 pour un SIREN).')
+        .transform((v) => (/^en\s*cours$/i.test(v) ? 'en cours' : v.replace(/\s+/g, '')))
+        .refine(
+          (v) => v === 'en cours' || /^\d{9}(\d{5})?$/.test(v),
+          'Indiquez 14 chiffres (ou 9 pour un SIREN), ou « en cours » si votre auto-entreprise est en création.'
+        )
     ),
     vat_number: optional(z.string().trim()),
     address_line1: z.string().trim().min(3, 'Adresse obligatoire.'),
