@@ -46,6 +46,12 @@ export async function impersonate(formData: FormData): Promise<void> {
   }
 
   const supabase = await createServerSupabase()
+
+  // On ferme d'abord la session administrateur : sans ça, la vérification
+  // peut s'appliquer par-dessus une session résiduelle et viser le mauvais
+  // compte.
+  await supabase.auth.signOut()
+
   const { error: otpError } = await supabase.auth.verifyOtp({
     token_hash: link.properties.hashed_token,
     type: 'magiclink',
