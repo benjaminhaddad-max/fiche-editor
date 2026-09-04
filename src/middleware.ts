@@ -36,6 +36,7 @@ export async function middleware(request: NextRequest) {
   // La page d'invitation doit rester accessible sans session : c'est
   // justement là qu'on en ouvre une.
   if (pathname === '/bienvenue') return supabaseResponse
+  if (pathname === '/api/invitation') return supabaseResponse
 
   if (pathname === '/login') {
     if (user) {

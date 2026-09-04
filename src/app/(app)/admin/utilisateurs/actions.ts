@@ -107,7 +107,7 @@ export async function inviteUsers(formData: FormData): Promise<void> {
   // En série plutôt qu'en parallèle : Brevo limite le débit, et une rafale
   // de vingt envois simultanés se ferait refuser en partie.
   for (const id of ids) {
-    const envoye = await sendInvitation(id)
+    const envoye = await sendInvitation(id, admin.id)
     await logAudit(service, {
       actorId: admin.id,
       entityType: 'user',

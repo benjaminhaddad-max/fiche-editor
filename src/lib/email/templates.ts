@@ -2,6 +2,7 @@ import { formatDate, money } from '@/lib/format'
 import { COMPANY } from '@/lib/types'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
+const INVITATION_DAYS = Number(process.env.INVITATION_DAYS ?? 30)
 
 /** Enveloppe HTML commune : sobre, lisible dans tous les clients mail. */
 function layout(title: string, body: string, cta?: { label: string; href: string }) {
@@ -53,7 +54,8 @@ export const templates = {
        <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.
           Vous compléterez ensuite vos informations de facturation — raison sociale, SIRET,
           adresse et IBAN — nécessaires pour être réglé.</p>
-       <p style="margin:0;color:#64748b;font-size:13px;">Ce lien est personnel et ne fonctionne qu'une fois.</p>`,
+       <p style="margin:0;color:#64748b;font-size:13px;">Ce lien est personnel, ne fonctionne
+          qu'une fois, et reste valable ${INVITATION_DAYS} jours.</p>`,
       { label: 'Créer mon accès', href: p.link }
     ),
   }),

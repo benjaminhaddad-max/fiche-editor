@@ -8,9 +8,9 @@ import { WelcomeClient } from './WelcomeClient'
 export default async function BienvenuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ token_hash?: string; type?: string }>
+  searchParams: Promise<{ invitation?: string }>
 }) {
-  const { token_hash } = await searchParams
+  const { invitation } = await searchParams
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
@@ -23,7 +23,7 @@ export default async function BienvenuePage({
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <WelcomeClient tokenHash={token_hash ?? null} />
+          <WelcomeClient invitation={invitation ?? null} />
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { sendEmail } from '@/lib/email/brevo'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
+import { createInvitation } from '@/lib/invitation'
 
 /**
  * Envoie un email et le journalise. Ne leve jamais : une notification qui
@@ -47,7 +48,10 @@ async function deliver(params: {
  * Le lien porte un jeton a usage unique genere par Supabase : l'invitant ne
  * connait jamais le mot de passe, et la personne le choisit elle-meme.
  */
-export async function sendInvitation(userId: string): Promise<boolean> {
+export async function sendInvitation(
+  userId: string,
+  invitedBy?: string
+): Promise<boolean> {
   const supabase = createServiceClient()
 
   const { data: user } = await supabase
@@ -58,17 +62,11 @@ export async function sendInvitation(userId: string): Promise<boolean> {
 
   if (!user?.is_active) return false
 
-  const { data: link, error } = await supabase.auth.admin.generateLink({
-    type: 'recovery',
-    email: user.email,
-  })
-  if (error || !link?.properties?.hashed_token) {
-    console.error('[invitation]', error?.message)
-    return false
-  }
+  const token = await createInvitation(user.id, invitedBy ?? null)
+  if (!token) return false
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
-  const href = `${appUrl}/bienvenue?token_hash=${link.properties.hashed_token}&type=recovery`
+  const href = `${appUrl}/bienvenue?invitation=${token}`
 
   const tpl =
     user.role === 'prestataire'

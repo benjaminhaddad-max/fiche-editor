@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 type Etat =
   | { phase: 'verification' }
   | { phase: 'pret'; email: string }
-  | { phase: 'invalide' }
+  | { phase: 'invalide'; raison?: string }
 
 /**
  * Création de l'accès à partir d'un lien d'invitation.
@@ -24,7 +24,7 @@ type Etat =
  * connecté qui ouvre une invitation change son propre mot de passe au lieu
  * de celui de la personne invitée — c'est arrivé.
  */
-export function WelcomeClient({ tokenHash }: { tokenHash: string | null }) {
+export function WelcomeClient({ invitation }: { invitation: string | null }) {
   const router = useRouter()
   const [etat, setEtat] = useState<Etat>({ phase: 'verification' })
   const [password, setPassword] = useState('')
@@ -39,13 +39,28 @@ export function WelcomeClient({ tokenHash }: { tokenHash: string | null }) {
       const supabase = createClient()
       await supabase.auth.signOut()
 
-      if (!tokenHash) {
+      if (!invitation) {
         if (!annule) setEtat({ phase: 'invalide' })
         return
       }
 
+      // Notre jeton, valable un mois, est échangé maintenant contre un jeton
+      // Supabase de quelques minutes : celui-ci n'a pas le temps d'expirer.
+      const reponse = await fetch('/api/invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: invitation }),
+      })
+      const corps = (await reponse.json()) as { hashedToken?: string; error?: string }
+
+      if (annule) return
+      if (!reponse.ok || !corps.hashedToken) {
+        setEtat({ phase: 'invalide', raison: corps.error })
+        return
+      }
+
       const { data, error } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
+        token_hash: corps.hashedToken,
         type: 'recovery',
       })
 
@@ -58,7 +73,7 @@ export function WelcomeClient({ tokenHash }: { tokenHash: string | null }) {
     return () => {
       annule = true
     }
-  }, [tokenHash])
+  }, [invitation])
 
   async function definir(e: React.FormEvent) {
     e.preventDefault()
@@ -94,6 +109,14 @@ export function WelcomeClient({ tokenHash }: { tokenHash: string | null }) {
       return
     }
 
+    // Le jeton n'est consommé qu'ici : recharger la page avant d'avoir posé
+    // son mot de passe ne doit pas condamner l'invitation.
+    await fetch('/api/invitation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: invitation, action: 'consume' }),
+    })
+
     router.push('/')
     router.refresh()
   }
@@ -109,8 +132,8 @@ export function WelcomeClient({ tokenHash }: { tokenHash: string | null }) {
           Lien expiré ou déjà utilisé
         </h2>
         <p className="mb-5 text-sm text-slate-500">
-          Les liens d’invitation ne servent qu’une fois et expirent après un
-          certain temps. Demandez-en un nouveau à votre interlocuteur Diploma Santé.
+          {etat.raison ?? 'Ce lien n’est pas valable.'} Demandez-en un nouveau à
+          votre interlocuteur Diploma Santé.
         </p>
         <Link href="/login" className="text-sm font-medium text-brand-600 hover:underline">
           Aller à la page de connexion
