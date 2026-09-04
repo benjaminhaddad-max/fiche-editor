@@ -16,12 +16,43 @@ import { createServerSupabase } from '@/lib/supabase/server'
  * qu'il a lui-meme commandees.
  */
 export async function approveMission(formData: FormData): Promise<void> {
-  const user = await requireRole('manager', 'admin')
-  const id = String(formData.get('mission_id') ?? '')
-  if (!id) return
+  const ids = formData.getAll('mission_id').map(String).filter(Boolean)
+  await approveMissions(ids)
+  revalidatePath('/validation')
+  revalidatePath('/admin')
+  revalidatePath('/admin/prestations')
+}
 
+/**
+ * Valide une ou plusieurs prestations.
+ *
+ * Le mail « vos prestations sont validées » n'est envoyé qu'UNE fois par
+ * prestataire à la fin, même si dix de ses lignes sont validées d'un coup :
+ * dix mails identiques en dix secondes seraient pris pour du spam.
+ */
+async function approveMissions(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const user = await requireRole('manager', 'admin')
   const supabase = await createServerSupabase()
   const now = new Date().toISOString()
+  const prestatairesAPrevenir = new Set<string>()
+
+  for (const id of ids) {
+    await approveOne(id, user, supabase, now, prestatairesAPrevenir)
+  }
+
+  for (const providerId of prestatairesAPrevenir) {
+    await notifyReadyToInvoice(providerId)
+  }
+}
+
+async function approveOne(
+  id: string,
+  user: { id: string; role: string },
+  supabase: Awaited<ReturnType<typeof createServerSupabase>>,
+  now: string,
+  aPrevenir: Set<string>
+): Promise<void> {
 
   if (user.role === 'manager') {
     const { error } = await supabase
@@ -48,6 +79,7 @@ export async function approveMission(formData: FormData): Promise<void> {
       entityId: id,
       action: 'manager_approve',
     })
+    return
   } else {
     const { data: mission } = await supabase
       .from('inv_missions')
@@ -86,12 +118,10 @@ export async function approveMission(formData: FormData): Promise<void> {
       payload: { shortcut: mission.status === 'submitted' },
     })
 
-    // La prestation devient facturable : le prestataire doit le savoir.
-    await notifyReadyToInvoice(mission.provider_id)
+    // La prestation devient facturable : le prestataire doit le savoir,
+    // mais on regroupe l'envoi en fin de lot.
+    aPrevenir.add(mission.provider_id)
   }
-
-  revalidatePath('/validation')
-  revalidatePath('/admin')
 }
 
 /** Refuse une prestation. Le motif est obligatoire : le prestataire doit

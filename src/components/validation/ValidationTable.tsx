@@ -5,6 +5,7 @@ import { Check, X } from 'lucide-react'
 import { approveMission, rejectMission } from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
 import { formatPeriod, money } from '@/lib/format'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 import { PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
 import type { PricingType } from '@/lib/types'
 import type { ContractContext } from '@/lib/contract-context'
@@ -76,13 +77,69 @@ export function ValidationTable({
   showManager?: boolean
 }) {
   const [rejecting, setRejecting] = useState<string | null>(null)
+  const [selection, setSelection] = useState<Set<string>>(new Set())
+
+  const tousCoches = missions.length > 0 && missions.every((m) => selection.has(m.id))
+  const totalSelection = missions
+    .filter((m) => selection.has(m.id))
+    .reduce((s, m) => s + m.total_ht, 0)
+
+  function bascule(id: string) {
+    setSelection((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   return (
+    <>
+      {selection.size > 0 && (
+        <form
+          action={approveMission}
+          className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3"
+        >
+          {[...selection].map((id) => (
+            <input key={id} type="hidden" name="mission_id" value={id} />
+          ))}
+          <span className="text-sm text-emerald-900">
+            <strong>{selection.size}</strong> prestation{selection.size > 1 ? 's' : ''} —{' '}
+            <strong>{money(totalSelection)} HT</strong>. Chaque prestataire concerné
+            recevra un seul email.
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelection(new Set())}
+              className="cursor-pointer rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-white"
+            >
+              Annuler
+            </button>
+            <SubmitButton size="sm" variant="success" pendingLabel="Validation…">
+              <Check size={14} />
+              Valider la sélection
+            </SubmitButton>
+          </div>
+        </form>
+      )}
+
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
+              <th className="w-10 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={tousCoches}
+                  onChange={() =>
+                    setSelection(tousCoches ? new Set() : new Set(missions.map((m) => m.id)))
+                  }
+                  title="Tout sélectionner"
+                  className="h-4 w-4 cursor-pointer accent-emerald-600"
+                />
+              </th>
               <th className="px-4 py-3 font-medium">Prestataire</th>
               <th className="px-4 py-3 font-medium">Prestation</th>
               <th className="px-4 py-3 font-medium">Période</th>
@@ -93,7 +150,18 @@ export function ValidationTable({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {missions.map((m) => (
-              <tr key={m.id} className="align-top">
+              <tr
+                key={m.id}
+                className={selection.has(m.id) ? 'bg-emerald-50/60 align-top' : 'align-top'}
+              >
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selection.has(m.id)}
+                    onChange={() => bascule(m.id)}
+                    className="h-4 w-4 cursor-pointer accent-emerald-600"
+                  />
+                </td>
                 <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
                   {m.provider_name}
                 </td>
@@ -176,5 +244,6 @@ export function ValidationTable({
         </table>
       </div>
     </Card>
+    </>
   )
 }

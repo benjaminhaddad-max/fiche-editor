@@ -52,7 +52,7 @@ export async function sendInvitation(userId: string): Promise<boolean> {
 
   const { data: user } = await supabase
     .from('inv_users')
-    .select('id, email, full_name, is_active')
+    .select('id, email, full_name, is_active, role')
     .eq('id', userId)
     .maybeSingle()
 
@@ -70,11 +70,18 @@ export async function sendInvitation(userId: string): Promise<boolean> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
   const href = `${appUrl}/bienvenue?token_hash=${link.properties.hashed_token}&type=recovery`
 
-  const tpl = templates.invitation({ fullName: user.full_name, link: href })
+  const tpl =
+    user.role === 'prestataire'
+      ? templates.invitation({ fullName: user.full_name, link: href })
+      : templates.invitationStaff({
+          fullName: user.full_name,
+          link: href,
+          isAdmin: user.role === 'admin',
+        })
   await deliver({
     to: { email: user.email, name: user.full_name },
     ...tpl,
-    template: 'invitation',
+    template: user.role === 'prestataire' ? 'invitation' : 'invitation_staff',
     entityType: 'user',
     entityId: user.id,
   })

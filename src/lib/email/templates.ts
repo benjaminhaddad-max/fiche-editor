@@ -38,7 +38,11 @@ function layout(title: string, body: string, cta?: { label: string; href: string
 }
 
 export const templates = {
-  /** Première prise de contact : la personne choisit son mot de passe. */
+  /**
+   * Première prise de contact. Le message change selon le rôle : un
+   * prestataire vient facturer, un manager vient contrôler. Leur envoyer le
+   * même texte les perdrait tous les deux.
+   */
   invitation: (p: { fullName: string; link: string }) => ({
     subject: 'Créez votre accès à Diploma Invoice',
     html: layout(
@@ -49,6 +53,24 @@ export const templates = {
        <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.
           Vous compléterez ensuite vos informations de facturation — raison sociale, SIRET,
           adresse et IBAN — nécessaires pour être réglé.</p>
+       <p style="margin:0;color:#64748b;font-size:13px;">Ce lien est personnel et ne fonctionne qu'une fois.</p>`,
+      { label: 'Créer mon accès', href: p.link }
+    ),
+  }),
+
+  invitationStaff: (p: { fullName: string; link: string; isAdmin: boolean }) => ({
+    subject: 'Créez votre accès à Diploma Invoice',
+    html: layout(
+      p.isAdmin ? 'Votre espace d’administration est prêt' : 'Votre espace de validation est prêt',
+      `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
+       <p style="margin:0 0 12px;">${COMPANY.name} centralise désormais les prestations des
+          intervenants et leur facturation sur une seule plateforme.</p>
+       <p style="margin:0 0 12px;">${
+         p.isAdmin
+           ? 'Vous y validez les prestations, suivez les factures reçues et pilotez les contrats.'
+           : 'Vous y retrouvez les prestations des intervenants que vous avez sollicités, pour les valider ou les refuser avant facturation.'
+       }</p>
+       <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.</p>
        <p style="margin:0;color:#64748b;font-size:13px;">Ce lien est personnel et ne fonctionne qu'une fois.</p>`,
       { label: 'Créer mon accès', href: p.link }
     ),
