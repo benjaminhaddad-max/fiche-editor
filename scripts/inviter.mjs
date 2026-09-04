@@ -27,6 +27,14 @@ const ROLE = args[args.indexOf('--role') + 1]
 const EMAILS = args.includes('--email') ? args[args.indexOf('--email') + 1].split(',') : null
 const JOURS = Number(process.env.INVITATION_DAYS ?? 30)
 const APP = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
+
+// Garde-fou : un .env local mal réglé a déjà envoyé 26 invitations pointant
+// sur localhost. Une adresse non publique ne doit jamais partir par mail.
+if (!/^https:\/\//.test(APP) || /localhost|127\.0\.0\.1|\.local/.test(APP)) {
+  console.error(`\n✗ NEXT_PUBLIC_APP_URL vaut « ${APP} » — inutilisable dans un email.`)
+  console.error('  Corrigez .env.local avant d\'envoyer quoi que ce soit.\n')
+  process.exit(1)
+}
 const SOCIETE = process.env.NEXT_PUBLIC_COMPANY_NAME ?? 'Diploma Santé'
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
