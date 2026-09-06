@@ -131,6 +131,52 @@ export const templates = {
     ),
   }),
 
+  /** Le bordereau est arbitré : le prestataire peut facturer, avec une date. */
+  statementCleared: (p: {
+    providerName: string
+    total: number
+    deadline: string
+    paymentStart: string
+    reply: string | null
+  }) => ({
+    subject: `Votre bordereau est validé — ${money(p.total)} HT`,
+    html: layout(
+      'Vous pouvez établir votre facture',
+      `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
+       ${p.reply ? `<p style="margin:0 0 12px;padding:12px 14px;background:#f8fafc;border-radius:8px;
+            border-left:3px solid #4f46e5;">${p.reply}</p>` : ''}
+       <p style="margin:0 0 12px;">Votre bordereau est arrêté à <strong>${money(p.total)} HT</strong>.</p>
+       <p style="margin:0 0 12px;">Votre facture doit nous parvenir <strong>avant le ${formatDate(p.deadline)}</strong>.
+          Les paiements sont effectués à partir du ${formatDate(p.paymentStart)} — une facture reçue
+          après cette date partira sur le cycle suivant.</p>`,
+      { label: 'Voir mon bordereau', href: `${APP_URL}/bordereaux` }
+    ),
+  }),
+
+  /** Relance quand la facture se fait attendre et que l'échéance approche. */
+  statementReminder: (p: {
+    providerName: string
+    total: number
+    deadline: string
+    joursRestants: number
+  }) => ({
+    subject:
+      p.joursRestants > 0
+        ? `Rappel — votre facture est attendue d’ici ${p.joursRestants} jour${p.joursRestants > 1 ? 's' : ''}`
+        : 'Votre facture est attendue aujourd’hui',
+    html: layout(
+      'Nous attendons votre facture',
+      `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
+       <p style="margin:0 0 12px;">Votre bordereau de <strong>${money(p.total)} HT</strong> est validé,
+          mais nous n'avons pas encore reçu votre facture.</p>
+       <p style="margin:0 0 12px;">Elle est attendue <strong>${
+         p.joursRestants > 0 ? `avant le ${formatDate(p.deadline)}` : `aujourd'hui`
+       }</strong>. Passé ce délai, le règlement bascule sur le cycle de paiement suivant.</p>
+       <p style="margin:0;">Vous pouvez la générer en deux clics depuis votre espace, ou déposer la vôtre.</p>`,
+      { label: 'Établir ma facture', href: `${APP_URL}/factures/nouvelle` }
+    ),
+  }),
+
   invoiceReceived: (p: { adminName: string; providerName: string; number: string; total: number }) => ({
     subject: `Facture ${p.number} reçue — ${p.providerName}`,
     html: layout(

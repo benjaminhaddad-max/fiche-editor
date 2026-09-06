@@ -50,6 +50,7 @@ const NAV: Record<Role, { section: string; items: NavItem[] }[]> = {
       section: 'Validation',
       items: [
         { href: '/validation', label: 'À valider', icon: CheckSquare },
+        { href: '/validation/bordereaux', label: 'Bordereaux', icon: ClipboardList },
         { href: '/validation/historique', label: 'Historique', icon: FileText },
       ],
     },
@@ -61,6 +62,7 @@ const NAV: Record<Role, { section: string; items: NavItem[] }[]> = {
         { href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard },
         { href: '/admin/prestations', label: 'Toutes les prestations', icon: ListChecks },
         { href: '/validation', label: 'Prestations à valider', icon: CheckSquare },
+        { href: '/validation/bordereaux', label: 'Bordereaux', icon: ClipboardList },
         { href: '/admin/factures', label: 'Factures', icon: Receipt, prefix: true },
         { href: '/admin/contrats', label: 'Contrats de coaching', icon: ScrollText, prefix: true },
       ],

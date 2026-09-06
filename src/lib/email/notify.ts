@@ -165,6 +165,101 @@ export async function notifyReadyToInvoice(providerId: string): Promise<void> {
   })
 }
 
+/** Le bordereau est arbitré : on rend la main au prestataire, avec une date. */
+export async function notifyStatementCleared(
+  statementId: string,
+  reply: string | null
+): Promise<void> {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('inv_statements')
+    .select(`total_ht, invoice_deadline, invoice_expected_at, payment_start, provider_id,
+             provider:inv_providers(legal_name, user:inv_users!inv_providers_user_id_fkey(email, full_name))`)
+    .eq('id', statementId)
+    .maybeSingle()
+
+  const row = data as unknown as {
+    total_ht: number
+    invoice_deadline: string
+    invoice_expected_at: string | null
+    payment_start: string
+    provider_id: string
+    provider: { legal_name: string; user: { email: string; full_name: string } | null } | null
+  } | null
+
+  const user = row?.provider?.user
+  if (!user?.email) return
+
+  const tpl = templates.statementCleared({
+    providerName: user.full_name,
+    total: Number(row!.total_ht),
+    deadline: row!.invoice_expected_at ?? row!.invoice_deadline,
+    paymentStart: row!.payment_start,
+    reply,
+  })
+
+  await deliver({
+    to: { email: user.email, name: user.full_name },
+    ...tpl,
+    template: 'statement_cleared',
+    entityType: 'invoice',
+    entityId: statementId,
+    providerId: row!.provider_id,
+  })
+}
+
+/** Relance : la facture se fait attendre et l'échéance approche. */
+export async function notifyStatementReminder(statementId: string): Promise<boolean> {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('inv_statements')
+    .select(`total_ht, invoice_deadline, invoice_expected_at, provider_id, reminder_count,
+             provider:inv_providers(legal_name, user:inv_users!inv_providers_user_id_fkey(email, full_name))`)
+    .eq('id', statementId)
+    .maybeSingle()
+
+  const row = data as unknown as {
+    total_ht: number
+    invoice_deadline: string
+    invoice_expected_at: string | null
+    provider_id: string
+    reminder_count: number
+    provider: { user: { email: string; full_name: string } | null } | null
+  } | null
+
+  const user = row?.provider?.user
+  if (!user?.email) return false
+
+  const deadline = row!.invoice_expected_at ?? row!.invoice_deadline
+  const jours = Math.max(
+    0,
+    Math.ceil((new Date(`${deadline}T12:00:00Z`).getTime() - Date.now()) / 864e5)
+  )
+
+  const tpl = templates.statementReminder({
+    providerName: user.full_name,
+    total: Number(row!.total_ht),
+    deadline,
+    joursRestants: jours,
+  })
+
+  await deliver({
+    to: { email: user.email, name: user.full_name },
+    ...tpl,
+    template: 'statement_reminder',
+    entityType: 'invoice',
+    entityId: statementId,
+    providerId: row!.provider_id,
+  })
+
+  await supabase
+    .from('inv_statements')
+    .update({ reminded_at: new Date().toISOString(), reminder_count: row!.reminder_count + 1 })
+    .eq('id', statementId)
+
+  return true
+}
+
 /** Prevenir les administrateurs qu'une facture vient d'arriver. */
 export async function notifyInvoiceReceived(invoiceId: string): Promise<void> {
   const supabase = createServiceClient()
