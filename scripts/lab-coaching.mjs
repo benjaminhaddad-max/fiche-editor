@@ -33,6 +33,17 @@ const lab = createClient(labEnv.NEXT_PUBLIC_SUPABASE_URL, labEnv.SUPABASE_SERVIC
 const BRAND = 'diploma'
 const EXCLURE = /test|démo|demo|apple review/i
 
+/**
+ * Un élève portant une adresse de la société n'est pas un client : c'est un
+ * compte de vérification créé par l'équipe. Il y en a un dans presque chaque
+ * classe, et ils gonflaient tous les contrats d'une unité.
+ *
+ * On filtre sur le domaine plutôt que sur le mot « test » dans le nom :
+ * ce dernier produit des faux positifs — « Agathe Demol », « Laure De Moura »
+ * contiennent « demo ».
+ */
+const estCompteInterne = (email) => /@diploma-sante\.fr$/i.test(email ?? '')
+
 /** Barèmes par offre, au prorata. */
 const BAREMES = {
   'Prépa PASS':       { programme: 'pass_las_lsps',   base: 1000, effectif: 30 },
@@ -55,9 +66,10 @@ for (const a of assigns) {
   const nom = a.groupe?.name ?? ''
   if (EXCLURE.test(nom)) { ignorees++; continue }
 
-  const { count } = await lab.from('profiles')
-    .select('id', { count: 'exact', head: true })
+  const { data: eleves } = await lab.from('profiles')
+    .select('email')
     .eq('groupe_id', a.groupe_id).eq('role', 'eleve').eq('brand', BRAND)
+  const count = (eleves ?? []).filter((e) => !estCompteInterne(e.email)).length
   if (!count) continue
 
   const offre = racine(a.groupe?.formation_dossier_id)?.name ?? '(inconnue)'

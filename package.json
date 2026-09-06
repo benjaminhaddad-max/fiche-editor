@@ -17,7 +17,8 @@
     "lab-coaching": "node --experimental-websocket scripts/lab-coaching.mjs",
     "bordereaux": "node --experimental-websocket scripts/bordereaux.mjs",
     "coach-test": "node --experimental-websocket scripts/coach-test.mjs",
-    "inviter": "node --experimental-websocket scripts/inviter.mjs"
+    "inviter": "node --experimental-websocket scripts/inviter.mjs",
+    "ajuster-effectifs": "node --experimental-websocket scripts/ajuster-effectifs.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.3.1",
