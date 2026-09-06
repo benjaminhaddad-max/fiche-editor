@@ -17,9 +17,31 @@ export function ProfileForm({
   email: string
 }) {
   const [state, formAction] = useActionState<ProfileResult, FormData>(action, {})
+
+  // Champs contrôlés, volontairement. React 19 réinitialise un formulaire
+  // non contrôlé dès qu'une action serveur se termine : sur une erreur de
+  // validation, l'utilisateur perdait tout ce qu'il venait de saisir.
+  const [champs, setChamps] = useState({
+    legal_name: provider.legal_name ?? '',
+    legal_form: provider.legal_form ?? '',
+    siret: provider.siret ?? '',
+    address_line1: provider.address_line1 ?? '',
+    address_line2: provider.address_line2 ?? '',
+    postal_code: provider.postal_code ?? '',
+    city: provider.city ?? '',
+    country: provider.country ?? 'France',
+    phone: provider.phone ?? '',
+    vat_number: provider.vat_number ?? '',
+    iban: provider.iban ?? '',
+    bic: provider.bic ?? '',
+  })
+  const maj = (nom: keyof typeof champs) => (ev: { target: { value: string } }) =>
+    setChamps((c) => ({ ...c, [nom]: ev.target.value }))
+
   const [vatRegime, setVatRegime] = useState<VatRegime>(provider.vat_regime)
   const [invoiceMode, setInvoiceMode] = useState<InvoiceSource>(provider.invoice_mode)
   const e = state.fieldErrors ?? {}
+  const nbErreurs = Object.keys(e).length
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -34,7 +56,8 @@ export function ProfileForm({
             id="legal_name"
             name="legal_name"
             label="Raison sociale / Nom"
-            defaultValue={provider.legal_name ?? ''}
+            value={champs.legal_name}
+            onChange={maj('legal_name')}
             error={e.legal_name}
             required
           />
@@ -43,7 +66,8 @@ export function ProfileForm({
             name="legal_form"
             label="Forme juridique"
             placeholder="Auto-entrepreneur, SASU…"
-            defaultValue={provider.legal_form ?? ''}
+            value={champs.legal_form}
+            onChange={maj('legal_form')}
             error={e.legal_form}
           />
           <Input
@@ -51,7 +75,8 @@ export function ProfileForm({
             name="siret"
             label="SIRET"
             placeholder="12345678900019"
-            defaultValue={provider.siret ?? ''}
+            value={champs.siret}
+            onChange={maj('siret')}
             error={e.siret}
             hint="Auto-entreprise encore en création ? Écrivez « en cours », vous le compléterez plus tard."
           />
@@ -67,7 +92,8 @@ export function ProfileForm({
               id="address_line1"
               name="address_line1"
               label="Adresse"
-              defaultValue={provider.address_line1 ?? ''}
+              value={champs.address_line1}
+            onChange={maj('address_line1')}
               error={e.address_line1}
               required
             />
@@ -77,7 +103,8 @@ export function ProfileForm({
               id="address_line2"
               name="address_line2"
               label="Complément d’adresse"
-              defaultValue={provider.address_line2 ?? ''}
+              value={champs.address_line2}
+            onChange={maj('address_line2')}
               error={e.address_line2}
             />
           </div>
@@ -85,7 +112,8 @@ export function ProfileForm({
             id="postal_code"
             name="postal_code"
             label="Code postal"
-            defaultValue={provider.postal_code ?? ''}
+            value={champs.postal_code}
+            onChange={maj('postal_code')}
             error={e.postal_code}
             required
           />
@@ -93,7 +121,8 @@ export function ProfileForm({
             id="city"
             name="city"
             label="Ville"
-            defaultValue={provider.city ?? ''}
+            value={champs.city}
+            onChange={maj('city')}
             error={e.city}
             required
           />
@@ -101,7 +130,8 @@ export function ProfileForm({
             id="country"
             name="country"
             label="Pays"
-            defaultValue={provider.country ?? 'France'}
+            value={champs.country}
+            onChange={maj('country')}
             error={e.country}
             required
           />
@@ -110,7 +140,8 @@ export function ProfileForm({
             name="phone"
             label="Téléphone"
             type="tel"
-            defaultValue={provider.phone ?? ''}
+            value={champs.phone}
+            onChange={maj('phone')}
             error={e.phone}
           />
         </div>
@@ -140,7 +171,8 @@ export function ProfileForm({
               name="vat_number"
               label="Numéro de TVA intracommunautaire"
               placeholder="FR00123456789"
-              defaultValue={provider.vat_number ?? ''}
+              value={champs.vat_number}
+            onChange={maj('vat_number')}
               error={e.vat_number}
               required
             />
@@ -157,14 +189,16 @@ export function ProfileForm({
             name="iban"
             label="IBAN"
             placeholder="FR76 ..."
-            defaultValue={provider.iban ?? ''}
+            value={champs.iban}
+            onChange={maj('iban')}
             error={e.iban}
           />
           <Input
             id="bic"
             name="bic"
             label="BIC"
-            defaultValue={provider.bic ?? ''}
+            value={champs.bic}
+            onChange={maj('bic')}
             error={e.bic}
           />
         </div>
@@ -216,6 +250,22 @@ export function ProfileForm({
           ))}
         </div>
       </Card>
+
+      {nbErreurs > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <p className="font-semibold">
+            {nbErreurs === 1
+              ? 'Un champ doit être corrigé :'
+              : `${nbErreurs} champs doivent être corrigés :`}
+          </p>
+          <ul className="mt-1 list-inside list-disc">
+            {Object.values(e).map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs">Votre saisie est conservée, corrigez et réenregistrez.</p>
+        </div>
+      )}
 
       {state.error && (
         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</p>

@@ -18,7 +18,13 @@ export interface ProfileResult {
  */
 const optional = (schema: z.ZodType<string>) =>
   z
-    .union([schema, z.literal(''), z.undefined()])
+    .union([schema, z.literal('')])
+    // .optional() est indispensable : un champ masqué à l'écran n'est pas
+    // envoyé du tout, et une union acceptant `undefined` ne suffit pas —
+    // Zod exige la présence de la CLÉ. C'est ce détail qui empêchait tous
+    // les auto-entrepreneurs d'enregistrer leur profil, la TVA
+    // intracommunautaire étant masquée en franchise.
+    .optional()
     .transform((v) => (v === '' || v === undefined ? null : v))
 
 const ProfileSchema = z
@@ -68,6 +74,24 @@ const ProfileSchema = z
     { message: 'Numéro de TVA obligatoire si vous êtes assujetti.', path: ['vat_number'] }
   )
 
+/** Pour que le récapitulatif d'erreurs nomme le champ, pas seulement le défaut. */
+const LIBELLES: Record<string, string> = {
+  legal_name: 'Raison sociale',
+  legal_form: 'Forme juridique',
+  siret: 'SIRET',
+  vat_number: 'Numéro de TVA',
+  address_line1: 'Adresse',
+  address_line2: 'Complément d’adresse',
+  postal_code: 'Code postal',
+  city: 'Ville',
+  country: 'Pays',
+  phone: 'Téléphone',
+  iban: 'IBAN',
+  bic: 'BIC',
+  vat_regime: 'Régime de TVA',
+  invoice_mode: 'Mode de facturation',
+}
+
 export async function updateProfile(
   _prev: ProfileResult,
   formData: FormData
@@ -79,18 +103,31 @@ export async function updateProfile(
     const fieldErrors: Record<string, string> = {}
     for (const issue of parsed.error.issues) {
       const key = String(issue.path[0] ?? '_')
-      fieldErrors[key] ??= issue.message
+      const nom = LIBELLES[key]
+      fieldErrors[key] ??= nom ? `${nom} : ${issue.message}` : issue.message
     }
     return { fieldErrors }
   }
 
   const supabase = await createServerSupabase()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('inv_providers')
     .update({ ...parsed.data, onboarding_complete: true })
     .eq('id', provider.id)
+    .select('id')
 
   if (error) return { error: `Enregistrement impossible : ${error.message}` }
+
+  // Une écriture refusée par la sécurité en base ne renvoie pas d'erreur :
+  // elle ne touche simplement aucune ligne. Sans ce contrôle, l'utilisateur
+  // voyait « enregistré » alors que rien n'était sauvegardé.
+  if (!data || data.length === 0) {
+    return {
+      error:
+        'Vos informations n’ont pas pu être enregistrées (aucune ligne modifiée). ' +
+        'Déconnectez-vous puis reconnectez-vous, et réessayez.',
+    }
+  }
 
   revalidatePath('/profil')
   return { success: true }
