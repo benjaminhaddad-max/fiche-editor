@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
+  FileUp,
   Receipt,
   ScrollText,
   Tags,
@@ -36,7 +37,8 @@ const NAV: Record<Role, { section: string; items: NavItem[] }[]> = {
       section: 'Mon activité',
       items: [
         { href: '/missions', label: 'Mes prestations', icon: ListChecks, prefix: true },
-        { href: '/factures', label: 'Mes factures', icon: Receipt, prefix: true },
+        { href: '/factures', label: 'Mes factures', icon: Receipt },
+        { href: '/factures/deposer', label: 'Déposer une facture', icon: FileUp, prefix: true },
         { href: '/profil', label: 'Mes informations', icon: UserCircle },
       ],
     },
