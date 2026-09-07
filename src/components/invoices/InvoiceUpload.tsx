@@ -27,13 +27,13 @@ export function InvoiceUpload({
         {deposited ? (
           <FileCheck2 size={18} className="mt-0.5 shrink-0 text-emerald-600" />
         ) : (
-          <Upload size={18} className="mt-0.5 shrink-0 text-slate-400" />
+          <Upload size={18} className="mt-0.5 shrink-0 text-stone" />
         )}
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="text-sm font-semibold text-navy">
             {deposited ? 'Votre facture est déposée' : 'Déposer votre propre facture'}
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-muted">
             {deposited ? (
               <>
                 {invoice.uploaded_filename} — déposée le {formatDate(invoice.uploaded_at)}.
@@ -58,10 +58,10 @@ export function InvoiceUpload({
           accept="application/pdf,.pdf"
           required
           onChange={(e) => setFilename(e.target.files?.[0]?.name ?? null)}
-          className="block max-w-xs text-sm text-slate-600
+          className="block max-w-xs text-sm text-navy/70
                      file:mr-3 file:cursor-pointer file:rounded-lg file:border-0
-                     file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium
-                     file:text-slate-700 hover:file:bg-slate-200"
+                     file:bg-cream-deep file:px-3 file:py-2 file:text-sm file:font-medium
+                     file:text-navy/80 hover:file:bg-cream-deep"
         />
         <SubmitButton variant="secondary" pendingLabel="Dépôt…">
           {deposited ? 'Remplacer' : 'Déposer'}
@@ -69,7 +69,7 @@ export function InvoiceUpload({
       </form>
 
       {filename && !state.error && (
-        <p className="mt-2 text-xs text-slate-500">Fichier sélectionné : {filename}</p>
+        <p className="mt-2 text-xs text-muted">Fichier sélectionné : {filename}</p>
       )}
       {state.error && (
         <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -82,7 +82,7 @@ export function InvoiceUpload({
           <input type="hidden" name="invoice_id" value={invoice.id} />
           <button
             type="submit"
-            className="cursor-pointer text-xs text-slate-500 underline hover:text-slate-800"
+            className="cursor-pointer text-xs text-muted underline hover:text-navy"
           >
             Revenir à la facture générée par la plateforme
           </button>

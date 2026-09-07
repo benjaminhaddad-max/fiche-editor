@@ -88,11 +88,11 @@ export default async function BordereauxAValiderPage() {
       />
 
       <Card className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 text-sm">
-        <span className="flex items-center gap-2 font-medium text-slate-700">
+        <span className="flex items-center gap-2 font-medium text-navy/80">
           <CalendarClock size={15} />
           {enSemaineDeVerification ? 'Semaine de vérification en cours' : 'Hors semaine de vérification'}
         </span>
-        <span className="text-slate-500">
+        <span className="text-muted">
           Saisie jusqu’au {formatDate(cycle.periodEnd)} · bordereaux le {formatDate(cycle.statementDate)} ·
           factures avant le {formatDate(cycle.invoiceDeadline)} · paiement dès le{' '}
           {formatDate(cycle.paymentStart)}
@@ -127,7 +127,7 @@ export default async function BordereauxAValiderPage() {
 
           {clos.length > 0 && (
             <>
-              <h2 className="mt-4 text-sm font-semibold text-slate-900">
+              <h2 className="mt-4 text-sm font-semibold text-navy">
                 Clos — en attente de leur facture ({money(clos.reduce((s, v) => s + Number(v.b.total_ht), 0))})
               </h2>
               {clos.map((v) => (

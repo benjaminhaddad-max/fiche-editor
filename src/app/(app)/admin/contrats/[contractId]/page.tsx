@@ -72,7 +72,7 @@ export default async function ContractPage({
     <>
       <Link
         href="/admin/contrats"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={15} />
         Contrats de coaching
@@ -84,22 +84,22 @@ export default async function ContractPage({
       />
 
       <Card className="mb-6 p-6">
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Comment le montant est calculé</h2>
+        <h2 className="mb-4 text-sm font-semibold text-navy">Comment le montant est calculé</h2>
         <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
           <div className="flex gap-3">
-            <dt className="w-40 shrink-0 text-slate-500">Effectif retenu</dt>
-            <dd className="font-semibold text-slate-900">
+            <dt className="w-40 shrink-0 text-muted">Effectif retenu</dt>
+            <dd className="font-semibold text-navy">
               {c.headcount ?? '—'} étudiants
               {c.headcount_fixed_at && (
-                <span className="ml-2 font-normal text-xs text-slate-400">
+                <span className="ml-2 font-normal text-xs text-stone">
                   figé le {formatDate(c.headcount_fixed_at)}
                 </span>
               )}
             </dd>
           </div>
           <div className="flex gap-3">
-            <dt className="w-40 shrink-0 text-slate-500">Barème</dt>
-            <dd className="text-slate-900">
+            <dt className="w-40 shrink-0 text-muted">Barème</dt>
+            <dd className="text-navy">
               {c.rate_base_amount
                 ? `${money(c.rate_base_amount)} par semestre pour ${c.rate_base_headcount} étudiants`
                 : 'forfait'}
@@ -107,19 +107,19 @@ export default async function ContractPage({
           </div>
           {calcul && (
             <div className="flex gap-3 sm:col-span-2">
-              <dt className="w-40 shrink-0 text-slate-500">Calcul</dt>
-              <dd className="font-mono text-xs text-slate-700">
+              <dt className="w-40 shrink-0 text-muted">Calcul</dt>
+              <dd className="font-mono text-xs text-navy/80">
                 {calcul} = <span className="font-semibold">{money(c.total_ht)}</span>
               </dd>
             </div>
           )}
           <div className="flex gap-3 sm:col-span-2">
-            <dt className="w-40 shrink-0 text-slate-500">Classes suivies</dt>
-            <dd className="text-slate-700">{c.classes_label}</dd>
+            <dt className="w-40 shrink-0 text-muted">Classes suivies</dt>
+            <dd className="text-navy/80">{c.classes_label}</dd>
           </div>
           <div className="flex gap-3 sm:col-span-2">
-            <dt className="w-40 shrink-0 text-slate-500">Source</dt>
-            <dd className="text-slate-600">
+            <dt className="w-40 shrink-0 text-muted">Source</dt>
+            <dd className="text-navy/70">
               {c.lab_coach_email
                 ? `Diploma Lab — ${c.lab_coach_email}`
                 : 'saisi manuellement'}
@@ -129,8 +129,8 @@ export default async function ContractPage({
       </Card>
 
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">Échéancier</h2>
-        <span className={equilibre ? 'text-xs text-slate-500' : 'text-xs font-semibold text-red-600'}>
+        <h2 className="text-sm font-semibold text-navy">Échéancier</h2>
+        <span className={equilibre ? 'text-xs text-muted' : 'text-xs font-semibold text-red-600'}>
           {equilibre
             ? `somme des échéances = total du contrat (${money(sommeEcheances)})`
             : `écart : échéances ${money(sommeEcheances)} vs contrat ${money(c.total_ht)}`}
@@ -139,7 +139,7 @@ export default async function ContractPage({
 
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="px-4 py-3 font-medium">Échéance</th>
               <th className="px-4 py-3 font-medium">Date</th>
@@ -147,21 +147,21 @@ export default async function ContractPage({
               <th className="px-4 py-3 font-medium">État</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line/60">
             {echeances.map((e) => (
-              <tr key={e.id} className="hover:bg-slate-50/70">
-                <td className="px-4 py-3 text-slate-900">{e.label}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+              <tr key={e.id} className="hover:bg-cream-muted">
+                <td className="px-4 py-3 text-navy">{e.label}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                   {formatDate(e.due_date)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                   {money(e.amount_ht)}
                 </td>
                 <td className="px-4 py-3">
                   {e.mission ? (
                     <MissionStatusBadge status={e.mission.status} />
                   ) : (
-                    <Badge className="bg-slate-100 text-slate-500 ring-slate-200">
+                    <Badge className="bg-cream-deep text-muted ring-line">
                       <Clock size={11} className="mr-1" />
                       pas encore ouverte
                     </Badge>
@@ -175,8 +175,8 @@ export default async function ContractPage({
 
       {c.notes && (
         <Card className="mt-6 p-6">
-          <h2 className="mb-2 text-sm font-semibold text-slate-900">Notes</h2>
-          <p className="whitespace-pre-wrap text-sm text-slate-600">{c.notes}</p>
+          <h2 className="mb-2 text-sm font-semibold text-navy">Notes</h2>
+          <p className="whitespace-pre-wrap text-sm text-navy/70">{c.notes}</p>
         </Card>
       )}
     </>

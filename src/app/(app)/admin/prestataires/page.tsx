@@ -47,7 +47,7 @@ export default async function ProvidersPage() {
         actions={
           <Link
             href="/admin/utilisateurs"
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            className="rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light"
           >
             Créer un compte
           </Link>
@@ -63,7 +63,7 @@ export default async function ProvidersPage() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Raison sociale</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
@@ -73,13 +73,13 @@ export default async function ProvidersPage() {
                   <th className="px-4 py-3 text-right font-medium">Facturé</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line/60">
                 {providers.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/70">
+                  <tr key={p.id} className="hover:bg-cream-muted">
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/prestataires/${p.id}`}
-                        className="font-medium text-brand-600 hover:underline"
+                        className="font-medium text-gold-dark hover:underline"
                       >
                         {p.legal_name}
                       </Link>
@@ -90,24 +90,24 @@ export default async function ProvidersPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-navy/70">
                       {p.user?.full_name}
-                      <span className="block text-xs text-slate-400">{p.user?.email}</span>
+                      <span className="block text-xs text-stone">{p.user?.email}</span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {p.siret ?? '—'}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {p.vat_regime === 'franchise' ? 'Franchise' : 'Assujetti 20 %'}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {p.pennylane_supplier_id ? (
-                        <span className="text-slate-600">{p.pennylane_supplier_id}</span>
+                        <span className="text-navy/70">{p.pennylane_supplier_id}</span>
                       ) : (
                         <span className="text-xs text-amber-600">à renseigner</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                       {money(billedByProvider.get(p.id) ?? 0)}
                     </td>
                   </tr>

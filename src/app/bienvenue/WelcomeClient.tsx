@@ -122,20 +122,20 @@ export function WelcomeClient({ invitation }: { invitation: string | null }) {
   }
 
   if (etat.phase === 'verification') {
-    return <p className="text-sm text-slate-500">Vérification de votre lien…</p>
+    return <p className="text-sm text-muted">Vérification de votre lien…</p>
   }
 
   if (etat.phase === 'invalide') {
     return (
       <>
-        <h2 className="mb-1 text-base font-semibold text-slate-900">
+        <h2 className="mb-1 text-base font-semibold text-navy">
           Lien expiré ou déjà utilisé
         </h2>
-        <p className="mb-5 text-sm text-slate-500">
+        <p className="mb-5 text-sm text-muted">
           {etat.raison ?? 'Ce lien n’est pas valable.'} Demandez-en un nouveau à
           votre interlocuteur Diploma Santé.
         </p>
-        <Link href="/login" className="text-sm font-medium text-brand-600 hover:underline">
+        <Link href="/login" className="text-sm font-medium text-gold-dark hover:underline">
           Aller à la page de connexion
         </Link>
       </>
@@ -144,10 +144,10 @@ export function WelcomeClient({ invitation }: { invitation: string | null }) {
 
   return (
     <>
-      <h2 className="mb-1 text-base font-semibold text-slate-900">
+      <h2 className="mb-1 text-base font-semibold text-navy">
         Bienvenue — créez votre accès
       </h2>
-      <p className="mb-5 text-sm text-slate-500">
+      <p className="mb-5 text-sm text-muted">
         Choisissez votre mot de passe pour <strong>{etat.email}</strong>.
       </p>
 

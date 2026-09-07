@@ -27,8 +27,8 @@ export function NewUserForm({
 
   return (
     <Card className="p-6">
-      <h2 className="mb-1 text-sm font-semibold text-slate-900">Créer un compte</h2>
-      <p className="mb-5 text-xs text-slate-500">
+      <h2 className="mb-1 text-sm font-semibold text-navy">Créer un compte</h2>
+      <p className="mb-5 text-xs text-muted">
         Le mot de passe est provisoire : communiquez-le à la personne, elle pourra le
         changer ensuite.
       </p>
@@ -80,7 +80,7 @@ export function NewUserForm({
           <button
             type="button"
             onClick={() => setPassword(generatePassword())}
-            className="mb-[1px] cursor-pointer rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            className="mb-[1px] cursor-pointer rounded-lg border border-line px-3 py-2 text-xs font-medium text-navy/80 hover:bg-cream-muted"
           >
             Générer
           </button>

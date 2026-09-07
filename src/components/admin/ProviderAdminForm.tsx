@@ -24,10 +24,10 @@ export function ProviderAdminForm({
       <input type="hidden" name="provider_id" value={provider.id} />
 
       <Card className="p-6">
-        <h2 className="mb-1 text-sm font-semibold text-slate-900">
+        <h2 className="mb-1 text-sm font-semibold text-navy">
           Paramètres de facturation
         </h2>
-        <p className="mb-5 text-xs text-slate-500">
+        <p className="mb-5 text-xs text-muted">
           Ces champs sont sous votre contrôle. Identité, adresse et IBAN sont renseignés
           par le prestataire lui-même.
         </p>

@@ -33,7 +33,7 @@ export default async function AffecterPage({
     <>
       <Link
         href="/factures/deposer"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={15} />
         Déposer une facture
@@ -44,7 +44,7 @@ export default async function AffecterPage({
         description="Chaque ligne sera envoyée au responsable que vous désignez. Il ne verra que la sienne."
       />
 
-      <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
+      <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-navy">
         <Sparkles size={16} className="mt-0.5 shrink-0" />
         <p>
           Lignes lues automatiquement dans <strong>{data[0]?.source_file}</strong>. Vérifiez-les :

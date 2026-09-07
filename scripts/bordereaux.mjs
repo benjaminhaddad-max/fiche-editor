@@ -64,14 +64,14 @@ async function envoyer(to, subject, html, meta) {
   return out
 }
 
-const gabarit = (titre, corps, cta) => `<!doctype html><html lang="fr"><body style="margin:0;background:#f1f5f9;">
-<table role="presentation" width="100%" style="background:#f1f5f9;padding:32px 12px;"><tr><td align="center">
-<table role="presentation" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;
+const gabarit = (titre, corps, cta) => `<!doctype html><html lang="fr"><body style="margin:0;background:#f7f4ee;">
+<table role="presentation" width="100%" style="background:#f7f4ee;padding:32px 12px;"><tr><td align="center">
+<table role="presentation" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid #e5ddc8;
  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-<tr><td style="padding:24px 28px 0;"><p style="margin:0;font-size:13px;font-weight:600;color:#4f46e5;">DIPLOMA INVOICE</p>
-<h1 style="margin:8px 0 0;font-size:19px;color:#0f172a;">${titre}</h1></td></tr>
-<tr><td style="padding:16px 28px;font-size:14px;line-height:1.65;color:#334155;">${corps}</td></tr>
-<tr><td style="padding:0 28px 24px;"><a href="${cta.href}" style="display:inline-block;background:#4f46e5;
+<tr><td style="padding:24px 28px 0;"><p style="margin:0;font-size:13px;font-weight:600;color:#a8892e;">DIPLOMA INVOICE</p>
+<h1 style="margin:8px 0 0;font-size:19px;color:#0e1e35;">${titre}</h1></td></tr>
+<tr><td style="padding:16px 28px;font-size:14px;line-height:1.65;color:#3b4c63;">${corps}</td></tr>
+<tr><td style="padding:0 28px 24px;"><a href="${cta.href}" style="display:inline-block;background:#0e1e35;
  color:#fff;text-decoration:none;font-size:14px;padding:11px 20px;border-radius:8px;">${cta.label}</a></td></tr>
 </table></td></tr></table></body></html>`
 
@@ -149,8 +149,8 @@ for (const [providerId, { provider, missions: lignes }] of parPresta) {
       <p style="margin:0 0 12px;">Voici le récapitulatif de vos prestations validées, pour un total de
         <strong>${euro(total)} HT</strong>.</p>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin:0 0 14px;">
-        ${lignes.map((l) => `<tr><td style="padding:6px 0;border-bottom:1px solid #e2e8f0;color:#475569;">${l.detail}</td>
-          <td style="padding:6px 0;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;"><strong>${euro(l.total_ht)}</strong></td></tr>`).join('')}
+        ${lignes.map((l) => `<tr><td style="padding:6px 0;border-bottom:1px solid #e5ddc8;color:#475569;">${l.detail}</td>
+          <td style="padding:6px 0;border-bottom:1px solid #e5ddc8;text-align:right;white-space:nowrap;"><strong>${euro(l.total_ht)}</strong></td></tr>`).join('')}
       </table>
       <p style="margin:0 0 12px;">Vérifiez ces lignes. Si l'une d'elles ne correspond pas, contestez-la depuis
         votre espace. <strong>Sans réponse de votre part au ${jour(cycle.invoiceDeadline)}, le bordereau

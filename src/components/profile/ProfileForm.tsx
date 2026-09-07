@@ -46,8 +46,8 @@ export function ProfileForm({
   return (
     <form action={formAction} className="flex flex-col gap-6">
       <Card className="p-6">
-        <h2 className="mb-1 text-sm font-semibold text-slate-900">Identité</h2>
-        <p className="mb-5 text-xs text-slate-500">
+        <h2 className="mb-1 text-sm font-semibold text-navy">Identité</h2>
+        <p className="mb-5 text-xs text-muted">
           Ces informations apparaissent en tant qu’émetteur sur vos factures.
         </p>
 
@@ -85,7 +85,7 @@ export function ProfileForm({
       </Card>
 
       <Card className="p-6">
-        <h2 className="mb-5 text-sm font-semibold text-slate-900">Adresse</h2>
+        <h2 className="mb-5 text-sm font-semibold text-navy">Adresse</h2>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Input
@@ -148,7 +148,7 @@ export function ProfileForm({
       </Card>
 
       <Card className="p-6">
-        <h2 className="mb-5 text-sm font-semibold text-slate-900">TVA et règlement</h2>
+        <h2 className="mb-5 text-sm font-semibold text-navy">TVA et règlement</h2>
         <div className="grid gap-5 sm:grid-cols-2">
           <Select
             id="vat_regime"
@@ -178,7 +178,7 @@ export function ProfileForm({
             />
           ) : (
             <div className="flex items-end pb-1">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted">
                 En franchise en base, vous n’avez pas de numéro de TVA
                 intracommunautaire : il n’y a rien à renseigner ici.
               </p>
@@ -205,8 +205,8 @@ export function ProfileForm({
       </Card>
 
       <Card className="p-6">
-        <h2 className="mb-1 text-sm font-semibold text-slate-900">Vos factures</h2>
-        <p className="mb-5 text-xs text-slate-500">
+        <h2 className="mb-1 text-sm font-semibold text-navy">Vos factures</h2>
+        <p className="mb-5 text-xs text-muted">
           Dans les deux cas, les montants sont ceux validés par Diploma Santé : ils ne
           sont jamais ressaisis.
         </p>
@@ -230,8 +230,8 @@ export function ProfileForm({
               key={opt.value}
               className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors ${
                 invoiceMode === opt.value
-                  ? 'border-brand-600 bg-brand-50'
-                  : 'border-slate-300 hover:bg-slate-50'
+                  ? 'border-gold bg-gold/10'
+                  : 'border-line hover:bg-cream-muted'
               }`}
             >
               <input
@@ -240,11 +240,11 @@ export function ProfileForm({
                 value={opt.value}
                 checked={invoiceMode === opt.value}
                 onChange={() => setInvoiceMode(opt.value)}
-                className="mt-0.5 accent-brand-600"
+                className="mt-0.5 accent-navy"
               />
               <span>
-                <span className="block text-sm font-medium text-slate-900">{opt.title}</span>
-                <span className="mt-0.5 block text-xs text-slate-600">{opt.desc}</span>
+                <span className="block text-sm font-medium text-navy">{opt.title}</span>
+                <span className="mt-0.5 block text-xs text-navy/70">{opt.desc}</span>
               </span>
             </label>
           ))}

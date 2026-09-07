@@ -40,9 +40,9 @@ function ContractBreakdown({ c }: { c: ContractContext }) {
   const pct = c.totalHt > 0 ? Math.round((c.paidAfter / c.totalHt) * 100) : 0
 
   return (
-    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs">
+    <div className="mt-2 rounded-lg border border-line bg-cream-muted px-3 py-2.5 text-xs">
       {c.rateBaseAmount && c.rateBaseHeadcount && c.headcount ? (
-        <p className="text-slate-700">
+        <p className="text-navy/80">
           Barème {PROGRAMME[c.program] ?? c.program} :{' '}
           <strong>{money(c.rateBaseAmount)} pour {c.rateBaseHeadcount} étudiants</strong> par semestre.
           {' '}Ce coach en suit <strong>{c.headcount}</strong> →{' '}
@@ -50,20 +50,20 @@ function ContractBreakdown({ c }: { c: ContractContext }) {
           <strong>{money(c.totalHt)} sur l’année</strong>.
         </p>
       ) : (
-        <p className="text-slate-700">
+        <p className="text-navy/80">
           Forfait négocié : <strong>{money(c.totalHt)}</strong> sur l’année.
         </p>
       )}
 
-      <p className="mt-1.5 text-slate-700">
+      <p className="mt-1.5 text-navy/80">
         Échéance <strong>{c.index} sur {c.count}</strong>. Déjà réglé :{' '}
         {money(c.paidBefore)}. Après celle-ci :{' '}
         <strong>{money(c.paidAfter)} sur {money(c.totalHt)}</strong>
         {reste > 0 ? ` — il restera ${money(reste)}.` : ' — contrat soldé.'}
       </p>
 
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-        <div className="h-full rounded-full bg-brand-600" style={{ width: `${pct}%` }} />
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-cream-deep">
+        <div className="h-full rounded-full bg-navy" style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -112,7 +112,7 @@ export function ValidationTable({
             <button
               type="button"
               onClick={() => setSelection(new Set())}
-              className="cursor-pointer rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-white"
+              className="cursor-pointer rounded-lg px-3 py-1.5 text-sm text-navy/70 hover:bg-white"
             >
               Annuler
             </button>
@@ -127,7 +127,7 @@ export function ValidationTable({
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="w-10 px-4 py-3">
                 <input
@@ -148,7 +148,7 @@ export function ValidationTable({
               <th className="px-4 py-3 text-right font-medium">Décision</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line/60">
             {missions.map((m) => (
               <tr
                 key={m.id}
@@ -162,12 +162,12 @@ export function ValidationTable({
                     className="h-4 w-4 cursor-pointer accent-emerald-600"
                   />
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+                <td className="whitespace-nowrap px-4 py-3 font-medium text-navy">
                   {m.provider_name}
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-slate-900">{m.detail}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="text-navy">{m.detail}</p>
+                  <p className="mt-0.5 text-xs text-muted">
                     {m.category_name} · {PRICING_LABEL[m.pricing_type]} ·{' '}
                     {Number(m.quantity)} {PRICING_UNIT[m.pricing_type]} ×{' '}
                     {money(m.unit_amount_ht)}
@@ -197,7 +197,7 @@ export function ValidationTable({
                         <button
                           type="button"
                           onClick={() => setRejecting(null)}
-                          className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
+                          className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-navy/70 hover:bg-cream-deep"
                         >
                           Annuler
                         </button>
@@ -205,15 +205,15 @@ export function ValidationTable({
                     </form>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                   {formatPeriod(m.start_date, m.end_date)}
                 </td>
                 {showManager && (
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                     {m.manager_name}
                   </td>
                 )}
-                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                   {money(m.total_ht)}
                 </td>
                 <td className="px-4 py-3">
@@ -231,7 +231,7 @@ export function ValidationTable({
                     <button
                       type="button"
                       onClick={() => setRejecting(rejecting === m.id ? null : m.id)}
-                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-navy/80 transition-colors hover:bg-cream-muted"
                     >
                       <X size={14} />
                       Refuser

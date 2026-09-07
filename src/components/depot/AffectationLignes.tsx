@@ -38,23 +38,23 @@ export function AffectationLignes({
     .reduce((s, l) => s + Number(l.total_ht), 0)
 
   const champ =
-    'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none'
+    'w-full rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm focus:border-gold focus:ring-2 focus:ring-gold/25 focus:outline-none'
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="batch_id" value={batchId} />
 
       <Card className="overflow-hidden">
-        <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-600">
+        <div className="border-b border-line bg-cream-muted px-5 py-3 text-sm text-navy/70">
           {gardees.size} ligne{gardees.size > 1 ? 's' : ''} retenue
-          {gardees.size > 1 ? 's' : ''} · <strong className="text-slate-900">{money(total)} HT</strong>
+          {gardees.size > 1 ? 's' : ''} · <strong className="text-navy">{money(total)} HT</strong>
         </div>
 
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-line/60">
           {lignes.map((l) => {
             const active = gardees.has(l.id)
             return (
-              <li key={l.id} className={active ? 'p-5' : 'bg-slate-50/60 p-5 opacity-60'}>
+              <li key={l.id} className={active ? 'p-5' : 'bg-cream-muted/60 p-5 opacity-60'}>
                 <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
@@ -68,15 +68,15 @@ export function AffectationLignes({
                         return next
                       })
                     }
-                    className="mt-1 h-4 w-4 cursor-pointer accent-brand-600"
+                    className="mt-1 h-4 w-4 cursor-pointer accent-navy"
                   />
 
                   <div className="flex-1">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="font-medium text-slate-900">{l.description}</p>
-                      <p className="font-semibold text-slate-900">{money(l.total_ht)}</p>
+                      <p className="font-medium text-navy">{l.description}</p>
+                      <p className="font-semibold text-navy">{money(l.total_ht)}</p>
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 text-xs text-muted">
                       {l.line_date ? formatDate(l.line_date) : 'date non précisée'}
                       {l.quantity ? ` · ${Number(l.quantity)} × ${money(l.unit_amount_ht ?? 0)}` : ''}
                     </p>
@@ -84,7 +84,7 @@ export function AffectationLignes({
                     {active && (
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-slate-600">
+                          <span className="mb-1 block text-xs font-medium text-navy/70">
                             Qui vous a confié cette mission ?
                           </span>
                           <select
@@ -105,7 +105,7 @@ export function AffectationLignes({
                         </label>
 
                         <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-slate-600">
+                          <span className="mb-1 block text-xs font-medium text-navy/70">
                             Type de prestation
                           </span>
                           <select name={`categorie_${l.id}`} defaultValue="" className={champ} required>

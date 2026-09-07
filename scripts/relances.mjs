@@ -58,14 +58,14 @@ async function send(to, subject, html, meta) {
   return result
 }
 
-const wrap = (title, body, cta) => `<!doctype html><html lang="fr"><body style="margin:0;background:#f1f5f9;">
-<table role="presentation" width="100%" style="background:#f1f5f9;padding:32px 12px;"><tr><td align="center">
-<table role="presentation" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;
+const wrap = (title, body, cta) => `<!doctype html><html lang="fr"><body style="margin:0;background:#f7f4ee;">
+<table role="presentation" width="100%" style="background:#f7f4ee;padding:32px 12px;"><tr><td align="center">
+<table role="presentation" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid #e5ddc8;
  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-<tr><td style="padding:24px 28px 0;"><p style="margin:0;font-size:13px;font-weight:600;color:#4f46e5;">DIPLOMA INVOICE</p>
-<h1 style="margin:8px 0 0;font-size:19px;color:#0f172a;">${title}</h1></td></tr>
-<tr><td style="padding:16px 28px;font-size:14px;line-height:1.65;color:#334155;">${body}</td></tr>
-<tr><td style="padding:0 28px 24px;"><a href="${cta.href}" style="display:inline-block;background:#4f46e5;
+<tr><td style="padding:24px 28px 0;"><p style="margin:0;font-size:13px;font-weight:600;color:#a8892e;">DIPLOMA INVOICE</p>
+<h1 style="margin:8px 0 0;font-size:19px;color:#0e1e35;">${title}</h1></td></tr>
+<tr><td style="padding:16px 28px;font-size:14px;line-height:1.65;color:#3b4c63;">${body}</td></tr>
+<tr><td style="padding:0 28px 24px;"><a href="${cta.href}" style="display:inline-block;background:#0e1e35;
  color:#fff;text-decoration:none;font-size:14px;padding:11px 20px;border-radius:8px;">${cta.label}</a></td></tr>
 </table></td></tr></table></body></html>`
 

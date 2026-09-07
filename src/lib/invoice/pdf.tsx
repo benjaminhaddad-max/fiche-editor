@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 44,
     fontSize: 9,
     fontFamily: 'Helvetica',
-    color: '#1e293b',
+    color: '#0e1e35',
   },
   header: {
     flexDirection: 'row',
@@ -26,34 +26,35 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 28,
   },
-  title: { fontSize: 22, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
-  invoiceNumber: { fontSize: 11, marginTop: 4, color: '#475569' },
+  title: { fontSize: 22, fontFamily: 'Helvetica-Bold', color: '#0e1e35' },
+  accent: { width: 54, height: 3, backgroundColor: '#c9a84c', marginTop: 6 },
+  invoiceNumber: { fontSize: 11, marginTop: 4, color: '#3b4c63' },
   headerRight: { alignItems: 'flex-end' },
   metaRow: { flexDirection: 'row', marginTop: 2 },
-  metaLabel: { color: '#64748b', width: 78, textAlign: 'right', marginRight: 6 },
+  metaLabel: { color: '#7d8c9e', width: 78, textAlign: 'right', marginRight: 6 },
   metaValue: { fontFamily: 'Helvetica-Bold' },
 
   parties: { flexDirection: 'row', gap: 16, marginBottom: 24 },
   party: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#e5ddc8',
     borderRadius: 4,
     padding: 12,
   },
   partyLabel: {
     fontSize: 7.5,
     letterSpacing: 0.8,
-    color: '#64748b',
+    color: '#7d8c9e',
     fontFamily: 'Helvetica-Bold',
     marginBottom: 6,
   },
   partyName: { fontSize: 10.5, fontFamily: 'Helvetica-Bold', marginBottom: 3 },
-  partyLine: { color: '#475569', lineHeight: 1.15 },
+  partyLine: { color: '#3b4c63', lineHeight: 1.15 },
 
   tableHead: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0e1e35',
     color: '#ffffff',
     paddingVertical: 7,
     paddingHorizontal: 8,
@@ -66,14 +67,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#e5ddc8',
   },
   colDesc: { flex: 1, paddingRight: 8 },
   colQty: { width: 62, textAlign: 'right' },
   colUnit: { width: 68, textAlign: 'right' },
   colTotal: { width: 74, textAlign: 'right' },
   lineDesc: { fontFamily: 'Helvetica-Bold', marginBottom: 2 },
-  lineMeta: { fontSize: 7.5, color: '#64748b' },
+  lineMeta: { fontSize: 7.5, color: '#7d8c9e' },
 
   totals: { marginTop: 18, flexDirection: 'row', justifyContent: 'flex-end' },
   totalsBox: { width: 230 },
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     marginTop: 6,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0e1e35',
     color: '#ffffff',
     borderRadius: 4,
   },
@@ -99,17 +100,17 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     letterSpacing: 0.6,
-    color: '#0f172a',
+    color: '#0e1e35',
     marginBottom: 5,
   },
-  note: { color: '#475569', lineHeight: 1.6 },
+  note: { color: '#3b4c63', lineHeight: 1.6 },
   mentions: {
     marginTop: 14,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: '#e5ddc8',
     fontSize: 7.5,
-    color: '#64748b',
+    color: '#7d8c9e',
     lineHeight: 1.6,
   },
   footer: {
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     right: 44,
     textAlign: 'center',
     fontSize: 7.5,
-    color: '#94a3b8',
+    color: '#a89e8a',
   },
 })
 
@@ -157,6 +158,7 @@ export function InvoiceDocument({
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>FACTURE</Text>
+            <View style={styles.accent} />
             <Text style={styles.invoiceNumber}>N° {invoice.number}</Text>
           </View>
           <View style={styles.headerRight}>

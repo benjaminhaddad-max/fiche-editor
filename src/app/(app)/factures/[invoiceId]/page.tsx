@@ -47,7 +47,7 @@ export default async function InvoicePage({
     <>
       <Link
         href="/factures"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={15} />
         Mes factures

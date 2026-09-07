@@ -70,21 +70,21 @@ function CategoryForm({
       />
 
       <div className="flex items-end gap-6 pb-1">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-navy/80">
           <input
             type="checkbox"
             name="visible_to_provider"
             defaultChecked={category?.visible_to_provider ?? true}
-            className="h-4 w-4 accent-brand-600"
+            className="h-4 w-4 accent-navy"
           />
           Visible prestataire
         </label>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-navy/80">
           <input
             type="checkbox"
             name="is_active"
             defaultChecked={category?.is_active ?? true}
-            className="h-4 w-4 accent-brand-600"
+            className="h-4 w-4 accent-navy"
           />
           Active
         </label>
@@ -106,7 +106,7 @@ function CategoryForm({
           <button
             type="button"
             onClick={onDone}
-            className="cursor-pointer rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+            className="cursor-pointer rounded-lg px-4 py-2 text-sm text-navy/70 hover:bg-cream-deep"
           >
             Fermer
           </button>
@@ -139,7 +139,7 @@ function ToggleCell({
         className={`inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors ${
           value
             ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-            : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+            : 'bg-cream-deep text-stone hover:bg-line'
         }`}
       >
         {value ? <Check size={14} /> : <X size={14} />}
@@ -163,7 +163,7 @@ export function CategoryManager({
       <div className="mb-4 flex justify-end">
         <button
           onClick={() => setCreating((c) => !c)}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light"
         >
           <Plus size={16} />
           Nouvelle catégorie
@@ -172,7 +172,7 @@ export function CategoryManager({
 
       {creating && (
         <Card className="mb-6 p-6">
-          <h2 className="mb-5 text-sm font-semibold text-slate-900">Nouvelle catégorie</h2>
+          <h2 className="mb-5 text-sm font-semibold text-navy">Nouvelle catégorie</h2>
           <CategoryForm action={saveAction} onDone={() => setCreating(false)} />
         </Card>
       )}
@@ -180,7 +180,7 @@ export function CategoryManager({
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Nom</th>
                 <th className="px-4 py-3 font-medium">Libellé Pennylane</th>
@@ -191,15 +191,15 @@ export function CategoryManager({
                 <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line/60">
               {categories.map((c) => (
                 <Fragment key={c.id}>
-                  <tr className="hover:bg-slate-50/70">
-                    <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                  <tr className="hover:bg-cream-muted">
+                    <td className="px-4 py-3 font-medium text-navy">{c.name}</td>
+                    <td className="px-4 py-3 text-navy/70">
                       {c.pennylane_label ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{c.provider_label ?? '—'}</td>
+                    <td className="px-4 py-3 text-navy/70">{c.provider_label ?? '—'}</td>
                     <td className="px-4 py-3">
                       {c.pennylane_category_id ?? (
                         <span className="text-xs text-amber-600">manquant</span>
@@ -223,7 +223,7 @@ export function CategoryManager({
                       <button
                         onClick={() => setEditing(editing === c.id ? null : c.id)}
                         title="Modifier"
-                        className="cursor-pointer rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                        className="cursor-pointer rounded p-1.5 text-muted hover:bg-cream-deep hover:text-navy"
                       >
                         <Pencil size={15} />
                       </button>
@@ -231,7 +231,7 @@ export function CategoryManager({
                   </tr>
                   {editing === c.id && (
                     <tr>
-                      <td colSpan={7} className="bg-slate-50 px-4 py-5">
+                      <td colSpan={7} className="bg-cream-muted px-4 py-5">
                         <CategoryForm
                           action={saveAction}
                           category={c}

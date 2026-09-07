@@ -49,7 +49,7 @@ export default async function AdminInvoicePage({
     <>
       <Link
         href="/admin/factures"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={15} />
         Factures
@@ -88,9 +88,9 @@ export default async function AdminInvoicePage({
       </div>
 
       {!isPennylaneConfigured() && (
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <div className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-sm text-navy/70">
           Synchronisation Pennylane désactivée : la variable{' '}
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">
+          <code className="rounded bg-cream-deep px-1 py-0.5 text-xs">
             PENNYLANE_API_TOKEN
           </code>{' '}
           n’est pas configurée.
@@ -117,7 +117,7 @@ export default async function AdminInvoicePage({
       )}
 
       {invoice.pennylane_status === 'synced' && (
-        <Card className="mb-6 px-4 py-3 text-sm text-slate-700">
+        <Card className="mb-6 px-4 py-3 text-sm text-navy/80">
           Synchronisée dans Pennylane le {formatDate(invoice.pennylane_synced_at)} — facture
           d’achat n° {invoice.pennylane_invoice_id}.
         </Card>

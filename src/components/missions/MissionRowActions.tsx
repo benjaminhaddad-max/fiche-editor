@@ -20,7 +20,7 @@ export function MissionRowActions({
       <Link
         href={`/missions/${id}`}
         title="Modifier"
-        className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+        className="rounded p-1.5 text-muted transition-colors hover:bg-cream-deep hover:text-navy"
       >
         <Pencil size={15} />
       </Link>
@@ -30,7 +30,7 @@ export function MissionRowActions({
         <button
           type="submit"
           title="Envoyer en validation"
-          className="cursor-pointer rounded p-1.5 text-slate-500 transition-colors hover:bg-brand-50 hover:text-brand-700"
+          className="cursor-pointer rounded p-1.5 text-muted transition-colors hover:bg-gold/10 hover:text-gold-dark"
         >
           <Send size={15} />
         </button>
@@ -46,7 +46,7 @@ export function MissionRowActions({
         <button
           type="submit"
           title="Supprimer"
-          className="cursor-pointer rounded p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700"
+          className="cursor-pointer rounded p-1.5 text-muted transition-colors hover:bg-red-50 hover:text-red-700"
         >
           <Trash2 size={15} />
         </button>

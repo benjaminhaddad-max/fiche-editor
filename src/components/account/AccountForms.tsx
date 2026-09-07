@@ -35,7 +35,7 @@ export function IdentityForm({
 
   return (
     <Card className="p-6">
-      <h2 className="mb-5 text-sm font-semibold text-slate-900">Mon identité</h2>
+      <h2 className="mb-5 text-sm font-semibold text-navy">Mon identité</h2>
       <form action={formAction} className="flex flex-col gap-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <Input
@@ -55,7 +55,7 @@ export function IdentityForm({
             hint="L’email de connexion est géré par l’administration."
           />
         </div>
-        <p className="text-xs text-slate-500">Rôle : {role}</p>
+        <p className="text-xs text-muted">Rôle : {role}</p>
         <Feedback state={state} />
         <div className="flex justify-end">
           <SubmitButton variant="secondary" pendingLabel="Enregistrement…">
@@ -72,8 +72,8 @@ export function PasswordForm({ action }: { action: Action }) {
 
   return (
     <Card className="p-6">
-      <h2 className="mb-1 text-sm font-semibold text-slate-900">Mot de passe</h2>
-      <p className="mb-5 text-xs text-slate-500">
+      <h2 className="mb-1 text-sm font-semibold text-navy">Mot de passe</h2>
+      <p className="mb-5 text-xs text-muted">
         Si vous vous connectez avec un mot de passe provisoire fourni par
         l’administration, changez-le maintenant.
       </p>

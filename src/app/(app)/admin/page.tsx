@@ -92,15 +92,15 @@ export default async function AdminDashboard() {
       )}
 
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">Dernières factures</h2>
-        <Link href="/admin/factures" className="text-xs text-brand-600 hover:underline">
+        <h2 className="text-sm font-semibold text-navy">Dernières factures</h2>
+        <Link href="/admin/factures" className="text-xs text-gold-dark hover:underline">
           Tout voir
         </Link>
       </div>
 
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="px-4 py-3 font-medium">Numéro</th>
               <th className="px-4 py-3 font-medium">Prestataire</th>
@@ -109,31 +109,31 @@ export default async function AdminDashboard() {
               <th className="px-4 py-3 font-medium">Statut</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line/60">
             {recent.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-muted">
                   Aucune facture pour l’instant.
                 </td>
               </tr>
             ) : (
               recent.map((inv) => (
-                <tr key={inv.id} className="hover:bg-slate-50/70">
+                <tr key={inv.id} className="hover:bg-cream-muted">
                   <td className="whitespace-nowrap px-4 py-3">
                     <Link
                       href={`/admin/factures/${inv.id}`}
-                      className="font-medium text-brand-600 hover:underline"
+                      className="font-medium text-gold-dark hover:underline"
                     >
                       {inv.number}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-navy/80">
                     {inv.provider?.legal_name ?? '—'}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                     {formatDate(inv.issue_date)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                     {money(inv.total_ttc)}
                   </td>
                   <td className="px-4 py-3">

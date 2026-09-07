@@ -41,9 +41,9 @@ export function ArbitrageBordereau({
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-slate-200 bg-slate-50 px-5 py-3">
-        <p className="font-semibold text-slate-900">{bordereau.provider}</p>
-        <p className="text-sm text-slate-500">{bordereau.cycle_month}</p>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line bg-cream-muted px-5 py-3">
+        <p className="font-semibold text-navy">{bordereau.provider}</p>
+        <p className="text-sm text-muted">{bordereau.cycle_month}</p>
         {ajouts.length > 0 && (
           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
             {ajouts.length} ajout{ajouts.length > 1 ? 's' : ''}
@@ -54,36 +54,36 @@ export function ArbitrageBordereau({
             {enAttente.length} à valider
           </span>
         )}
-        <p className="ml-auto font-semibold text-slate-900">{money(total)} HT</p>
+        <p className="ml-auto font-semibold text-navy">{money(total)} HT</p>
       </div>
 
       {bordereau.provider_comment && (
-        <div className="flex items-start gap-2.5 border-b border-slate-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
+        <div className="flex items-start gap-2.5 border-b border-line bg-amber-50 px-5 py-3 text-sm text-amber-900">
           <MessageSquareWarning size={16} className="mt-0.5 shrink-0" />
           <p className="whitespace-pre-wrap">{bordereau.provider_comment}</p>
         </div>
       )}
 
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-line/60">
         {bordereau.lignes.map((l) => (
           <li key={l.id} className="flex items-start justify-between gap-4 px-5 py-2.5 text-sm">
-            <span className="text-slate-800">
+            <span className="text-navy">
               {l.detail}
               {l.origin === 'provider' && (
                 <span className="ml-2 text-xs text-amber-700">ajout du prestataire</span>
               )}
             </span>
-            <span className="shrink-0 text-slate-600">
+            <span className="shrink-0 text-navy/70">
               {money(l.total_ht)}
               {l.status !== 'approved' && (
-                <span className="ml-2 text-xs text-slate-400">({l.status})</span>
+                <span className="ml-2 text-xs text-stone">({l.status})</span>
               )}
             </span>
           </li>
         ))}
       </ul>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 px-5 py-3">
+      <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-3">
         {clos ? (
           <>
             <span className="text-sm text-emerald-700">
@@ -110,7 +110,7 @@ export function ArbitrageBordereau({
               Clore et autoriser la facturation
             </button>
             {enAttente.length > 0 && (
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-muted">
                 {enAttente.length} ligne(s) encore en attente ne seront pas comptées.
               </span>
             )}
@@ -119,7 +119,7 @@ export function ArbitrageBordereau({
       </div>
 
       {ouvert && !clos && (
-        <form action={action} className="flex flex-col gap-4 border-t border-slate-200 bg-slate-50 px-5 py-4">
+        <form action={action} className="flex flex-col gap-4 border-t border-line bg-cream-muted px-5 py-4">
           <input type="hidden" name="statement_id" value={bordereau.id} />
           <Textarea
             id={`reponse-${bordereau.id}`}

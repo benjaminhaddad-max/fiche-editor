@@ -49,7 +49,7 @@ export default async function HistoriquePage() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Prestataire</th>
                   <th className="px-4 py-3 font-medium">Prestation</th>
@@ -58,28 +58,28 @@ export default async function HistoriquePage() {
                   <th className="px-4 py-3 font-medium">Décision</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line/60">
                 {rows.map((m) => (
                   <tr key={m.id} className="align-top">
-                    <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+                    <td className="whitespace-nowrap px-4 py-3 font-medium text-navy">
                       {m.provider?.legal_name ?? '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-slate-900">{m.detail}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">{m.category?.name}</p>
+                      <p className="text-navy">{m.detail}</p>
+                      <p className="mt-0.5 text-xs text-muted">{m.category?.name}</p>
                       {m.status === 'rejected' && m.rejection_reason && (
                         <p className="mt-1 text-xs text-red-600">{m.rejection_reason}</p>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {formatPeriod(m.start_date, m.end_date)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                       {money(m.total_ht)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <MissionStatusBadge status={m.status} />
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="mt-1 text-xs text-stone">
                         {formatDate(m.rejected_at ?? m.manager_approved_at)}
                       </p>
                     </td>

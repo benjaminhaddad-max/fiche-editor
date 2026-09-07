@@ -53,9 +53,9 @@ export function BordereauActions({
 
   if (!modifiable) {
     return (
-      <Card className="p-6 text-sm text-slate-600">
+      <Card className="p-6 text-sm text-navy/70">
         Ce bordereau est clos. Retrouvez vos factures dans{' '}
-        <Link href="/factures" className="font-medium text-brand-600 hover:underline">
+        <Link href="/factures" className="font-medium text-gold-dark hover:underline">
           Mes factures
         </Link>
         .
@@ -66,8 +66,8 @@ export function BordereauActions({
   return (
     <div className="flex flex-col gap-5">
       <Card className="p-6">
-        <h2 className="text-sm font-semibold text-slate-900">Tout est correct ?</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="text-sm font-semibold text-navy">Tout est correct ?</h2>
+        <p className="mt-1 text-sm text-navy/70">
           Votre facture doit nous parvenir avant le <strong>{formatDate(deadline)}</strong>.
           Les paiements sont effectués à partir du {formatDate(paiement)}.
         </p>
@@ -80,7 +80,7 @@ export function BordereauActions({
 
           <Link
             href="/factures/deposer"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-navy/80 transition-colors hover:bg-cream-muted"
           >
             <FileUp size={16} />
             Déposer ma propre facture
@@ -89,7 +89,7 @@ export function BordereauActions({
           <button
             type="button"
             onClick={() => setOuvert(ouvert === 'ajout' ? null : 'ajout')}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-navy/70 hover:bg-cream-deep"
           >
             <Plus size={16} />
             Il manque une prestation
@@ -108,8 +108,8 @@ export function BordereauActions({
 
       {ouvert === 'ajout' && (
         <Card className="p-6">
-          <h2 className="mb-1 text-sm font-semibold text-slate-900">Ajouter une prestation</h2>
-          <p className="mb-5 text-xs text-slate-500">
+          <h2 className="mb-1 text-sm font-semibold text-navy">Ajouter une prestation</h2>
+          <p className="mb-5 text-xs text-muted">
             Elle partira en validation chez le responsable que vous indiquez, et rejoindra ce
             bordereau une fois validée.
           </p>
@@ -169,8 +169,8 @@ export function BordereauActions({
             </div>
 
             <div className="flex items-center justify-end gap-3 sm:col-span-2">
-              <span className="mr-auto text-sm text-slate-500">
-                Total : <strong className="text-slate-900">
+              <span className="mr-auto text-sm text-muted">
+                Total : <strong className="text-navy">
                   {money((Number(quantite) || 0) * (Number(montant) || 0))}
                 </strong> HT
               </span>
@@ -182,8 +182,8 @@ export function BordereauActions({
 
       {ouvert === 'signalement' && (
         <Card className="p-6">
-          <h2 className="mb-1 text-sm font-semibold text-slate-900">Signaler un problème</h2>
-          <p className="mb-5 text-xs text-slate-500">
+          <h2 className="mb-1 text-sm font-semibold text-navy">Signaler un problème</h2>
+          <p className="mb-5 text-xs text-muted">
             Décrivez librement ce qui ne va pas. Les responsables concernés le verront cette
             semaine et vous répondront.
           </p>

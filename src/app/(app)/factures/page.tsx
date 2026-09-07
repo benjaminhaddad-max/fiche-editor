@@ -65,7 +65,7 @@ export default async function InvoicesPage() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Numéro</th>
                   <th className="px-4 py-3 font-medium">Émise le</th>
@@ -75,24 +75,24 @@ export default async function InvoicesPage() {
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line/60">
                 {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/70">
+                  <tr key={inv.id} className="hover:bg-cream-muted">
                     <td className="whitespace-nowrap px-4 py-3">
                       <Link
                         href={`/factures/${inv.id}`}
-                        className="font-medium text-brand-600 hover:underline"
+                        className="font-medium text-gold-dark hover:underline"
                       >
                         {inv.number}
                       </Link>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {formatDate(inv.issue_date)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {formatDate(inv.due_date)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                       {money(inv.total_ttc)}
                     </td>
                     <td className="px-4 py-3">
@@ -104,7 +104,7 @@ export default async function InvoicesPage() {
                         target="_blank"
                         rel="noreferrer"
                         title="Télécharger le PDF"
-                        className="inline-flex rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                        className="inline-flex rounded p-1.5 text-muted transition-colors hover:bg-cream-deep hover:text-navy"
                       >
                         <Download size={15} />
                       </a>

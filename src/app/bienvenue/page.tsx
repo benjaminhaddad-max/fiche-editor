@@ -1,3 +1,4 @@
+import { Logo } from '@/components/ui/Logo'
 import { WelcomeClient } from './WelcomeClient'
 
 /**
@@ -13,16 +14,16 @@ export default async function BienvenuePage({
   const { invitation } = await searchParams
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-cream px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Diploma Invoice</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <Logo className="justify-center" />
+          <p className="mt-3 text-sm text-muted">
             Prestations et facturation — Diploma Santé
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-line bg-white p-6 shadow-[0_1px_3px_rgba(14,30,53,0.06)]">
           <WelcomeClient invitation={invitation ?? null} />
         </div>
       </div>

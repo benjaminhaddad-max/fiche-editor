@@ -77,20 +77,20 @@ export default async function BordereauPage({
       />
 
       <Card className="mb-6 flex flex-wrap items-center gap-x-8 gap-y-2 px-5 py-4 text-sm">
-        <span className="flex items-center gap-2 text-slate-500">
+        <span className="flex items-center gap-2 text-muted">
           <CalendarClock size={15} />
           Période {formatPeriod(bordereau.period_start, bordereau.period_end)}
         </span>
-        <span className="text-slate-600">
+        <span className="text-navy/70">
           Facture attendue avant le{' '}
-          <strong className="text-slate-900">
+          <strong className="text-navy">
             {formatDate(bordereau.invoice_expected_at ?? bordereau.invoice_deadline)}
           </strong>
         </span>
-        <span className="text-slate-600">
+        <span className="text-navy/70">
           Paiement {formatDate(bordereau.payment_start)} → {formatDate(bordereau.payment_end)}
         </span>
-        <span className="ml-auto text-base font-bold text-slate-900">{money(total)} HT</span>
+        <span className="ml-auto text-base font-bold text-navy">{money(total)} HT</span>
       </Card>
 
       {bordereau.provider_comment && (
@@ -103,25 +103,25 @@ export default async function BordereauPage({
       <div className="mb-6 flex flex-col gap-4">
         {[...parManager.entries()].map(([manager, l]) => (
           <Card key={manager} className="overflow-hidden">
-            <div className="flex items-baseline justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
-              <p className="text-sm font-semibold text-slate-900">{manager}</p>
-              <p className="text-sm text-slate-600">
+            <div className="flex items-baseline justify-between border-b border-line bg-cream-muted px-5 py-3">
+              <p className="text-sm font-semibold text-navy">{manager}</p>
+              <p className="text-sm text-navy/70">
                 {money(l.filter((x) => x.status !== 'rejected').reduce((s, x) => s + Number(x.total_ht), 0))}
               </p>
             </div>
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-line/60">
               {l.map((x) => (
                 <li key={x.id} className="flex items-start justify-between gap-4 px-5 py-3">
                   <div>
-                    <p className="text-sm text-slate-900">{x.detail}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="text-sm text-navy">{x.detail}</p>
+                    <p className="mt-0.5 text-xs text-muted">
                       {formatPeriod(x.start_date, x.end_date)} · {x.category?.name}
                       {x.origin === 'provider' ? ' · ajoutée par vous' : ''}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <MissionStatusBadge status={x.status} />
-                    <span className="w-24 text-right text-sm font-semibold text-slate-900">
+                    <span className="w-24 text-right text-sm font-semibold text-navy">
                       {money(x.total_ht)}
                     </span>
                   </div>

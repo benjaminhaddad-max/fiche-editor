@@ -47,7 +47,7 @@ export default async function ProviderPage({
     <>
       <Link
         href="/admin/prestataires"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={15} />
         Prestataires
@@ -59,14 +59,14 @@ export default async function ProviderPage({
       />
 
       <Card className="mb-6 p-6">
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">
+        <h2 className="mb-4 text-sm font-semibold text-navy">
           Informations déclarées par le prestataire
         </h2>
         <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
           {identity.map(([label, value]) => (
             <div key={label} className="flex gap-3">
-              <dt className="w-32 shrink-0 text-slate-500">{label}</dt>
-              <dd className={value ? 'text-slate-900' : 'text-amber-600'}>
+              <dt className="w-32 shrink-0 text-muted">{label}</dt>
+              <dd className={value ? 'text-navy' : 'text-amber-600'}>
                 {value ?? 'non renseigné'}
               </dd>
             </div>

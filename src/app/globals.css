@@ -1,34 +1,90 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Charte Diploma Santé
+   Reprise de Diploma Lab pour que les deux plateformes se
+   ressemblent : navy, or, crème. Les valeurs viennent du
+   globals.css d'EXOTEACHBIS, elles ne sont pas réinventées ici.
+   ============================================================ */
 @theme {
-  --color-brand-50:  #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
+  --color-navy: #0e1e35;
+  --color-navy-light: #162d4a;
+  --color-navy-dark: #091525;
+  --color-navy-soft: #24405f;
+
+  --color-gold: #c9a84c;
+  --color-gold-light: #e8c97b;
+  --color-gold-dark: #a8892e;
+
+  --color-cream: #f7f4ee;
+  --color-cream-muted: #fbf8f1;
+  --color-cream-deep: #f0e9da;
+
+  --color-line: #e5ddc8;
+  --color-stone: #a89e8a;
+  --color-muted: #7d8c9e;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), Georgia, serif;
+  --font-label: var(--font-label), ui-sans-serif, system-ui, sans-serif;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
+@layer base {
+  html,
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-navy);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Un curseur main partout où l'on peut cliquer : repris de Diploma Lab. */
+  button:not(:disabled),
+  a[href],
+  summary,
+  label[for],
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
-body {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Champs de formulaire : une seule definition, reutilisee partout. */
+/* Champs de formulaire : une seule définition, réutilisée partout. */
 .field {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
-         placeholder:text-slate-400
-         focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none
-         disabled:bg-slate-50 disabled:text-slate-500;
+  @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy
+         placeholder:text-stone
+         focus:border-gold focus:ring-2 focus:ring-gold/25 focus:outline-none
+         disabled:bg-cream-muted disabled:text-stone;
 }
 
 .field-label {
-  @apply block text-sm font-medium text-slate-700 mb-1.5;
+  @apply mb-1.5 block text-sm font-medium text-navy;
 }
 
 .field-hint {
-  @apply mt-1 text-xs text-slate-500;
+  @apply mt-1 text-xs text-muted;
+}
+
+/* Filet doré : la signature visuelle de la marque, en tête des surfaces clés. */
+.ds-accent-bar {
+  background: linear-gradient(
+    90deg,
+    var(--color-gold) 0%,
+    var(--color-gold-light) 45%,
+    var(--color-gold) 55%,
+    rgba(201, 168, 76, 0.35) 100%
+  );
+}
+
+/* Petites capitales espacées, pour les intitulés de sections. */
+.ds-eyebrow {
+  font-family: var(--font-label);
+  @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-stone;
 }

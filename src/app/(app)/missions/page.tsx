@@ -107,7 +107,7 @@ export default async function MissionsPage() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Période</th>
                   <th className="px-4 py-3 font-medium">Prestation</th>
@@ -117,15 +117,15 @@ export default async function MissionsPage() {
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line/60">
                 {missions.map((m) => (
-                  <tr key={m.id} className="align-top hover:bg-slate-50/70">
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <tr key={m.id} className="align-top hover:bg-cream-muted">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {formatPeriod(m.start_date, m.end_date)}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">{m.detail}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="font-medium text-navy">{m.detail}</p>
+                      <p className="mt-0.5 text-xs text-muted">
                         {m.category?.provider_label || m.category?.name}
                       </p>
                       {m.status === 'rejected' && m.rejection_reason && (
@@ -134,15 +134,15 @@ export default async function MissionsPage() {
                         </p>
                       )}
                       {m.invoice && (
-                        <p className="mt-0.5 text-xs text-slate-400">
+                        <p className="mt-0.5 text-xs text-stone">
                           Facture {m.invoice.number}
                         </p>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {m.manager?.full_name ?? '—'}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                       {money(m.total_ht)}
                     </td>
                     <td className="px-4 py-3">

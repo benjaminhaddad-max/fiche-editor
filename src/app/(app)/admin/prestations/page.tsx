@@ -13,7 +13,7 @@ type Origin = 'contract' | 'manager' | 'provider'
 
 const ORIGINE: Record<Origin, { label: string; style: string; Icon: typeof UserPen }> = {
   contract: { label: 'Contrat', style: 'bg-indigo-50 text-indigo-700 ring-indigo-200', Icon: FileSignature },
-  manager: { label: 'Saisi par un manager', style: 'bg-slate-100 text-slate-600 ring-slate-200', Icon: UserPen },
+  manager: { label: 'Saisi par un manager', style: 'bg-cream-deep text-navy/70 ring-line', Icon: UserPen },
   provider: { label: 'Ajouté par le prestataire', style: 'bg-amber-50 text-amber-800 ring-amber-200', Icon: UserPlus },
 }
 
@@ -110,7 +110,7 @@ export default async function AdminMissionsPage({
 
       {recap.length > 0 && (
         <Card className="mb-6 p-5">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">
+          <h2 className="mb-3 text-sm font-semibold text-navy">
             Montant par prestataire — c’est ce qui s’additionnera sur sa facture
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -118,11 +118,11 @@ export default async function AdminMissionsPage({
               <Link
                 key={id}
                 href={`/admin/prestations?prestataire=${id}`}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm transition-colors hover:bg-slate-50"
+                className="rounded-lg border border-line px-3 py-2 text-sm transition-colors hover:bg-cream-muted"
               >
-                <span className="font-medium text-slate-900">{r.nom}</span>
+                <span className="font-medium text-navy">{r.nom}</span>
                 <span className="ml-2 font-semibold text-emerald-700">{money(r.total)}</span>
-                <span className="ml-1.5 text-xs text-slate-400">{r.n} ligne(s)</span>
+                <span className="ml-1.5 text-xs text-stone">{r.n} ligne(s)</span>
               </Link>
             ))}
           </div>
@@ -135,7 +135,7 @@ export default async function AdminMissionsPage({
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Prestataire</th>
                   <th className="px-4 py-3 font-medium">Prestation</th>
@@ -145,24 +145,24 @@ export default async function AdminMissionsPage({
                   <th className="px-4 py-3 font-medium">Statut</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line/60">
                 {missions.map((m) => {
                   const o = ORIGINE[m.origin]
                   return (
-                    <tr key={m.id} className="align-top hover:bg-slate-50/70">
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+                    <tr key={m.id} className="align-top hover:bg-cream-muted">
+                      <td className="whitespace-nowrap px-4 py-3 font-medium text-navy">
                         {m.provider?.legal_name}
                         {m.manager && (
-                          <span className="block text-xs font-normal text-slate-400">
+                          <span className="block text-xs font-normal text-stone">
                             {m.manager.full_name}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-slate-900">{m.detail}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">{m.category?.name}</p>
+                        <p className="text-navy">{m.detail}</p>
+                        <p className="mt-0.5 text-xs text-muted">{m.category?.name}</p>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                         {formatPeriod(m.start_date, m.end_date)}
                       </td>
                       <td className="px-4 py-3">
@@ -171,7 +171,7 @@ export default async function AdminMissionsPage({
                           {o.label}
                         </Badge>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-900">
+                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                         {money(m.total_ht)}
                       </td>
                       <td className="px-4 py-3">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Logo } from '@/components/ui/Logo'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
@@ -31,20 +32,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-cream px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Diploma Invoice
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <Logo className="justify-center" />
+          <p className="mt-3 text-sm text-muted">
             Prestations et facturation — Diploma Santé
           </p>
         </div>
 
         <form
           onSubmit={handleLogin}
-          className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="flex flex-col gap-4 rounded-xl border border-line bg-white p-6 shadow-[0_1px_3px_rgba(14,30,53,0.06)]"
         >
           <Input
             id="email"
@@ -75,7 +74,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-slate-500">
+        <p className="mt-4 text-center text-xs text-muted">
           Votre accès est créé par l’administrateur Diploma Santé.
         </p>
       </div>

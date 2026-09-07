@@ -61,7 +61,7 @@ export default async function NewInvoicePage() {
           title="Aucune prestation à facturer"
           description="Seules les prestations validées par votre manager puis par l’administration peuvent être facturées."
           action={
-            <Link href="/missions" className="text-sm font-medium text-brand-600 underline">
+            <Link href="/missions" className="text-sm font-medium text-gold-dark underline">
               Voir mes prestations
             </Link>
           }

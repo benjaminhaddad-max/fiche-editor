@@ -24,14 +24,14 @@ export function ManagerPicker({
 
   return (
     <div className="mb-6 flex flex-wrap items-center gap-3">
-      <label htmlFor="manager" className="text-sm text-slate-600">
+      <label htmlFor="manager" className="text-sm text-navy/70">
         Manager
       </label>
       <select
         id="manager"
         value={value}
         onChange={(e) => choisir(e.target.value)}
-        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
+        className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-navy focus:border-gold focus:ring-2 focus:ring-gold/25 focus:outline-none"
       >
         <option value="tous">Tous les managers</option>
         {managers.map((m) => (

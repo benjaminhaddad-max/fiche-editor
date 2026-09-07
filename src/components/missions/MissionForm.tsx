@@ -43,7 +43,7 @@ export function MissionForm({
       {mission && <input type="hidden" name="mission_id" value={mission.id} />}
 
       <Card className="p-6">
-        <h2 className="mb-5 text-sm font-semibold text-slate-900">
+        <h2 className="mb-5 text-sm font-semibold text-navy">
           Détail de la prestation
         </h2>
 
@@ -124,7 +124,7 @@ export function MissionForm({
       </Card>
 
       <Card className="p-6">
-        <h2 className="mb-5 text-sm font-semibold text-slate-900">Tarification</h2>
+        <h2 className="mb-5 text-sm font-semibold text-navy">Tarification</h2>
 
         <div className="mb-5 flex flex-wrap gap-3">
           {PRICING_TYPES.map((type) => (
@@ -132,8 +132,8 @@ export function MissionForm({
               key={type}
               className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm transition-colors ${
                 pricingType === type
-                  ? 'border-brand-600 bg-brand-50 font-medium text-brand-700'
-                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  ? 'border-gold bg-gold/10 font-medium text-gold-dark'
+                  : 'border-line bg-white text-navy/80 hover:bg-cream-muted'
               }`}
             >
               <input
@@ -142,7 +142,7 @@ export function MissionForm({
                 value={type}
                 checked={pricingType === type}
                 onChange={() => setPricingType(type)}
-                className="accent-brand-600"
+                className="accent-navy"
               />
               {PRICING_LABEL[type]}
             </label>
@@ -182,7 +182,7 @@ export function MissionForm({
 
           <div>
             <span className="field-label">Montant total HT</span>
-            <div className="flex h-[38px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900">
+            <div className="flex h-[38px] items-center rounded-lg border border-line bg-cream-muted px-3 text-sm font-semibold text-navy">
               {money(total)}
             </div>
             <p className="field-hint">Calculé automatiquement.</p>
@@ -197,7 +197,7 @@ export function MissionForm({
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Link
           href="/missions"
-          className="mr-auto rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          className="mr-auto rounded-lg px-4 py-2 text-sm font-medium text-navy/70 transition-colors hover:bg-cream-deep"
         >
           Annuler
         </Link>

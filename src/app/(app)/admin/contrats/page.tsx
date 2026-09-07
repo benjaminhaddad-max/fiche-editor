@@ -77,7 +77,7 @@ export default async function ContractsPage() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Coach</th>
                   <th className="px-4 py-3 font-medium">Programme</th>
@@ -87,7 +87,7 @@ export default async function ContractsPage() {
                   <th className="px-4 py-3 font-medium">Échéances</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line/60">
                 {contracts.map((c) => {
                   const attendu =
                     c.rate_base_amount && c.rate_base_headcount && c.headcount
@@ -97,37 +97,37 @@ export default async function ContractsPage() {
                   const faites = c.instalments.filter((i) => i.mission_id).length
 
                   return (
-                    <tr key={c.id} className="align-top hover:bg-slate-50/70">
+                    <tr key={c.id} className="align-top hover:bg-cream-muted">
                       <td className="px-4 py-3">
                         <Link
                           href={`/admin/contrats/${c.id}`}
-                          className="font-medium text-brand-600 hover:underline"
+                          className="font-medium text-gold-dark hover:underline"
                         >
                           {c.provider?.legal_name}
                         </Link>
                         {c.lab_coach_email && (
-                          <p className="text-xs text-slate-400">{c.lab_coach_email}</p>
+                          <p className="text-xs text-stone">{c.lab_coach_email}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-navy/70">
                         {PROGRAMME[c.program] ?? c.program}
-                        <span className="block text-xs text-slate-400">{c.academic_year}</span>
+                        <span className="block text-xs text-stone">{c.academic_year}</span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <span className="font-semibold text-slate-900">{c.headcount ?? '—'}</span>
+                        <span className="font-semibold text-navy">{c.headcount ?? '—'}</span>
                         {c.headcount_fixed_at && (
-                          <span className="block text-xs text-slate-400">
+                          <span className="block text-xs text-stone">
                             figé le {formatDate(c.headcount_fixed_at)}
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">
                         {c.rate_base_amount
                           ? `${money(c.rate_base_amount)} / ${c.rate_base_headcount} élèves / semestre`
                           : 'forfait'}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <span className="font-semibold text-slate-900">{money(c.total_ht)}</span>
+                        <span className="font-semibold text-navy">{money(c.total_ht)}</span>
                         {ecart && (
                           <span className="mt-0.5 flex items-center justify-end gap-1 text-xs text-amber-600">
                             <AlertCircle size={11} />
@@ -140,7 +140,7 @@ export default async function ContractsPage() {
                           className={
                             faites === c.instalments.length
                               ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                              : 'bg-slate-100 text-slate-600 ring-slate-200'
+                              : 'bg-cream-deep text-navy/70 ring-line'
                           }
                         >
                           {faites} / {c.instalments.length} ouvertes

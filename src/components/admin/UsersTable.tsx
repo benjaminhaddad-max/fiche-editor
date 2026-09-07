@@ -12,9 +12,9 @@ import { impersonate, inviteUsers } from '@/app/(app)/admin/utilisateurs/actions
 import { toggleUserActive } from '@/app/(app)/admin/actions'
 
 const ROLE_STYLE: Record<string, string> = {
-  admin: 'bg-brand-50 text-brand-700 ring-brand-200',
+  admin: 'bg-gold/10 text-gold-dark ring-gold/30',
   manager: 'bg-sky-50 text-sky-700 ring-sky-200',
-  prestataire: 'bg-slate-100 text-slate-600 ring-slate-200',
+  prestataire: 'bg-cream-deep text-navy/70 ring-line',
 }
 
 export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) {
@@ -39,12 +39,12 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
       {selection.size > 0 && (
         <form
           action={inviteUsers}
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-5 py-3"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/40 bg-gold/10 px-5 py-3"
         >
           {[...selection].map((id) => (
             <input key={id} type="hidden" name="user_id" value={id} />
           ))}
-          <span className="text-sm text-brand-900">
+          <span className="text-sm text-navy">
             <strong>{selection.size}</strong> compte{selection.size > 1 ? 's' : ''} sélectionné
             {selection.size > 1 ? 's' : ''} — chacun recevra un lien pour choisir son mot de passe.
           </span>
@@ -52,7 +52,7 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
             <button
               type="button"
               onClick={() => setSelection(new Set())}
-              className="cursor-pointer rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-white"
+              className="cursor-pointer rounded-lg px-3 py-1.5 text-sm text-navy/70 hover:bg-white"
             >
               Annuler
             </button>
@@ -67,7 +67,7 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="w-10 px-4 py-3">
                   <input
@@ -77,7 +77,7 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                       setSelection(tousCoches ? new Set() : new Set(invitables.map((u) => u.id)))
                     }
                     title="Tout sélectionner"
-                    className="h-4 w-4 cursor-pointer accent-brand-600"
+                    className="h-4 w-4 cursor-pointer accent-navy"
                   />
                 </th>
                 <th className="px-4 py-3 font-medium">Nom</th>
@@ -87,13 +87,13 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                 <th className="px-4 py-3 text-right font-medium">Accès</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line/60">
               {users.map((u) => {
                 const moi = u.id === meId
                 return (
                   <tr
                     key={u.id}
-                    className={selection.has(u.id) ? 'bg-brand-50/60' : 'hover:bg-slate-50/70'}
+                    className={selection.has(u.id) ? 'bg-gold/10/60' : 'hover:bg-cream-muted'}
                   >
                     <td className="px-4 py-3">
                       {!moi && u.is_active && (
@@ -101,26 +101,26 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                           type="checkbox"
                           checked={selection.has(u.id)}
                           onChange={() => bascule(u.id)}
-                          className="h-4 w-4 cursor-pointer accent-brand-600"
+                          className="h-4 w-4 cursor-pointer accent-navy"
                         />
                       )}
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">
+                    <td className="px-4 py-3 font-medium text-navy">
                       {u.full_name}
                       {!u.is_active && (
                         <span className="ml-2 text-xs font-normal text-red-600">désactivé</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                    <td className="px-4 py-3 text-navy/70">{u.email}</td>
                     <td className="px-4 py-3">
                       <Badge className={ROLE_STYLE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
                       {formatDate(u.created_at)}
                     </td>
                     <td className="px-4 py-3">
                       {moi ? (
-                        <p className="text-right text-xs text-slate-400">vous</p>
+                        <p className="text-right text-xs text-stone">vous</p>
                       ) : (
                         <div className="flex items-center justify-end gap-1">
                           {u.is_active && (
@@ -129,7 +129,7 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                               <button
                                 type="submit"
                                 title="Envoyer un lien pour créer son mot de passe"
-                                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-navy/70 hover:bg-cream-deep"
                               >
                                 Inviter
                               </button>
@@ -141,7 +141,7 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                               <button
                                 type="submit"
                                 title="Voir la plateforme comme cette personne"
-                                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
+                                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-gold-dark hover:bg-gold/10"
                               >
                                 Se connecter en tant que
                               </button>
@@ -154,7 +154,7 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                               type="submit"
                               className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium ${
                                 u.is_active
-                                  ? 'text-slate-600 hover:bg-slate-100'
+                                  ? 'text-navy/70 hover:bg-cream-deep'
                                   : 'bg-red-50 text-red-700 hover:bg-red-100'
                               }`}
                             >
