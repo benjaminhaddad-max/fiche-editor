@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Fraunces, Inter, Space_Grotesk } from 'next/font/google'
+import { Fraunces, Inter, Poppins, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 
 // Les trois familles de Diploma Lab : Inter pour le texte, Fraunces pour les
@@ -11,6 +11,15 @@ const fraunces = Fraunces({
   display: 'swap',
   axes: ['SOFT', 'WONK', 'opsz'],
 })
+// Poppins : la plus proche du lettrage officiel Diploma Santé — même
+// construction géométrique, même « a » d'un seul étage. Réservée à la marque.
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-brand',
+  display: 'swap',
+})
+
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-label',
@@ -29,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable}`}
+      className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable} ${poppins.variable}`}
     >
       <body className="font-sans antialiased">{children}</body>
     </html>

@@ -1,11 +1,11 @@
 import { clsx } from 'clsx'
 
 /**
- * Marque Diploma Invoice : le symbole de Diploma Santé — le livre ouvert et
- * le caducée — accompagné du nom sur deux lignes, comme Diploma Lab.
+ * Symbole de Diploma Santé : le livre ouvert et le caducée.
  *
- * Le symbole hérite de `currentColor` : une seule définition sert sur fond
- * clair comme sur fond navy.
+ * Les tracés viennent du SVG officiel, ils ne sont pas redessinés. Le
+ * symbole hérite de `currentColor` : une seule définition sert en navy sur
+ * fond clair comme en crème sur fond navy.
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
@@ -24,25 +24,41 @@ export function LogoMark({ className }: { className?: string }) {
   )
 }
 
+/**
+ * Marque Diploma Invoice, calquée sur celle de Diploma Lab : le symbole à
+ * gauche, le nom empilé sur deux lignes en Poppins — la police la plus
+ * proche du lettrage officiel.
+ */
 export function Logo({
   className,
   tone = 'navy',
+  size = 'md',
 }: {
   className?: string
-  /** `light` pour un fond navy, `navy` pour un fond clair. */
+  /** `light` sur fond navy, `navy` sur fond clair. */
   tone?: 'navy' | 'light'
+  size?: 'sm' | 'md' | 'lg'
 }) {
+  const dimensions = {
+    sm: { mark: 'w-7', text: 'text-[15px]' },
+    md: { mark: 'w-10', text: 'text-[22px]' },
+    lg: { mark: 'w-14', text: 'text-[30px]' },
+  }[size]
+
   return (
-    <span className={clsx('flex items-center gap-2.5', className)}>
-      <LogoMark className={clsx('w-8 shrink-0', tone === 'light' ? 'text-gold' : 'text-navy')} />
+    <span className={clsx('flex items-center gap-3', className)}>
+      <LogoMark
+        className={clsx(dimensions.mark, 'shrink-0', tone === 'light' ? 'text-cream' : 'text-navy')}
+      />
       <span
         className={clsx(
-          'font-display leading-[1.05]',
+          'font-brand font-medium leading-[0.98] tracking-[-0.01em]',
+          dimensions.text,
           tone === 'light' ? 'text-cream' : 'text-navy'
         )}
       >
-        <span className="block text-[17px] font-semibold tracking-tight">Diploma</span>
-        <span className="block text-[17px] font-light">Invoice</span>
+        <span className="block">Diploma</span>
+        <span className="block">Invoice</span>
       </span>
     </span>
   )

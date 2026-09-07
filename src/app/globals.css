@@ -27,6 +27,7 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display), Georgia, serif;
   --font-label: var(--font-label), ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-brand), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -87,4 +88,15 @@
 .ds-eyebrow {
   font-family: var(--font-label);
   @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-stone;
+}
+
+/* ── Bloc de marque, repris de Diploma Lab ─────────────────────────────────
+   Le logo vit dans un pavé navy en dégradé, coins inférieurs arrondis, posé
+   sur une barre latérale crème. C'est la signature visuelle des deux
+   plateformes : on la reproduit à l'identique plutôt que d'en inventer une. */
+.ds-rail-header {
+  border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(135deg, #0b1628 0%, #0e1e35 52%, #152a44 100%);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
 }
