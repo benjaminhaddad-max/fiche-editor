@@ -6,12 +6,14 @@ import { Logo } from '@/components/ui/Logo'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
+import { RenewAccess } from '@/components/ui/RenewAccess'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [oubli, setOubli] = useState(false)
   const router = useRouter()
 
   async function handleLogin(e: React.FormEvent) {
@@ -74,9 +76,26 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-muted">
-          Votre accès est créé par l’administrateur Diploma Santé.
-        </p>
+        {oubli ? (
+          <div className="mt-4 rounded-xl border border-line bg-white p-6 shadow-[0_1px_3px_rgba(14,30,53,0.06)]">
+            <h2 className="mb-1 text-base font-semibold text-navy">Recevoir un nouveau lien</h2>
+            <p className="mb-4 text-sm text-muted">
+              Il vous permettra de choisir un mot de passe, que vous ayez oublié le vôtre ou
+              que votre lien d’invitation ne fonctionne plus.
+            </p>
+            <RenewAccess defaultEmail={email} />
+          </div>
+        ) : (
+          <p className="mt-4 text-center text-sm">
+            <button
+              type="button"
+              onClick={() => setOubli(true)}
+              className="font-medium text-gold-dark hover:underline"
+            >
+              Mot de passe oublié ou lien expiré ?
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

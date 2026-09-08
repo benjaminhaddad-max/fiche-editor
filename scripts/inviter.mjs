@@ -23,8 +23,12 @@ if (existsSync('.env.local')) {
 
 const args = process.argv.slice(2)
 const APPLY = args.includes('--apply')
-const ROLE = args[args.indexOf('--role') + 1]
+const ROLE = args.includes('--role') ? args[args.indexOf('--role') + 1] : null
 const EMAILS = args.includes('--email') ? args[args.indexOf('--email') + 1].split(',') : null
+// Un renvoi porte un objet daté : à objet identique, les messageries
+// regroupent tout dans un fil et c'est le message le plus ancien — donc le
+// lien mort — que la personne rouvre.
+const RENVOI = args.includes('--renvoi')
 const JOURS = Number(process.env.INVITATION_DAYS ?? 30)
 const APP = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 
@@ -48,18 +52,28 @@ const enveloppe = (titre, corps, lien) => `<!doctype html><html lang="fr"><body 
 <h1 style="margin:8px 0 0;font-size:19px;line-height:1.35;color:#0e1e35;">${titre}</h1></td></tr>
 <tr><td style="padding:16px 28px 4px;font-size:14px;line-height:1.65;color:#3b4c63;">${corps}</td></tr>
 <tr><td style="padding:12px 28px 24px;"><a href="${lien}" style="display:inline-block;background:#0e1e35;
- color:#fff;text-decoration:none;font-size:14px;font-weight:500;padding:11px 20px;border-radius:8px;">Créer mon accès</a></td></tr>
+ color:#fff;text-decoration:none;font-size:14px;font-weight:500;padding:11px 20px;border-radius:8px;">${RENVOI ? 'Ouvrir mon espace' : 'Créer mon accès'}</a></td></tr>
 <tr><td style="padding:16px 28px 22px;border-top:1px solid #e5ddc8;font-size:12px;color:#a89e8a;">
 ${SOCIETE} — message automatique, merci de ne pas y répondre directement.</td></tr>
 </table></td></tr></table></body></html>`
+
+const SUJET = RENVOI
+  ? `Votre nouveau lien Diploma Invoice — ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' }).format(new Date())}`
+  : 'Créez votre accès à Diploma Invoice'
+
+const AVERTISSEMENT = RENVOI
+  ? `<p style="margin:0 0 12px;padding:10px 12px;background:#fdf7e6;border:1px solid #e5ddc8;
+       border-radius:8px;font-size:13px;color:#6b5b2a;"><strong>Utilisez ce message-ci.</strong>
+       Les liens des emails précédents ne fonctionnent plus.</p>`
+  : ''
 
 function corpsPour(role, nom) {
   const fin = `<p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel, ne fonctionne
      qu'une fois, et reste valable ${JOURS} jours.</p>`
   if (role === 'prestataire') {
     return {
-      titre: 'Votre espace de facturation est prêt',
-      corps: `<p style="margin:0 0 12px;">Bonjour ${nom},</p>
+      titre: RENVOI ? 'Voici votre nouveau lien d’accès' : 'Votre espace de facturation est prêt',
+      corps: `<p style="margin:0 0 12px;">Bonjour ${nom},</p>${AVERTISSEMENT}
         <p style="margin:0 0 12px;">${SOCIETE} met à votre disposition un espace pour suivre vos
            prestations et transmettre vos factures.</p>
         <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.
@@ -69,8 +83,10 @@ function corpsPour(role, nom) {
   }
   const admin = role === 'admin'
   return {
-    titre: admin ? 'Votre espace d’administration est prêt' : 'Votre espace de validation est prêt',
-    corps: `<p style="margin:0 0 12px;">Bonjour ${nom},</p>
+    titre: RENVOI
+      ? 'Voici votre nouveau lien d’accès'
+      : admin ? 'Votre espace d’administration est prêt' : 'Votre espace de validation est prêt',
+    corps: `<p style="margin:0 0 12px;">Bonjour ${nom},</p>${AVERTISSEMENT}
       <p style="margin:0 0 12px;">${SOCIETE} centralise désormais les prestations des intervenants
          et leur facturation sur une seule plateforme.</p>
       <p style="margin:0 0 12px;">${
@@ -85,6 +101,7 @@ function corpsPour(role, nom) {
 let q = db.from('inv_users').select('id, email, full_name, role').eq('is_active', true).order('role').order('full_name')
 if (ROLE) q = q.eq('role', ROLE)
 if (EMAILS) q = q.in('email', EMAILS)
+// --bloques : uniquement celles dont le lien vivant n'a jamais été ouvert.
 const { data: users, error } = await q
 if (error) { console.error('✗', error.message); process.exit(1) }
 
@@ -115,16 +132,19 @@ for (const u of users) {
     body: JSON.stringify({
       sender: { name: process.env.BREVO_SENDER_NAME, email: process.env.BREVO_SENDER_EMAIL },
       to: [{ email: u.email, name: u.full_name }],
-      subject: 'Créez votre accès à Diploma Invoice',
+      subject: SUJET,
       htmlContent: html,
     }),
   })
   const body = await r.text()
   const statut = r.ok ? 'sent' : 'error'
+  let messageId = null
+  try { messageId = JSON.parse(body).messageId ?? null } catch {}
   await db.from('inv_email_log').insert({
+    brevo_message_id: messageId,
     to_email: u.email, to_name: u.full_name,
     template: u.role === 'prestataire' ? 'invitation' : 'invitation_staff',
-    subject: 'Créez votre accès à Diploma Invoice', entity_type: 'user', entity_id: u.id,
+    subject: SUJET, entity_type: 'user', entity_id: u.id,
     status: statut, error: r.ok ? null : body.slice(0, 200),
   })
 

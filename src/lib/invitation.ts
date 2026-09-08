@@ -23,6 +23,16 @@ export async function createInvitation(
   const expires = new Date(Date.now() + INVITATION_DAYS * 864e5).toISOString()
 
   const supabase = createServiceClient()
+
+  // Un seul lien vivant par personne. Sinon on ne sait plus lequel est le
+  // bon — et c'est toujours le plus ancien, en haut du fil de discussion,
+  // que la personne rouvre.
+  await supabase
+    .from('inv_invitations')
+    .update({ used_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .is('used_at', null)
+
   const { error } = await supabase.from('inv_invitations').insert({
     user_id: userId,
     token_hash: hashToken(token),
@@ -59,9 +69,9 @@ export async function exchangeInvitation(token: string): Promise<ExchangeResult>
     .eq('token_hash', hashToken(token))
     .maybeSingle()
 
-  if (!invitation) return { error: 'Lien inconnu.' }
-  if (invitation.used_at) return { error: 'Ce lien a déjà servi à créer un accès.' }
-  if (new Date(invitation.expires_at) < new Date()) return { error: 'Ce lien a expiré.' }
+  if (!invitation) return { error: 'Il a expiré, ou il a été remplacé par un envoi plus récent.' }
+  if (invitation.used_at) return { error: 'Il a déjà servi, ou il a été remplacé par un envoi plus récent.' }
+  if (new Date(invitation.expires_at) < new Date()) return { error: 'Il a expiré.' }
 
   const { data: user } = await supabase
     .from('inv_users')

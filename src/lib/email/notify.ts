@@ -50,7 +50,8 @@ async function deliver(params: {
  */
 export async function sendInvitation(
   userId: string,
-  invitedBy?: string
+  invitedBy?: string,
+  options?: { renewed?: boolean }
 ): Promise<boolean> {
   const supabase = createServiceClient()
 
@@ -68,13 +69,15 @@ export async function sendInvitation(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
   const href = `${appUrl}/bienvenue?invitation=${token}`
 
+  const renewed = options?.renewed ?? false
   const tpl =
     user.role === 'prestataire'
-      ? templates.invitation({ fullName: user.full_name, link: href })
+      ? templates.invitation({ fullName: user.full_name, link: href, renewed })
       : templates.invitationStaff({
           fullName: user.full_name,
           link: href,
           isAdmin: user.role === 'admin',
+          renewed,
         })
   await deliver({
     to: { email: user.email, name: user.full_name },
@@ -84,6 +87,40 @@ export async function sendInvitation(
     entityId: user.id,
   })
   return true
+}
+
+/**
+ * Renvoi d'un lien d'accès demandé par la personne elle-même, depuis la page
+ * d'arrivée ou la page de connexion.
+ *
+ * Deux règles :
+ *   - la réponse ne dit jamais si l'adresse existe (elle serait un annuaire) ;
+ *   - deux demandes rapprochées ne déclenchent qu'un seul envoi, sinon la
+ *     boîte de réception se remplit de liens qui s'annulent l'un l'autre.
+ */
+export async function renewAccess(email: string): Promise<void> {
+  const propre = email.trim().toLowerCase()
+  if (!propre) return
+
+  const supabase = createServiceClient()
+  const { data: user } = await supabase
+    .from('inv_users')
+    .select('id, is_active')
+    .ilike('email', propre)
+    .maybeSingle()
+
+  if (!user?.is_active) return
+
+  const { data: recent } = await supabase
+    .from('inv_invitations')
+    .select('created_at')
+    .eq('user_id', user.id)
+    .gte('created_at', new Date(Date.now() - 120_000).toISOString())
+    .limit(1)
+
+  if (recent?.length) return
+
+  await sendInvitation(user.id, undefined, { renewed: true })
 }
 
 /** Prevenir le prestataire qu'une prestation lui revient a corriger. */

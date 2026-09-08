@@ -38,17 +38,43 @@ function layout(title: string, body: string, cta?: { label: string; href: string
 </body></html>`
 }
 
+/**
+ * Un renvoi de lien ne doit surtout pas porter le même objet que le
+ * précédent : les messageries regroupent les objets identiques dans un seul
+ * fil, et la personne rouvre alors le plus ancien — donc un lien mort. Les
+ * relevés Brevo l'ont montré noir sur blanc : trois invitations le même jour,
+ * seule la première ouverte. On date donc l'objet.
+ */
+function sujetInvitation(renewed?: boolean): string {
+  if (!renewed) return 'Créez votre accès à Diploma Invoice'
+  const jour = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'Europe/Paris',
+  }).format(new Date())
+  return `Votre nouveau lien Diploma Invoice — ${jour}`
+}
+
+/** Dire explicitement que les anciens messages sont périmés. */
+function avertissementRemplacement(renewed?: boolean): string {
+  if (!renewed) return ''
+  return `<p style="margin:0 0 12px;padding:10px 12px;background:#fdf7e6;border:1px solid #e5ddc8;
+     border-radius:8px;font-size:13px;color:#6b5b2a;"><strong>Utilisez ce message-ci.</strong>
+     Les liens des emails précédents ne fonctionnent plus.</p>`
+}
+
 export const templates = {
   /**
    * Première prise de contact. Le message change selon le rôle : un
    * prestataire vient facturer, un manager vient contrôler. Leur envoyer le
    * même texte les perdrait tous les deux.
    */
-  invitation: (p: { fullName: string; link: string }) => ({
-    subject: 'Créez votre accès à Diploma Invoice',
+  invitation: (p: { fullName: string; link: string; renewed?: boolean }) => ({
+    subject: sujetInvitation(p.renewed),
     html: layout(
-      'Votre espace de facturation est prêt',
+      p.renewed ? 'Voici votre nouveau lien d’accès' : 'Votre espace de facturation est prêt',
       `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
+       ${avertissementRemplacement(p.renewed)}
        <p style="margin:0 0 12px;">${COMPANY.name} met à votre disposition un espace pour
           suivre vos prestations et transmettre vos factures.</p>
        <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.
@@ -56,15 +82,25 @@ export const templates = {
           adresse et IBAN — nécessaires pour être réglé.</p>
        <p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel, ne fonctionne
           qu'une fois, et reste valable ${INVITATION_DAYS} jours.</p>`,
-      { label: 'Créer mon accès', href: p.link }
+      { label: p.renewed ? 'Ouvrir mon espace' : 'Créer mon accès', href: p.link }
     ),
   }),
 
-  invitationStaff: (p: { fullName: string; link: string; isAdmin: boolean }) => ({
-    subject: 'Créez votre accès à Diploma Invoice',
+  invitationStaff: (p: {
+    fullName: string
+    link: string
+    isAdmin: boolean
+    renewed?: boolean
+  }) => ({
+    subject: sujetInvitation(p.renewed),
     html: layout(
-      p.isAdmin ? 'Votre espace d’administration est prêt' : 'Votre espace de validation est prêt',
+      p.renewed
+        ? 'Voici votre nouveau lien d’accès'
+        : p.isAdmin
+          ? 'Votre espace d’administration est prêt'
+          : 'Votre espace de validation est prêt',
       `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
+       ${avertissementRemplacement(p.renewed)}
        <p style="margin:0 0 12px;">${COMPANY.name} centralise désormais les prestations des
           intervenants et leur facturation sur une seule plateforme.</p>
        <p style="margin:0 0 12px;">${
@@ -74,7 +110,7 @@ export const templates = {
        }</p>
        <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.</p>
        <p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel et ne fonctionne qu'une fois.</p>`,
-      { label: 'Créer mon accès', href: p.link }
+      { label: p.renewed ? 'Ouvrir mon espace' : 'Créer mon accès', href: p.link }
     ),
   }),
 

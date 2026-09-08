@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { createClient } from '@/lib/supabase/client'
+import { RenewAccess } from '@/components/ui/RenewAccess'
 
 type Etat =
   | { phase: 'verification' }
@@ -128,16 +129,20 @@ export function WelcomeClient({ invitation }: { invitation: string | null }) {
   if (etat.phase === 'invalide') {
     return (
       <>
-        <h2 className="mb-1 text-base font-semibold text-navy">
-          Lien expiré ou déjà utilisé
-        </h2>
-        <p className="mb-5 text-sm text-muted">
-          {etat.raison ?? 'Ce lien n’est pas valable.'} Demandez-en un nouveau à
-          votre interlocuteur Diploma Santé.
+        <h2 className="mb-1 text-base font-semibold text-navy">Ce lien n’est plus valable</h2>
+        <p className="mb-4 text-sm text-muted">
+          {etat.raison ?? 'Il a expiré ou il a été remplacé par un plus récent.'} Indiquez
+          votre adresse : un nouveau lien part immédiatement.
         </p>
-        <Link href="/login" className="text-sm font-medium text-gold-dark hover:underline">
-          Aller à la page de connexion
-        </Link>
+
+        <RenewAccess />
+
+        <p className="mt-4 border-t border-line pt-4 text-sm text-muted">
+          Vous avez déjà un mot de passe ?{' '}
+          <Link href="/login" className="font-medium text-gold-dark hover:underline">
+            Se connecter
+          </Link>
+        </p>
       </>
     )
   }
