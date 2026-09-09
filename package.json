@@ -18,7 +18,8 @@
     "bordereaux": "node --experimental-websocket scripts/bordereaux.mjs",
     "coach-test": "node --experimental-websocket scripts/coach-test.mjs",
     "inviter": "node --experimental-websocket scripts/inviter.mjs",
-    "ajuster-effectifs": "node --experimental-websocket scripts/ajuster-effectifs.mjs"
+    "ajuster-effectifs": "node --experimental-websocket scripts/ajuster-effectifs.mjs",
+    "blocages": "node --experimental-websocket scripts/blocages.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

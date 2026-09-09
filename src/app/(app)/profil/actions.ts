@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireProvider } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export interface ProfileResult {
   error?: string
@@ -92,11 +93,39 @@ const LIBELLES: Record<string, string> = {
   invoice_mode: 'Mode de facturation',
 }
 
+
+/**
+ * Journalise un échec d'enregistrement.
+ *
+ * Sans cette trace, un prestataire qui n'y arrive pas n'existe nulle part :
+ * on ne l'apprend que s'il prend la peine d'écrire, et on ne peut alors ni
+ * dater ni reproduire sa panne. On note ce qui a bloqué et quels champs
+ * étaient présents — jamais leur contenu, il y a un IBAN là-dedans.
+ */
+async function journaliserEchec(
+  providerId: string,
+  actorId: string,
+  raison: string,
+  detail: Record<string, unknown>
+): Promise<void> {
+  try {
+    await createServiceClient().from('inv_audit_log').insert({
+      actor_id: actorId,
+      entity_type: 'provider',
+      entity_id: providerId,
+      action: `profile_save_${raison}`,
+      payload: detail,
+    })
+  } catch {
+    /* Le journal ne doit jamais empêcher la réponse à l'utilisateur. */
+  }
+}
+
 export async function updateProfile(
   _prev: ProfileResult,
   formData: FormData
 ): Promise<ProfileResult> {
-  const { provider } = await requireProvider()
+  const { user, provider } = await requireProvider()
 
   const parsed = ProfileSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) {
@@ -106,6 +135,10 @@ export async function updateProfile(
       const nom = LIBELLES[key]
       fieldErrors[key] ??= nom ? `${nom} : ${issue.message}` : issue.message
     }
+    await journaliserEchec(provider.id, user.id, 'rejected', {
+      champs_refuses: fieldErrors,
+      champs_transmis: [...formData.keys()],
+    })
     return { fieldErrors }
   }
 
@@ -116,12 +149,16 @@ export async function updateProfile(
     .eq('id', provider.id)
     .select('id')
 
-  if (error) return { error: `Enregistrement impossible : ${error.message}` }
+  if (error) {
+    await journaliserEchec(provider.id, user.id, 'error', { message: error.message })
+    return { error: `Enregistrement impossible : ${error.message}` }
+  }
 
   // Une écriture refusée par la sécurité en base ne renvoie pas d'erreur :
   // elle ne touche simplement aucune ligne. Sans ce contrôle, l'utilisateur
   // voyait « enregistré » alors que rien n'était sauvegardé.
   if (!data || data.length === 0) {
+    await journaliserEchec(provider.id, user.id, 'empty', {})
     return {
       error:
         'Vos informations n’ont pas pu être enregistrées (aucune ligne modifiée). ' +
