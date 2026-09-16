@@ -74,6 +74,16 @@ export function NewContractForm({
           <Input id="rate_amount" name="rate_amount" type="number" step="0.01" min="0" label={`Tarif HT ${rate === 'horaire' ? 'de l’heure' : rate === 'mensuel' ? 'par mois' : 'par mission'}`} required />
         )}
         <div className="sm:col-span-2">
+          <span className="field-label">Contrat signé (PDF, facultatif)</span>
+          <input
+            type="file"
+            name="file"
+            accept="application/pdf,.pdf"
+            className="block text-sm text-navy/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-cream-deep file:px-3 file:py-2 file:text-sm file:font-medium file:text-navy/80"
+          />
+          <p className="field-hint">La personne pourra le consulter depuis « Mes contrats ». 4 Mo au plus.</p>
+        </div>
+        <div className="sm:col-span-2">
           <Textarea id="conditions" name="conditions" label="Conditions" rows={3} placeholder="Missions couvertes, volume, modalités…" />
         </div>
       </div>

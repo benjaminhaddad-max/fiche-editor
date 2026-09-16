@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ContractCard } from '@/components/contracts/ContractCard'
+import { ContractDocumentUpload } from '@/components/contracts/ContractDocumentUpload'
 import { NewContractForm } from '@/components/contracts/NewContractForm'
 import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -88,9 +89,12 @@ export default async function ContratsPage({
               showProvider
               footer={
                 <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
-                  <Link href={`/admin/contrats/${c.id}`} className="mr-auto font-medium text-gold-dark hover:underline">
+                  <Link href={`/admin/contrats/${c.id}`} className="font-medium text-gold-dark hover:underline">
                     Détail et échéancier
                   </Link>
+                  <div className="mr-auto ml-4">
+                    <ContractDocumentUpload contractId={c.id} hasDocument={Boolean(c.document_path)} />
+                  </div>
                   <form action={changerStatutContrat}>
                     <input type="hidden" name="contract_id" value={c.id} />
                     <input type="hidden" name="status" value={c.status === 'active' ? 'ended' : 'active'} />

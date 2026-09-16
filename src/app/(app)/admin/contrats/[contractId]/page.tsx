@@ -8,6 +8,7 @@ import { formatDate, money } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { MissionStatus } from '@/lib/types'
 import { contractTitle } from '@/lib/contracts'
+import { ContractDocumentUpload } from '@/components/contracts/ContractDocumentUpload'
 import { POLE_LABEL } from '@/lib/labels'
 
 
@@ -16,6 +17,7 @@ interface Contract {
   contract_type: import('@/lib/types').Pole
   title: string | null
   conditions: string | null
+  document_path: string | null
   program: string | null
   academic_year: string | null
   classes_label: string | null
@@ -82,6 +84,17 @@ export default async function ContractPage({
         title={c.provider?.legal_name ?? 'Contrat'}
         description={`${POLE_LABEL[c.contract_type]} — ${contractTitle(c)}${c.academic_year ? ` — ${c.academic_year}` : ''}`}
       />
+
+      <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+        {c.document_path ? (
+          <a href={`/api/contrats/${c.id}/pdf`} target="_blank" rel="noreferrer" className="text-sm font-medium text-gold-dark hover:underline">
+            Voir le contrat signé (PDF)
+          </a>
+        ) : (
+          <span className="text-sm text-amber-700">Aucun contrat signé déposé.</span>
+        )}
+        <ContractDocumentUpload contractId={c.id} hasDocument={Boolean(c.document_path)} />
+      </Card>
 
       {c.conditions && (
         <Card className="mb-6 p-6">

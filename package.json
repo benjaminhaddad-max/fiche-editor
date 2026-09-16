@@ -20,7 +20,8 @@
     "blocages": "node --experimental-websocket scripts/blocages.mjs",
     "calendrier": "node scripts/calendrier.mjs",
     "migrer": "node scripts/migrer.mjs",
-    "retirer": "node --experimental-websocket scripts/retirer.mjs"
+    "retirer": "node --experimental-websocket scripts/retirer.mjs",
+    "brevo-inbound": "node scripts/brevo-inbound.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

@@ -6,6 +6,7 @@ import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
+import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { POLES } from '@/lib/types'
 
 export interface ContractResult {
@@ -103,9 +104,46 @@ export async function creerContrat(_prev: ContractResult, fd: FormData): Promise
     if (e2) return { error: `Contrat créé, mais échéancier non enregistré : ${e2.message}` }
   }
 
+  const fichier = fd.get('file')
+  if (fichier instanceof File && fichier.size > 0) {
+    const erreur = await rangerDocument(contrat.id, v.provider_id, fichier)
+    if (erreur) return { error: `Contrat créé, mais ${erreur.charAt(0).toLowerCase()}${erreur.slice(1)}` }
+  }
+
   await logAudit(null, { actorId: user.id, entityType: 'provider', entityId: contrat.id, action: 'contrat_cree', payload: { total, echeances: echeances.length } })
   revalidatePath('/admin/contrats')
   return { success: 'Contrat enregistré. La personne le retrouve dans « Mes contrats ».' }
+}
+
+const MAX_PDF = 4 * 1024 * 1024
+
+/** Range le PDF signé d'un contrat. Renvoie un message d'erreur, ou null. */
+async function rangerDocument(contractId: string, providerId: string, fichier: File): Promise<string | null> {
+  if (!fichier.name.toLowerCase().endsWith('.pdf') && fichier.type !== 'application/pdf') return 'Le contrat doit être un PDF.'
+  if (fichier.size > MAX_PDF) return 'Le PDF ne doit pas dépasser 4 Mo.'
+  const db = createServiceClient()
+  const path = `${providerId}/contrat-${contractId}.pdf`
+  const { error } = await db.storage
+    .from(INVOICE_BUCKET)
+    .upload(path, Buffer.from(await fichier.arrayBuffer()), { contentType: 'application/pdf', upsert: true })
+  if (error) return `Dépôt du PDF impossible : ${error.message}`
+  await db.from('inv_coaching_contracts').update({ document_path: path }).eq('id', contractId)
+  return null
+}
+
+/** Dépose ou remplace le contrat signé. */
+export async function deposerDocumentContrat(_prev: ContractResult, fd: FormData): Promise<ContractResult> {
+  const user = await requireRole('admin')
+  const id = String(fd.get('contract_id') ?? '')
+  const fichier = fd.get('file')
+  if (!id || !(fichier instanceof File) || fichier.size === 0) return { error: 'Choisissez le PDF du contrat.' }
+  const { data: c } = await createServiceClient().from('inv_coaching_contracts').select('provider_id').eq('id', id).maybeSingle()
+  if (!c) return { error: 'Contrat introuvable.' }
+  const erreur = await rangerDocument(id, c.provider_id, fichier)
+  if (erreur) return { error: erreur }
+  await logAudit(null, { actorId: user.id, entityType: 'provider', entityId: id, action: 'contrat_document' })
+  revalidatePath('/admin/contrats', 'layout')
+  return { success: 'Contrat signé enregistré.' }
 }
 
 export async function changerStatutContrat(fd: FormData): Promise<void> {

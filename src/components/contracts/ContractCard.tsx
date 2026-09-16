@@ -1,3 +1,4 @@
+import { FileText } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { CONTRACT_STATUS_LABEL, contractRate, contractTitle, type ContractRow } from '@/lib/contracts'
@@ -50,6 +51,18 @@ export function ContractCard({
       </div>
 
       {c.conditions && <p className="mt-3 whitespace-pre-line text-sm text-navy/80">{c.conditions}</p>}
+
+      {c.document_path && (
+        <a
+          href={`/api/contrats/${c.id}/pdf`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-gold-dark hover:underline"
+        >
+          <FileText size={15} />
+          Voir le contrat signé (PDF)
+        </a>
+      )}
 
       {echeances.length > 0 && (
         <div className="mt-4">
