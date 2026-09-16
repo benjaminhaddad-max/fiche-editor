@@ -9,9 +9,11 @@ import { WelcomeClient } from './WelcomeClient'
 export default async function BienvenuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ invitation?: string }>
+  searchParams: Promise<{ invitation?: string; suite?: string }>
 }) {
-  const { invitation } = await searchParams
+  const { invitation, suite } = await searchParams
+  // Seule une adresse interne est acceptée comme suite : pas de redirection ouverte.
+  const destination = suite && /^\/[a-z-]/.test(suite) && !suite.startsWith('//') ? suite : '/'
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-cream px-4">
@@ -24,7 +26,7 @@ export default async function BienvenuePage({
         </div>
 
         <div className="rounded-xl border border-line bg-white p-6 shadow-[0_1px_3px_rgba(14,30,53,0.06)]">
-          <WelcomeClient invitation={invitation ?? null} />
+          <WelcomeClient invitation={invitation ?? null} destination={destination} />
         </div>
       </div>
     </div>

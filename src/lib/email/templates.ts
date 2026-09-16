@@ -233,6 +233,36 @@ export const templates = {
     ),
   }),
 
+  /** Un bon de mission pour quelqu'un qui n'a pas encore de compte. */
+  orderInvitation: (p: {
+    name: string
+    managerName: string
+    title: string
+    total: number
+    start: string
+    end: string
+    tarif: string
+    conditions: string | null
+    link: string
+  }) => ({
+    subject: `${p.managerName} vous propose une mission — ${p.title}`,
+    html: layout(
+      'Une mission vous est proposée',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">${p.managerName}, de ${COMPANY.name}, vous propose la mission suivante :</p>
+       <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;border-left:3px solid #c9a84c;">
+         <strong>${p.title}</strong><br>
+         du ${formatDate(p.start)} au ${formatDate(p.end)}<br>
+         ${p.tarif} — <strong>${money(p.total)} HT</strong>
+         ${p.conditions ? `<br><span style="color:#7d8c9e;">${p.conditions}</span>` : ''}
+       </p>
+       <p style="margin:0 0 12px;">Pour l’accepter, créez votre espace prestataire : il suffit de choisir un mot de passe.
+          Vous y retrouverez ensuite vos missions et vos factures.</p>
+       <p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel et reste valable ${INVITATION_DAYS} jours.</p>`,
+      { label: 'Créer mon compte et répondre', href: p.link }
+    ),
+  }),
+
   orderAnswered: (p: {
     managerName: string
     providerName: string

@@ -19,6 +19,7 @@ export function NewOrderForm({
   today: string
 }) {
   const [state, action] = useActionState<OrderResult, FormData>(creerBon, {})
+  const [presta, setPresta] = useState('')
   const [type, setType] = useState<PricingType>('forfait_mission')
   const [qte, setQte] = useState('1')
   const [pu, setPu] = useState('')
@@ -28,10 +29,18 @@ export function NewOrderForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select id="provider_id" name="provider_id" label="Prestataire" defaultValue="" required>
+        <Select
+          id="provider_id"
+          name="provider_id"
+          label="Prestataire"
+          value={presta}
+          onChange={(e) => setPresta(e.target.value)}
+          required
+        >
           <option value="" disabled>
             Choisir…
           </option>
+          <option value="nouveau">+ Nouveau prestataire (pas encore inscrit)</option>
           {providers.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -52,6 +61,18 @@ export function NewOrderForm({
             </optgroup>
           ))}
         </Select>
+        {presta === 'nouveau' && (
+          <div className="grid gap-4 rounded-lg border border-gold/40 bg-gold/5 p-4 sm:col-span-2 sm:grid-cols-3">
+            <Input id="new_name" name="new_name" label="Nom et prénom" required />
+            <Input id="new_email" name="new_email" type="email" label="Email" required />
+            <Input id="new_phone" name="new_phone" type="tel" label="Téléphone" placeholder="06 12 34 56 78" />
+            <p className="text-xs text-navy/70 sm:col-span-3">
+              Son compte prestataire est créé à l’envoi. Il reçoit le bon par email (et par SMS si le numéro est
+              renseigné), choisit son mot de passe, puis accepte la mission. Il complétera ensuite ses
+              coordonnées de facturation.
+            </p>
+          </div>
+        )}
         <div className="sm:col-span-2">
           <Input id="title" name="title" label="Mission" placeholder="Ex : Surveillance du concours blanc n°2 — campus Rapée" required />
         </div>

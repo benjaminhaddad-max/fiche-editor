@@ -25,7 +25,13 @@ type Etat =
  * connecté qui ouvre une invitation change son propre mot de passe au lieu
  * de celui de la personne invitée — c'est arrivé.
  */
-export function WelcomeClient({ invitation }: { invitation: string | null }) {
+export function WelcomeClient({
+  invitation,
+  destination = '/',
+}: {
+  invitation: string | null
+  destination?: string
+}) {
   const router = useRouter()
   const [etat, setEtat] = useState<Etat>({ phase: 'verification' })
   const [password, setPassword] = useState('')
@@ -118,7 +124,7 @@ export function WelcomeClient({ invitation }: { invitation: string | null }) {
       body: JSON.stringify({ token: invitation, action: 'consume' }),
     })
 
-    router.push('/')
+    router.push(destination)
     router.refresh()
   }
 
