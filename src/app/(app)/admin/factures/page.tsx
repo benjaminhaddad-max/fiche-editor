@@ -70,7 +70,7 @@ export default async function AdminFacturesPage({
   const transmises = par(['sent'])
   const validees = par(['validated'])
   const aEnvoyer = validees.filter((r) => r.pennylane_status !== 'synced')
-  const inbound = process.env.INBOUND_EMAIL_ADDRESS ?? null
+  const inbound = process.env.DEPOT_FACTURES_EMAIL ?? null
 
   const liste = courant === 'diverses' ? rows.filter((r) => r.kind === 'misc') : par(ONGLETS[courant].statuts)
   const gestes =

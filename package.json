@@ -20,8 +20,7 @@
     "blocages": "node --experimental-websocket scripts/blocages.mjs",
     "calendrier": "node scripts/calendrier.mjs",
     "migrer": "node scripts/migrer.mjs",
-    "retirer": "node --experimental-websocket scripts/retirer.mjs",
-    "brevo-inbound": "node scripts/brevo-inbound.mjs"
+    "retirer": "node --experimental-websocket scripts/retirer.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -30,7 +29,9 @@
     "@supabase/supabase-js": "^2.99.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "imapflow": "^2.0.5",
     "lucide-react": "^0.577.0",
+    "mailparser": "^3.9.28",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/mailparser": "^3.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

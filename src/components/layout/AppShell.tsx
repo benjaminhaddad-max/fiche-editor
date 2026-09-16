@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import {
   ClipboardList,
+  FileUp,
   KeyRound,
   ListChecks,
   LogOut,
@@ -53,7 +54,13 @@ function navFor(role: Role, salarie: boolean, unread: number): NavItem[] {
     { href: '/validation', label: 'Prestations', icon: ListChecks, prefixes: ['/validation'] },
     { href: '/bons-de-mission', label: 'Bons de mission', icon: ClipboardList, prefixes: ['/bons-de-mission'] },
   ]
-  if (role === 'manager') return [...communs, messages]
+  if (role === 'manager') {
+    return [
+      ...communs,
+      { href: '/factures-diverses', label: 'Déposer une facture', icon: FileUp, prefixes: ['/factures-diverses'] },
+      messages,
+    ]
+  }
   return [
     ...communs,
     { href: '/admin/factures', label: 'Factures', icon: Receipt, prefixes: ['/admin/factures'] },

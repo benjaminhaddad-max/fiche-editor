@@ -40,12 +40,13 @@ export function MiscInvoiceUpload({
         <SubmitButton pendingLabel="Lecture des factures…">Déposer</SubmitButton>
       </form>
       <p className="mt-2 text-xs text-muted">
-        Chaque PDF est lu : fournisseur retrouvé (ou créé, sans compte) et montants repris. Les factures arrivent
-        directement dans « Validées ».
+        Chaque PDF est lu : fournisseur retrouvé (ou créé, sans compte) et montants repris. La facture arrive
+        directement chez Benjamin, dans les factures validées.
         {inboundAddress && (
           <>
             {' '}
-            Vos managers peuvent aussi les transférer à <strong className="text-navy">{inboundAddress}</strong>.
+            Vous pouvez aussi les envoyer par email à <strong className="text-navy">{inboundAddress}</strong> (relevé
+            toutes les heures).
           </>
         )}
       </p>

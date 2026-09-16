@@ -39,8 +39,6 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/api/invitation') return supabaseResponse
   // Le cron s'authentifie par son propre secret, pas par une session.
   if (pathname.startsWith('/api/cron/')) return supabaseResponse
-  // Les factures reçues par email s'authentifient par un jeton dans l'adresse.
-  if (pathname.startsWith('/api/inbound/')) return supabaseResponse
 
   if (pathname === '/login') {
     if (user) {

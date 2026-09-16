@@ -141,7 +141,8 @@ export interface DepotDiversResult {
 
 /** Dépôt manuel d'une ou plusieurs factures diverses. */
 export async function deposerFacturesDiverses(_prev: DepotDiversResult, fd: FormData): Promise<DepotDiversResult> {
-  const user = await requireRole('admin')
+  // Les managers déposent aussi : ce sont eux qui reçoivent les factures.
+  const user = await requireRole('manager', 'admin')
   const fichiers = fd.getAll('files').filter((f): f is File => f instanceof File && f.size > 0)
   const categoryId = String(fd.get('category_id') ?? '') || null
   if (!fichiers.length) return { error: 'Choisissez au moins un PDF.' }
@@ -167,6 +168,7 @@ export async function deposerFacturesDiverses(_prev: DepotDiversResult, fd: Form
     } else ratees.push(`${f.name} : ${r.error}`)
   }
   rafraichir()
+  revalidatePath('/factures-diverses')
   return {
     success: faites.length ? `Enregistrée${faites.length > 1 ? 's' : ''} dans les validées : ${faites.join(' · ')}` : undefined,
     error: ratees.length ? ratees.join(' · ') : undefined,
