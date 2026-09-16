@@ -19,6 +19,40 @@ export interface InvoiceActionResult {
 }
 
 /**
+ * Transmet la facture à Diploma Santé.
+ *
+ * Ce n'est plus un bouton : « Émise » puis « Envoyer à Diploma Santé »
+ * faisait deux étapes là où les coachs n'en voyaient qu'une, et trois
+ * d'entre elles se sont arrêtées à la première. La facture part donc dès
+ * qu'elle est complète — à la génération, ou au dépôt du PDF pour qui
+ * fournit le sien.
+ */
+async function transmettre(
+  supabase: Awaited<ReturnType<typeof createServerSupabase>>,
+  invoiceId: string,
+  providerId: string,
+  actorId: string
+): Promise<void> {
+  const { data } = await supabase
+    .from('inv_invoices')
+    .update({ status: 'sent', sent_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+    .eq('provider_id', providerId)
+    .eq('status', 'issued')
+    .select('id')
+
+  if (!data?.length) return
+
+  await logAudit(supabase, {
+    actorId,
+    entityType: 'invoice',
+    entityId: invoiceId,
+    action: 'send',
+  })
+  await notifyInvoiceReceived(invoiceId)
+}
+
+/**
  * Genere la facture a partir des prestations validees selectionnees.
  * La creation elle-meme est atomique cote Postgres (inv_create_invoice) ;
  * le PDF est produit juste apres et n'est pas bloquant.
@@ -60,6 +94,13 @@ export async function createInvoice(
     console.error('[createInvoice:pdf]', err)
   }
 
+  // Qui fournit sa propre facture la transmet en déposant son PDF ; les
+  // autres n'ont rien à ajouter, la facture part tout de suite.
+  if (provider.invoice_mode !== 'uploaded') {
+    await transmettre(supabase, invoiceId as string, provider.id, user.id)
+  }
+
+  revalidatePath('/admin/factures')
   revalidatePath('/factures')
   revalidatePath('/missions')
   redirect(`/factures/${invoiceId}`)
@@ -140,6 +181,11 @@ export async function uploadInvoicePdf(
     payload: { filename: file.name, bytes: file.size },
   })
 
+  // Le PDF déposé était la dernière pièce : la facture part.
+  await transmettre(supabase, invoiceId, provider.id, user.id)
+
+  revalidatePath('/factures')
+  revalidatePath('/admin/factures')
   revalidatePath(`/factures/${invoiceId}`)
   return {}
 }
@@ -174,33 +220,17 @@ export async function useGeneratedPdf(formData: FormData): Promise<void> {
   revalidatePath(`/factures/${invoiceId}`)
 }
 
-/** Le prestataire transmet sa facture a Diploma Santé. */
+/**
+ * Filet de sécurité : une facture restée « à transmettre » (PDF généré en
+ * échec, par exemple) peut encore partir à la main.
+ */
 export async function sendInvoice(formData: FormData): Promise<void> {
   const { user, provider } = await requireProvider()
   const id = String(formData.get('invoice_id') ?? '')
   if (!id) return
 
   const supabase = await createServerSupabase()
-  const { error } = await supabase
-    .from('inv_invoices')
-    .update({ status: 'sent', sent_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('provider_id', provider.id)
-    .eq('status', 'issued')
-
-  if (error) {
-    console.error('[sendInvoice]', error.message)
-    return
-  }
-
-  await logAudit(supabase, {
-    actorId: user.id,
-    entityType: 'invoice',
-    entityId: id,
-    action: 'send',
-  })
-
-  await notifyInvoiceReceived(id)
+  await transmettre(supabase, id, provider.id, user.id)
 
   revalidatePath('/factures')
   revalidatePath(`/factures/${id}`)

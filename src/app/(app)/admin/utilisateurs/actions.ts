@@ -5,7 +5,12 @@ import { redirect } from 'next/navigation'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { homePathFor } from '@/lib/auth'
-import { IMPERSONATION_COOKIE } from '@/lib/impersonation'
+import {
+  IMPERSONATION_COOKIE,
+  IMPERSONATION_SECONDS,
+  encodeImpersonation,
+  readImpersonation,
+} from '@/lib/impersonation'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendInvitation } from '@/lib/email/notify'
@@ -49,8 +54,9 @@ export async function impersonate(formData: FormData): Promise<void> {
 
   // On ferme d'abord la session administrateur : sans ça, la vérification
   // peut s'appliquer par-dessus une session résiduelle et viser le mauvais
-  // compte.
-  await supabase.auth.signOut()
+  // compte. Portée locale : on ne déconnecte que ce navigateur, pas les
+  // autres appareils de l'administrateur.
+  await supabase.auth.signOut({ scope: 'local' })
 
   const { error: otpError } = await supabase.auth.verifyOtp({
     token_hash: link.properties.hashed_token,
@@ -62,13 +68,22 @@ export async function impersonate(formData: FormData): Promise<void> {
   }
 
   const store = await cookies()
-  store.set(IMPERSONATION_COOKIE, admin.full_name, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 4,
-    path: '/',
-  })
+  store.set(
+    IMPERSONATION_COOKIE,
+    encodeImpersonation({
+      adminId: admin.id,
+      adminName: admin.full_name,
+      targetId: cible.id,
+      exp: Math.floor(Date.now() / 1000) + IMPERSONATION_SECONDS,
+    }),
+    {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: IMPERSONATION_SECONDS,
+      path: '/',
+    }
+  )
 
   await logAudit(service, {
     actorId: admin.id,
@@ -81,15 +96,76 @@ export async function impersonate(formData: FormData): Promise<void> {
   redirect(homePathFor(cible.role))
 }
 
-/** Quitte le compte visité et revient à l'écran de connexion. */
+/**
+ * Quitte le compte visité et rend sa session à l'administrateur.
+ *
+ * Avant, on se contentait de déconnecter : l'administrateur se retrouvait
+ * sur l'écran de connexion et devait retaper son mot de passe. On rouvre
+ * maintenant sa session, mais seulement si le cookie signé le désigne, si
+ * la session en cours est bien celle du compte visité, et s'il est toujours
+ * administrateur actif.
+ */
 export async function stopImpersonation(): Promise<void> {
+  const prise = await readImpersonation()
   const supabase = await createServerSupabase()
-  await supabase.auth.signOut()
+  const service = createServiceClient()
+
+  const {
+    data: { user: courant },
+  } = await supabase.auth.getUser()
+
+  // Portée locale : le compte visité ne doit pas être déconnecté de ses
+  // propres appareils parce qu'un administrateur quitte le sien.
+  await supabase.auth.signOut({ scope: 'local' })
 
   const store = await cookies()
   store.delete(IMPERSONATION_COOKIE)
 
-  redirect('/login')
+  if (!prise) redirect('/login')
+
+  const [{ data: cible }, { data: admin }] = await Promise.all([
+    service.from('inv_users').select('auth_id').eq('id', prise.targetId).maybeSingle(),
+    service
+      .from('inv_users')
+      .select('id, email, role, is_active')
+      .eq('id', prise.adminId)
+      .maybeSingle(),
+  ])
+
+  const coherent =
+    courant?.id !== undefined &&
+    cible?.auth_id === courant.id &&
+    admin?.role === 'admin' &&
+    admin.is_active
+
+  if (!coherent || !admin) redirect('/login')
+
+  const { data: link, error } = await service.auth.admin.generateLink({
+    type: 'magiclink',
+    email: admin.email,
+  })
+  if (error || !link?.properties?.hashed_token) {
+    console.error('[stopImpersonation]', error?.message)
+    redirect('/login')
+  }
+
+  const { error: otpError } = await supabase.auth.verifyOtp({
+    token_hash: link.properties.hashed_token,
+    type: 'magiclink',
+  })
+  if (otpError) {
+    console.error('[stopImpersonation:verify]', otpError.message)
+    redirect('/login')
+  }
+
+  await logAudit(service, {
+    actorId: admin.id,
+    entityType: 'user',
+    entityId: prise.targetId,
+    action: 'impersonate_stop',
+  })
+
+  redirect('/admin/utilisateurs')
 }
 
 /**

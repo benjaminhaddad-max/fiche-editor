@@ -94,7 +94,10 @@ export function AppShell({
 
   async function handleLogout() {
     setLoggingOut(true)
-    await createClient().auth.signOut()
+    // Portée locale : se déconnecter ici ne doit pas fermer les sessions
+    // ouvertes ailleurs — et surtout pas celles du compte visité quand un
+    // administrateur a pris la main.
+    await createClient().auth.signOut({ scope: 'local' })
     router.push('/login')
     router.refresh()
   }

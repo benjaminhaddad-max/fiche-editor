@@ -22,8 +22,9 @@ export const MISSION_STATUS_STYLE: Record<MissionStatus, string> = {
 
 export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
   draft: 'Brouillon',
-  issued: 'Émise',
-  sent: 'Envoyée',
+  // « Émise » se lisait « terminé » alors qu'il restait une étape.
+  issued: 'À transmettre',
+  sent: 'Transmise',
   paid: 'Payée',
 }
 

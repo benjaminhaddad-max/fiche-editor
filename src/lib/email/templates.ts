@@ -155,15 +155,16 @@ export const templates = {
     total: number
     issueDate: string
   }) => ({
-    subject: `Relance — votre facture ${p.number} n’a pas été transmise`,
+    subject: `Relance — il manque le PDF de votre facture ${p.number}`,
     html: layout(
-      'Votre facture est en attente d’envoi',
+      'Votre facture attend son PDF',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">Votre facture <strong>${p.number}</strong>
           (${money(p.total)}) a été créée le ${formatDate(p.issueDate)}
-          mais n’a pas encore été transmise à ${COMPANY.name}.</p>
-       <p style="margin:0;">Tant qu’elle n’est pas envoyée, elle ne peut pas être mise en paiement.</p>`,
-      { label: 'Voir ma facture', href: `${APP_URL}/factures` }
+          mais vous n’avez pas encore déposé votre PDF.</p>
+       <p style="margin:0;">Dès qu’il est déposé, la facture part automatiquement à ${COMPANY.name}
+          et peut être mise en paiement.</p>`,
+      { label: 'Déposer mon PDF', href: `${APP_URL}/factures` }
     ),
   }),
 

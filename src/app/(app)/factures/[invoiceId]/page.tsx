@@ -61,11 +61,11 @@ export default async function InvoicePage({
           </Button>
         </a>
 
-        {invoice.status === 'issued' && (
+        {invoice.status === 'issued' && !awaitingUpload && (
           <form action={sendInvoice}>
             <input type="hidden" name="invoice_id" value={invoice.id} />
             <SubmitButton pendingLabel="Envoi…" disabled={awaitingUpload}>
-              Envoyer à Diploma Santé
+              Transmettre à Diploma Santé
             </SubmitButton>
           </form>
         )}
@@ -73,12 +73,12 @@ export default async function InvoicePage({
 
       {awaitingUpload && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Vous avez choisi de fournir vos propres factures : déposez le PDF ci-dessous
-          avant de transmettre.
+          Vous avez choisi de fournir vos propres factures : déposez le PDF ci-dessous,
+          il sera transmis à Diploma Santé automatiquement.
         </div>
       )}
 
-      {invoice.status === 'issued' && (
+      {awaitingUpload && (
         <InvoiceUpload
           invoice={invoice}
           action={uploadInvoicePdf}

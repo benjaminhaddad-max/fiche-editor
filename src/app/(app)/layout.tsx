@@ -9,7 +9,7 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   const user = await requireUser()
-  const impersonator = await getImpersonator()
+  const impersonator = await getImpersonator(user)
 
   return (
     <AppShell

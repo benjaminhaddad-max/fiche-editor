@@ -98,15 +98,16 @@ export default async function InvoicesPage() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <InvoiceStatusBadge status={inv.status} />
-                        {/* « Émise » se lit comme « terminé ». Trois coachs se
-                            sont arrêtées là sans jamais l'envoyer : l'étape
-                            suivante doit se voir depuis la liste. */}
+                        {/* Ne reste « à transmettre » qu'une facture dont le
+                            PDF est attendu : la suite doit se voir d'ici. */}
                         {inv.status === 'issued' && (
                           <Link
                             href={`/factures/${inv.id}`}
                             className="whitespace-nowrap text-xs font-medium text-gold-dark hover:underline"
                           >
-                            À envoyer à Diploma Santé →
+                            {provider.invoice_mode === 'uploaded'
+                              ? 'Déposer mon PDF →'
+                              : 'Transmettre →'}
                           </Link>
                         )}
                       </div>
