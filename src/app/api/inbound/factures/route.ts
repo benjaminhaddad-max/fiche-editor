@@ -13,12 +13,41 @@ interface Piece {
   DownloadToken?: string
 }
 
+interface Boite {
+  Address?: string
+  Name?: string
+}
+
 interface Courriel {
   MessageId?: string
   Uuid?: string[]
-  From?: { Address?: string; Name?: string }
+  From?: Boite
+  ReplyTo?: Boite
+  Headers?: Record<string, string | string[]>
   Subject?: string
   Attachments?: Piece[]
+}
+
+/**
+ * Adresses susceptibles d'être celle du manager. Les factures arrivent via
+ * depotfactures@diploma-sante.fr, qui fait suivre : selon le relais,
+ * l'expéditeur d'origine reste dans From, ou passe dans Reply-To ou dans un
+ * en-tête X-Original-*.
+ */
+function expediteurs(c: Courriel): string[] {
+  const entete = (nom: string) => {
+    const v = Object.entries(c.Headers ?? {}).find(([k]) => k.toLowerCase() === nom)?.[1]
+    return (Array.isArray(v) ? v : v ? [v] : []).flatMap((x) => x.match(/[\w.+-]+@[\w.-]+/g) ?? [])
+  }
+  return [
+    c.From?.Address,
+    c.ReplyTo?.Address,
+    ...entete('x-original-from'),
+    ...entete('x-original-sender'),
+    ...entete('reply-to'),
+  ]
+    .filter((a): a is string => Boolean(a))
+    .map((a) => a.toLowerCase().trim())
 }
 
 const MAX_PDF = 15 * 1024 * 1024
@@ -59,16 +88,17 @@ export async function POST(request: Request) {
 
 async function traiter(c: Courriel) {
   const db = createServiceClient()
-  const adresse = c.From?.Address?.toLowerCase().trim()
-  if (!adresse) return
+  const adresses = [...new Set(expediteurs(c))]
+  if (!adresses.length) return
 
-  const { data: auteur } = await db
+  const { data: equipe } = await db
     .from('inv_users')
     .select('id, email, full_name, role, is_active')
-    .ilike('email', adresse)
-    .maybeSingle()
-  if (!auteur?.is_active || !['manager', 'admin'].includes(auteur.role)) {
-    console.warn('[inbound] expéditeur ignoré :', adresse)
+    .in('role', ['manager', 'admin'])
+    .eq('is_active', true)
+  const auteur = (equipe ?? []).find((u) => adresses.includes(u.email.toLowerCase()))
+  if (!auteur) {
+    console.warn('[inbound] expéditeur ignoré :', adresses.join(', '))
     return
   }
 

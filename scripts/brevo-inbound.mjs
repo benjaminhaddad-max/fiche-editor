@@ -4,6 +4,11 @@
  *
  *   npm run brevo-inbound
  *
+ * L'adresse donnée aux managers est depotfactures@diploma-sante.fr, un
+ * groupe Google Workspace qui fait suivre à factures@depot.diploma-sante.fr :
+ * le domaine principal reçoit son courrier chez Google, Brevo ne peut donc
+ * écouter qu'un sous-domaine.
+ *
  * À lancer une fois les enregistrements DNS ajoutés chez OVH :
  *   1. vérifie le sous-domaine dans Brevo ;
  *   2. contrôle les MX ;
@@ -72,4 +77,4 @@ if ((existants.webhooks ?? []).some((w) => w.domain === DOMAINE)) {
   if (!res.ok) { console.error('✗ webhook :', corps.message); process.exit(1) }
   console.log('✓ webhook créé', corps.id)
 }
-console.log(`\nLes managers peuvent transférer leurs factures à factures@${DOMAINE}.\n`)
+console.log(`\nBranché. Il reste à faire suivre depotfactures@diploma-sante.fr vers factures@${DOMAINE} (groupe Google).\n`)
