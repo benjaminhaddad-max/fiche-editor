@@ -7,6 +7,8 @@ import { money } from '@/lib/format'
 import { getMissionsByStatus } from '@/lib/missions'
 import { ManagerPicker } from '@/components/validation/ManagerPicker'
 import { getManagers } from '@/lib/queries'
+import { CalendrierMois } from '@/components/cycle/CalendrierMois'
+import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 
 export default async function ValidationPage({
   searchParams,
@@ -21,9 +23,11 @@ export default async function ValidationPage({
     return (
       <>
         <PageHeader
-          title="Prestations à valider"
-          description="Les prestations déclarées par vos prestataires, en attente de votre accord."
+          title="Prestations"
+          description="Validez, corrigez ou refusez les prestations de vos prestataires avant le bordereau du mois."
         />
+        <PrestationsNav user={user} current="a-valider" />
+        <CalendrierMois pour="manager" />
         {missions.length === 0 ? (
           <EmptyState
             title="Rien à valider"
@@ -65,9 +69,10 @@ export default async function ValidationPage({
   return (
     <>
       <PageHeader
-        title="Prestations à valider"
-        description="Validation finale avant que le prestataire puisse générer sa facture."
+        title="Prestations"
+        description="Ce que les managers ont validé part dans le bordereau du 1er. Vous pouvez intervenir avant."
       />
+      <PrestationsNav user={user} current="a-valider" />
 
       <Suspense fallback={null}>
         <ManagerPicker managers={managers} value={choix} ailleurs={ailleurs} />
@@ -76,7 +81,7 @@ export default async function ValidationPage({
       <section className="mb-10">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-navy">
-            Validées par le manager — en attente de vous
+            Validées par le manager — partiront dans le bordereau
           </h2>
           {awaitingAdmin.length > 0 && (
             <span className="text-sm text-navy/70">
@@ -88,7 +93,7 @@ export default async function ValidationPage({
           )}
         </div>
         {awaitingAdmin.length === 0 ? (
-          <EmptyState title="Rien en attente de votre validation" />
+          <EmptyState title="Rien de validé en attente du bordereau" />
         ) : (
           <ValidationTable missions={awaitingAdmin} showManager />
         )}

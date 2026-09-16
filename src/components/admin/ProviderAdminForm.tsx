@@ -63,6 +63,24 @@ export function ProviderAdminForm({
             error={e.pennylane_supplier_id}
           />
           <Select
+            id="employment_type"
+            name="employment_type"
+            label="Statut"
+            defaultValue={provider.employment_type}
+            hint="Un vacataire ou un alternant ne facture pas : ses prestations et bonus partent à la paie."
+          >
+            <option value="independant">Indépendant — facture</option>
+            <option value="vacataire">Vacataire — salaire</option>
+            <option value="alternant">Alternant — salaire</option>
+          </Select>
+          <Input
+            id="phone"
+            name="phone"
+            label="Téléphone"
+            defaultValue={provider.phone ?? ''}
+            hint="Pour les relances SMS."
+          />
+          <Select
             id="default_manager_id"
             name="default_manager_id"
             label="Manager par défaut"

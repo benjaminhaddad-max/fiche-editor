@@ -162,3 +162,53 @@ export function vatRateCode(rate: number): string {
 export function amount(value: number | string): string {
   return Number(value).toFixed(2)
 }
+
+export interface PennylaneSupplier {
+  id: number
+  name: string
+  establishment_no?: string | null
+  reg_no?: string | null
+  vat_number?: string | null
+}
+
+/** Tous les fournisseurs, en suivant la pagination par curseur. */
+export async function listSuppliers(): Promise<PennylaneSupplier[]> {
+  const out: PennylaneSupplier[] = []
+  let cursor: string | null = null
+  for (let page = 0; page < 50; page++) {
+    const url = `${BASE_URL}/suppliers?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token()}` } })
+    if (!res.ok) await parseError(res)
+    const body = (await res.json()) as { items?: PennylaneSupplier[]; has_more?: boolean; next_cursor?: string }
+    out.push(...(body.items ?? []))
+    if (!body.has_more || !body.next_cursor) break
+    cursor = body.next_cursor
+  }
+  return out
+}
+
+export interface CreateSupplierInput {
+  name: string
+  establishment_no?: string
+  reg_no?: string
+  vat_number?: string
+  emails?: string[]
+  iban?: string
+  postal_address?: { address: string; postal_code: string; city: string; country_alpha2: string }
+  external_reference?: string
+}
+
+/** Crée un fournisseur (scope suppliers:all). Renvoie son id. */
+export async function createSupplier(input: CreateSupplierInput): Promise<number> {
+  const res = await fetch(`${BASE_URL}/suppliers`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) await parseError(res)
+  const json = (await res.json()) as { id?: number }
+  if (typeof json.id !== 'number') {
+    throw new PennylaneError('Réponse inattendue de Pennylane : id de fournisseur manquant.', 200, json)
+  }
+  return json.id
+}

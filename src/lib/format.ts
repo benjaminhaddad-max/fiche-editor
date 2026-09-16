@@ -39,7 +39,8 @@ export function formatDate(value: string | Date | null | undefined): string {
 
 export function formatDateLong(value: string | Date | null | undefined): string {
   if (!value) return '—'
-  return DATE_LONG.format(parseDate(value))
+  // « 1er octobre », pas « 1 octobre ».
+  return DATE_LONG.format(parseDate(value)).replace(/^1 /, '1er ')
 }
 
 /** "du 01/03 au 15/03/2026", ou juste la date si pas de fin. */

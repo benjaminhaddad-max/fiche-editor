@@ -1,126 +1,122 @@
-import Link from 'next/link'
-import { Download } from 'lucide-react'
-import { Badge, InvoiceStatusBadge } from '@/components/ui/Badge'
-import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
+import { InvoiceTable, type AdminInvoiceRow } from '@/components/admin/InvoiceTable'
+import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
+import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
+import { Tabs } from '@/components/ui/Tabs'
 import { requireRole } from '@/lib/auth'
-import { formatDate, money } from '@/lib/format'
+import { money } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
-import type { InvoiceStatus, PennylaneStatus } from '@/lib/types'
+import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
+
+export const maxDuration = 300
 
 interface Row {
   id: string
   number: string
   status: InvoiceStatus
+  kind: 'platform' | 'misc'
   issue_date: string
-  due_date: string
   subtotal_ht: number
   total_ttc: number
   pennylane_status: PennylaneStatus
-  provider: { legal_name: string } | null
+  pennylane_error: string | null
+  pdf_source: string
+  channel: string | null
+  ai_check: AiCheck | null
+  provider: { legal_name: string; user_id: string | null } | null
+  apporteur: { full_name: string } | null
 }
 
-const PENNYLANE_BADGE: Record<PennylaneStatus, { label: string; style: string }> = {
-  not_synced: { label: 'Non synchronisée', style: 'bg-cream-deep text-navy/70 ring-line' },
-  synced: { label: 'Pennylane OK', style: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  error: { label: 'Erreur Pennylane', style: 'bg-red-50 text-red-700 ring-red-200' },
-}
+const ONGLETS = {
+  transmises: { label: 'Transmises', statuts: ['sent'] },
+  validees: { label: 'Validées', statuts: ['validated'] },
+  payees: { label: 'Payées', statuts: ['paid'] },
+  attente: { label: 'En attente du PDF', statuts: ['issued'] },
+} as const
 
-export default async function AdminInvoicesPage() {
+export default async function AdminFacturesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onglet?: string }>
+}) {
+  const { onglet } = await searchParams
   await requireRole('admin')
   const supabase = await createServerSupabase()
 
-  const { data } = await supabase
-    .from('inv_invoices')
-    .select(
-      'id, number, status, issue_date, due_date, subtotal_ht, total_ttc, pennylane_status, provider:inv_providers(legal_name)'
-    )
-    .order('issue_date', { ascending: false })
+  const [{ data }, { data: cats }] = await Promise.all([
+    supabase
+      .from('inv_invoices')
+      .select(
+        `id, number, status, kind, issue_date, subtotal_ht, total_ttc, pennylane_status, pennylane_error,
+         pdf_source, channel, ai_check,
+         provider:inv_providers(legal_name, user_id),
+         apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name)`
+      )
+      .order('issue_date', { ascending: false }),
+    supabase.from('inv_categories').select('id, name').eq('is_active', true).order('sort_order'),
+  ])
 
-  const invoices = (data ?? []) as unknown as Row[]
-  const outstanding = invoices
-    .filter((i) => i.status !== 'paid')
-    .reduce((s, i) => s + Number(i.total_ttc), 0)
+  const rows: AdminInvoiceRow[] = ((data ?? []) as unknown as Row[]).map((r) => ({
+    ...r,
+    provider: r.provider?.legal_name ?? '—',
+    sansCompte: !r.provider?.user_id,
+    apportePar: r.apporteur?.full_name ?? null,
+  }))
+
+  const par = (s: readonly string[]) => rows.filter((r) => s.includes(r.status))
+  const courant = (onglet === 'diverses' ? 'diverses' : onglet && onglet in ONGLETS ? onglet : par(['sent']).length ? 'transmises' : 'validees') as
+    | keyof typeof ONGLETS
+    | 'diverses'
+
+  const transmises = par(['sent'])
+  const validees = par(['validated'])
+  const aEnvoyer = validees.filter((r) => r.pennylane_status !== 'synced')
+  const inbound = process.env.INBOUND_EMAIL_ADDRESS ?? null
+
+  const liste = courant === 'diverses' ? rows.filter((r) => r.kind === 'misc') : par(ONGLETS[courant].statuts)
+  const gestes =
+    courant === 'transmises'
+      ? (['valider', 'pennylane', 'payer'] as const)
+      : courant === 'validees' || courant === 'diverses'
+        ? (['pennylane', 'payer'] as const)
+        : ([] as const)
 
   return (
     <>
       <PageHeader
         title="Factures"
-        description={`${invoices.length} facture(s) · ${money(outstanding)} restant à régler`}
+        description="Les factures transmises arrivent ici. Validez-les, puis envoyez-les dans Pennylane en un clic."
       />
 
-      {invoices.length === 0 ? (
-        <EmptyState
-          title="Aucune facture"
-          description="Les factures apparaîtront ici dès qu’un prestataire en générera une."
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <StatTile label="À valider" value={String(transmises.length)} sub={money(transmises.reduce((s, r) => s + Number(r.total_ttc), 0))} accent="amber" />
+        <StatTile label="Validées, pas encore dans Pennylane" value={String(aEnvoyer.length)} sub={money(aEnvoyer.reduce((s, r) => s + Number(r.total_ttc), 0))} accent="brand" />
+        <StatTile
+          label="Restant à régler"
+          value={money(rows.filter((r) => ['sent', 'validated'].includes(r.status)).reduce((s, r) => s + Number(r.total_ttc), 0))}
         />
-      ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Numéro</th>
-                  <th className="px-4 py-3 font-medium">Prestataire</th>
-                  <th className="px-4 py-3 font-medium">Émise</th>
-                  <th className="px-4 py-3 font-medium">Échéance</th>
-                  <th className="px-4 py-3 text-right font-medium">HT</th>
-                  <th className="px-4 py-3 text-right font-medium">TTC</th>
-                  <th className="px-4 py-3 font-medium">Statut</th>
-                  <th className="px-4 py-3 font-medium">Pennylane</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/60">
-                {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-cream-muted">
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <Link
-                        href={`/admin/factures/${inv.id}`}
-                        className="font-medium text-gold-dark hover:underline"
-                      >
-                        {inv.number}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-navy/80">
-                      {inv.provider?.legal_name ?? '—'}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
-                      {formatDate(inv.issue_date)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
-                      {formatDate(inv.due_date)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-navy/70">
-                      {money(inv.subtotal_ht)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
-                      {money(inv.total_ttc)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <InvoiceStatusBadge status={inv.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge className={PENNYLANE_BADGE[inv.pennylane_status].style}>
-                        {PENNYLANE_BADGE[inv.pennylane_status].label}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <a
-                        href={`/api/factures/${inv.id}/pdf`}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Télécharger le PDF"
-                        className="inline-flex rounded p-1.5 text-muted transition-colors hover:bg-cream-deep hover:text-navy"
-                      >
-                        <Download size={15} />
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      </div>
+
+      <Tabs
+        current={courant}
+        items={[
+          { key: 'transmises', label: 'Transmises', href: '/admin/factures?onglet=transmises', count: transmises.length },
+          { key: 'validees', label: 'Validées', href: '/admin/factures?onglet=validees', count: aEnvoyer.length },
+          { key: 'diverses', label: 'Factures diverses', href: '/admin/factures?onglet=diverses' },
+          { key: 'payees', label: 'Payées', href: '/admin/factures?onglet=payees' },
+          { key: 'attente', label: 'En attente du PDF', href: '/admin/factures?onglet=attente', count: par(['issued']).length },
+        ]}
+      />
+
+      {courant === 'diverses' && (
+        <Card className="mb-6 p-5">
+          <MiscInvoiceUpload categories={cats ?? []} inboundAddress={inbound} />
         </Card>
+      )}
+
+      {liste.length === 0 ? (
+        <EmptyState title="Aucune facture ici" />
+      ) : (
+        <InvoiceTable rows={liste} gestes={[...gestes]} />
       )}
     </>
   )

@@ -12,10 +12,12 @@ export function InvoiceUpload({
   invoice,
   action,
   revertAction,
+  forceAction,
 }: {
   invoice: Invoice
   action: (prev: InvoiceActionResult, formData: FormData) => Promise<InvoiceActionResult>
   revertAction: (formData: FormData) => Promise<void>
+  forceAction: (formData: FormData) => Promise<void>
 }) {
   const [state, formAction] = useActionState<InvoiceActionResult, FormData>(action, {})
   const [filename, setFilename] = useState<string | null>(null)
@@ -75,6 +77,30 @@ export function InvoiceUpload({
         <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
         </p>
+      )}
+
+      {(state.warning || invoice.ai_check?.matches === false) && (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">{state.warning ?? invoice.ai_check?.message}</p>
+          <p className="mt-1 text-xs">
+            Déposez une facture corrigée ci-dessus. Si l’écart est voulu, prévenez votre manager
+            puis transmettez-la quand même.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={`/messages?nouveau&objet=${encodeURIComponent(`Facture ${invoice.number} : écart de montant`)}`}
+              className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+            >
+              Écrire à mon manager
+            </a>
+            <form action={forceAction}>
+              <input type="hidden" name="invoice_id" value={invoice.id} />
+              <SubmitButton size="sm" variant="secondary" pendingLabel="Envoi…">
+                Transmettre quand même
+              </SubmitButton>
+            </form>
+          </div>
+        </div>
       )}
 
       {deposited && (

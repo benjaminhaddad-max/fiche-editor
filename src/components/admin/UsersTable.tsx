@@ -5,12 +5,14 @@ import { Mail } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { formatDate } from '@/lib/format'
 import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
 import { inviteUsers } from '@/app/(app)/admin/utilisateurs/actions'
 import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
-import { toggleUserActive } from '@/app/(app)/admin/actions'
+import { setUserPhone, toggleUserActive } from '@/app/(app)/admin/actions'
+import Link from 'next/link'
+import { EMPLOYMENT_LABEL } from '@/lib/labels'
+import type { Employment } from '@/lib/types'
 
 const ROLE_STYLE: Record<string, string> = {
   admin: 'bg-gold/10 text-gold-dark ring-gold/30',
@@ -18,7 +20,14 @@ const ROLE_STYLE: Record<string, string> = {
   prestataire: 'bg-cream-deep text-navy/70 ring-line',
 }
 
-export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) {
+export type EquipeRow = AppUser & {
+  phone?: string | null
+  providerId?: string | null
+  employment?: Employment | null
+  onboarding?: boolean
+}
+
+export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
 
   // On n'invite que des comptes actifs : un compte désactivé ne doit pas
@@ -82,9 +91,8 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                   />
                 </th>
                 <th className="px-4 py-3 font-medium">Nom</th>
-                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Rôle</th>
-                <th className="px-4 py-3 font-medium">Créé le</th>
                 <th className="px-4 py-3 text-right font-medium">Accès</th>
               </tr>
             </thead>
@@ -112,12 +120,36 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                         <span className="ml-2 text-xs font-normal text-red-600">désactivé</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-navy/70">{u.email}</td>
+                    <td className="px-4 py-3 text-navy/70">
+                      {u.email}
+                      {u.role === 'prestataire' ? (
+                        u.phone && <span className="block text-xs text-muted">{u.phone}</span>
+                      ) : (
+                        <form action={setUserPhone} className="mt-1 flex items-center gap-1">
+                          <input type="hidden" name="user_id" value={u.id} />
+                          <input
+                            name="phone"
+                            defaultValue={u.phone ?? ''}
+                            placeholder="Téléphone (SMS)"
+                            className="w-36 rounded border border-line px-2 py-0.5 text-xs"
+                            aria-label="Téléphone"
+                          />
+                          <button type="submit" className="cursor-pointer text-xs text-gold-dark hover:underline">
+                            OK
+                          </button>
+                        </form>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge className={ROLE_STYLE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-navy/70">
-                      {formatDate(u.created_at)}
+                      {u.employment && (
+                        <span className="mt-1 block text-xs text-muted">{EMPLOYMENT_LABEL[u.employment]}</span>
+                      )}
+                      {u.providerId && (
+                        <Link href={`/admin/prestataires/${u.providerId}`} className="mt-1 block text-xs font-medium text-gold-dark hover:underline">
+                          Fiche{u.onboarding === false ? ' · infos manquantes' : ''}
+                        </Link>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {moi ? (

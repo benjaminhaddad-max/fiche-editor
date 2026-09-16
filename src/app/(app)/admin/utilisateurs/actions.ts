@@ -167,7 +167,7 @@ export async function prepareStopImpersonation(): Promise<SessionSwitch> {
     action: 'impersonate_stop',
   })
 
-  return { tokenHash: link.properties.hashed_token, destination: '/admin/utilisateurs' }
+  return { tokenHash: link.properties.hashed_token, destination: '/admin/equipe' }
 }
 
 /**
@@ -195,5 +195,5 @@ export async function inviteUsers(formData: FormData): Promise<void> {
     })
   }
 
-  revalidatePath('/admin/utilisateurs')
+  revalidatePath('/admin/equipe')
 }

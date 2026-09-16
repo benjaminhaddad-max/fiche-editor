@@ -35,7 +35,7 @@ const { data: dues, error } = await db
   .from('inv_contract_instalments')
   .select(`id, label, due_date, amount_ht,
            contract:inv_coaching_contracts(
-             id, provider_id, manager_id, category_id, classes_label, program, academic_year, status, headcount,
+             id, provider_id, manager_id, category_id, classes_label, program, academic_year, status, headcount, title,
              provider:inv_providers(legal_name))`)
   .lte('due_date', AUJOURD_HUI)
   .is('mission_id', null)
@@ -62,8 +62,10 @@ for (const e of ouvrables) {
     category_id: c.category_id,
     // Ce libellé part tel quel sur la facture PDF puis dans Pennylane :
     // il ne doit contenir ni nom de classe interne, ni autre marque.
-    detail: `Coaching pédagogique ${PROGRAMME[c.program] ?? c.program} — ${c.academic_year}`
-      + ` — ${e.label.toLowerCase()} — ${c.headcount} étudiants suivis`,
+    detail: c.program
+      ? `Coaching pédagogique ${PROGRAMME[c.program] ?? c.program} — ${c.academic_year}`
+        + ` — ${e.label.toLowerCase()} — ${c.headcount} étudiants suivis`
+      : `${c.title ?? 'Contrat'} — ${e.label.toLowerCase()}`,
     start_date: e.due_date,
     end_date: e.due_date,
     pricing_type: 'forfait_mission',

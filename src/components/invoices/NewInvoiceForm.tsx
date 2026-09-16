@@ -19,12 +19,17 @@ export function NewInvoiceForm({
   action,
   missions,
   vatRate,
+  statementId,
+  defaultMode,
 }: {
   action: (prev: InvoiceActionResult, formData: FormData) => Promise<InvoiceActionResult>
   missions: BillableMission[]
   vatRate: number
+  statementId?: string
+  defaultMode: 'generated' | 'uploaded'
 }) {
   const [state, formAction] = useActionState<InvoiceActionResult, FormData>(action, {})
+  const [mode, setMode] = useState(defaultMode)
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(missions.map((m) => m.id))
   )
@@ -46,6 +51,28 @@ export function NewInvoiceForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
+      {statementId && <input type="hidden" name="statement_id" value={statementId} />}
+      <input type="hidden" name="mode" value={mode} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(
+          [
+            ['generated', 'La plateforme génère ma facture', 'Numérotée, avec vos coordonnées : elle part tout de suite à Diploma Santé.'],
+            ['uploaded', 'Je dépose ma propre facture', 'Vous déposez votre PDF à l’étape suivante ; son montant est vérifié avant l’envoi.'],
+          ] as const
+        ).map(([valeur, titre, desc]) => (
+          <button
+            key={valeur}
+            type="button"
+            onClick={() => setMode(valeur)}
+            className={`cursor-pointer rounded-lg border p-4 text-left transition-colors ${
+              mode === valeur ? 'border-gold bg-gold/10' : 'border-line bg-white hover:bg-cream-muted'
+            }`}
+          >
+            <span className="block text-sm font-medium text-navy">{titre}</span>
+            <span className="mt-0.5 block text-xs text-navy/70">{desc}</span>
+          </button>
+        ))}
+      </div>
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-line bg-cream-muted px-4 py-3">
           <label className="flex cursor-pointer items-center gap-2.5 text-sm font-medium text-navy/80">
@@ -126,7 +153,7 @@ export function NewInvoiceForm({
           disabled={selected.size === 0}
           pendingLabel="Génération de la facture…"
         >
-          Générer la facture
+          {mode === 'uploaded' ? 'Continuer vers le dépôt' : 'Générer et transmettre'}
         </SubmitButton>
       </div>
     </form>

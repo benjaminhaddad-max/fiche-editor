@@ -11,6 +11,7 @@ import { isPennylaneConfigured } from '@/lib/pennylane/client'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Invoice, InvoiceLine } from '@/lib/types'
 import { markInvoicePaid, pushToPennylane } from '@/app/(app)/factures/actions'
+import { validerFactures } from '../actions'
 
 export default async function AdminInvoicePage({
   params,
@@ -43,7 +44,8 @@ export default async function AdminInvoicePage({
       .maybeSingle(),
   ])
 
-  const pennylaneReady = isPennylaneConfigured() && Boolean(provider?.pennylane_supplier_id)
+  // Le fournisseur Pennylane est retrouvé ou créé à l'envoi s'il manque.
+  const pennylaneReady = isPennylaneConfigured()
 
   return (
     <>
@@ -77,6 +79,13 @@ export default async function AdminInvoicePage({
           </SubmitButton>
         </form>
 
+        {invoice.status === 'sent' && (
+          <form action={validerFactures}>
+            <input type="hidden" name="invoice_id" value={invoice.id} />
+            <SubmitButton pendingLabel="…">Valider</SubmitButton>
+          </form>
+        )}
+
         {invoice.status !== 'paid' && (
           <form action={markInvoicePaid}>
             <input type="hidden" name="invoice_id" value={invoice.id} />
@@ -98,15 +107,18 @@ export default async function AdminInvoicePage({
       )}
 
       {isPennylaneConfigured() && !provider?.pennylane_supplier_id && (
+        <div className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-sm text-navy/70">
+          {provider?.legal_name} n’est pas encore relié à Pennylane : le fournisseur sera retrouvé par SIRET ou par
+          nom, ou créé, au moment de l’envoi.{' '}
+          <Link href={`/admin/prestataires/${invoice.provider_id}`} className="font-medium underline">
+            Fiche
+          </Link>
+        </div>
+      )}
+
+      {invoice.ai_check?.message && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Aucun ID fournisseur Pennylane pour {provider?.legal_name}.{' '}
-          <Link
-            href={`/admin/prestataires/${invoice.provider_id}`}
-            className="font-semibold underline"
-          >
-            Le renseigner
-          </Link>{' '}
-          avant de synchroniser.
+          <span className="font-semibold">Lecture du PDF :</span> {invoice.ai_check.message}
         </div>
       )}
 

@@ -54,7 +54,7 @@ export async function requireProvider(): Promise<{ user: AppUser; provider: Prov
 export function homePathFor(role: Role): string {
   switch (role) {
     case 'admin':
-      return '/admin'
+      return '/validation'
     case 'manager':
       return '/validation'
     default:

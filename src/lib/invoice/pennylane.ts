@@ -1,6 +1,8 @@
 import {
   PennylaneError,
   amount,
+  createSupplier,
+  listSuppliers,
   importSupplierInvoice,
   setSupplierInvoiceCategories,
   uploadFileAttachment,
@@ -51,6 +53,62 @@ export function categoryWeights(lines: InvoiceLine[]): PennylaneCategoryWeight[]
   return weights.map((w) => ({ id: w.id, weight: String(w.raw) }))
 }
 
+const norm = (s: string | null | undefined) =>
+  (s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+/**
+ * Trouve le fournisseur Pennylane d'un prestataire, ou le crée.
+ *
+ * Par SIRET d'abord — c'est la seule clé sans ambiguïté —, puis par nom. Le
+ * résultat est mémorisé sur la fiche : la recherche n'a lieu qu'une fois.
+ */
+async function resolveSupplier(providerId: string): Promise<number> {
+  const supabase = createServiceClient()
+  const { data: p } = await supabase
+    .from('inv_providers')
+    .select(
+      `pennylane_supplier_id, legal_name, siret, vat_number, iban, address_line1, postal_code, city,
+       contact_email, user:inv_users!inv_providers_user_id_fkey(email)`
+    )
+    .eq('id', providerId)
+    .maybeSingle()
+  if (!p) throw new PennylaneError('Prestataire introuvable.')
+  if (p.pennylane_supplier_id) return Number(p.pennylane_supplier_id)
+
+  const siret = (p.siret ?? '').replace(/\s+/g, '')
+  const fournisseurs = await listSuppliers()
+  const trouve =
+    (/^\d{14}$/.test(siret) && fournisseurs.find((f) => f.establishment_no === siret)) ||
+    (/^\d{9}/.test(siret) && fournisseurs.find((f) => f.reg_no === siret.slice(0, 9))) ||
+    fournisseurs.find((f) => norm(f.name) === norm(p.legal_name))
+
+  let id: number
+  if (trouve) {
+    id = trouve.id
+  } else {
+    const email = p.contact_email ?? (p as unknown as { user: { email: string } | null }).user?.email
+    id = await createSupplier({
+      name: p.legal_name,
+      ...(/^\d{14}$/.test(siret) ? { establishment_no: siret, reg_no: siret.slice(0, 9) } : {}),
+      ...(p.vat_number ? { vat_number: p.vat_number } : {}),
+      ...(p.iban ? { iban: p.iban.replace(/\s+/g, '') } : {}),
+      ...(email ? { emails: [email] } : {}),
+      ...(p.address_line1 && p.postal_code && p.city
+        ? { postal_address: { address: p.address_line1, postal_code: p.postal_code, city: p.city, country_alpha2: 'FR' } }
+        : {}),
+      external_reference: providerId,
+    })
+  }
+
+  await supabase.from('inv_providers').update({ pennylane_supplier_id: id }).eq('id', providerId)
+  return id
+}
+
 /**
  * Pousse une facture dans Pennylane en facture d'achat.
  *
@@ -66,16 +124,13 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
     if (!loaded) throw new PennylaneError('Facture introuvable.')
     const { invoice, lines } = loaded
 
-    const { data: provider } = await supabase
-      .from('inv_providers')
-      .select('pennylane_supplier_id, legal_name')
-      .eq('id', invoice.provider_id)
-      .maybeSingle()
-
-    if (!provider?.pennylane_supplier_id) {
+    let supplierId: number
+    try {
+      supplierId = await resolveSupplier(invoice.provider_id)
+    } catch (err) {
       throw new PennylaneError(
-        `Aucun fournisseur Pennylane associé à « ${provider?.legal_name ?? 'ce prestataire'} ». ` +
-          'Renseignez son ID fournisseur dans sa fiche avant de synchroniser.'
+        `Fournisseur Pennylane introuvable et impossible à créer : ${err instanceof Error ? err.message : String(err)}. ` +
+          'Renseignez son ID fournisseur dans sa fiche.'
       )
     }
 
@@ -103,7 +158,7 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
 
     const pennylaneInvoiceId = await importSupplierInvoice({
       file_attachment_id: fileAttachmentId,
-      supplier_id: Number(provider.pennylane_supplier_id),
+      supplier_id: supplierId,
       date: invoice.issue_date,
       deadline: invoice.due_date,
       invoice_number: invoice.number,

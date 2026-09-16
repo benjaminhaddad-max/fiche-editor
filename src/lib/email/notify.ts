@@ -2,12 +2,14 @@ import { sendEmail } from '@/lib/email/brevo'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createInvitation } from '@/lib/invitation'
+import { sendSms } from '@/lib/email/sms'
+import { formatDate, money } from '@/lib/format'
 
 /**
  * Envoie un email et le journalise. Ne leve jamais : une notification qui
  * echoue ne doit pas faire echouer la validation metier qui l'a declenchee.
  */
-async function deliver(params: {
+export async function deliver(params: {
   to: { email: string; name?: string }
   subject: string
   html: string
@@ -202,56 +204,13 @@ export async function notifyReadyToInvoice(providerId: string): Promise<void> {
   })
 }
 
-/** Le bordereau est arbitré : on rend la main au prestataire, avec une date. */
-export async function notifyStatementCleared(
-  statementId: string,
-  reply: string | null
-): Promise<void> {
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from('inv_statements')
-    .select(`total_ht, invoice_deadline, invoice_expected_at, payment_start, provider_id,
-             provider:inv_providers(legal_name, user:inv_users!inv_providers_user_id_fkey(email, full_name))`)
-    .eq('id', statementId)
-    .maybeSingle()
-
-  const row = data as unknown as {
-    total_ht: number
-    invoice_deadline: string
-    invoice_expected_at: string | null
-    payment_start: string
-    provider_id: string
-    provider: { legal_name: string; user: { email: string; full_name: string } | null } | null
-  } | null
-
-  const user = row?.provider?.user
-  if (!user?.email) return
-
-  const tpl = templates.statementCleared({
-    providerName: user.full_name,
-    total: Number(row!.total_ht),
-    deadline: row!.invoice_expected_at ?? row!.invoice_deadline,
-    paymentStart: row!.payment_start,
-    reply,
-  })
-
-  await deliver({
-    to: { email: user.email, name: user.full_name },
-    ...tpl,
-    template: 'statement_cleared',
-    entityType: 'invoice',
-    entityId: statementId,
-    providerId: row!.provider_id,
-  })
-}
-
 /** Relance : la facture se fait attendre et l'échéance approche. */
 export async function notifyStatementReminder(statementId: string): Promise<boolean> {
   const supabase = createServiceClient()
   const { data } = await supabase
     .from('inv_statements')
     .select(`total_ht, invoice_deadline, invoice_expected_at, provider_id, reminder_count,
-             provider:inv_providers(legal_name, user:inv_users!inv_providers_user_id_fkey(email, full_name))`)
+             provider:inv_providers(legal_name, phone, user:inv_users!inv_providers_user_id_fkey(email, full_name))`)
     .eq('id', statementId)
     .maybeSingle()
 
@@ -261,7 +220,7 @@ export async function notifyStatementReminder(statementId: string): Promise<bool
     invoice_expected_at: string | null
     provider_id: string
     reminder_count: number
-    provider: { user: { email: string; full_name: string } | null } | null
+    provider: { phone: string | null; user: { email: string; full_name: string } | null } | null
   } | null
 
   const user = row?.provider?.user
@@ -287,6 +246,25 @@ export async function notifyStatementReminder(statementId: string): Promise<bool
     entityType: 'invoice',
     entityId: statementId,
     providerId: row!.provider_id,
+  })
+
+  // La relance part aussi par SMS quand on a le numéro : c'est la veille de
+  // l'échéance qu'elle sert, et un email se perd.
+  const sms = await sendSms(
+    row!.provider?.phone,
+    `Diploma Santé : votre facture de ${money(row!.total_ht)} HT est attendue ${
+      jours > 0 ? `avant le ${formatDate(deadline)}` : 'aujourd’hui'
+    }. Générez-la en 2 clics : ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/factures`
+  )
+  await supabase.from('inv_email_log').insert({
+    to_email: row!.provider?.phone ?? '(sans numéro)',
+    to_name: user.full_name,
+    template: 'sms_statement_reminder',
+    entity_type: 'invoice',
+    entity_id: statementId,
+    provider_id: row!.provider_id,
+    status: sms.status,
+    error: sms.error ?? null,
   })
 
   await supabase

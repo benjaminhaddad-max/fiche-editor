@@ -5,20 +5,17 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import {
-  Building2,
-  CheckSquare,
-  FileText,
-  LayoutDashboard,
+  ClipboardList,
+  KeyRound,
   ListChecks,
   LogOut,
-  ClipboardList,
-  FileUp,
+  MessageSquare,
   Receipt,
   ScrollText,
   Tags,
-  KeyRound,
   UserCircle,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/ui/Logo'
@@ -29,63 +26,55 @@ interface NavItem {
   href: string
   label: string
   icon: React.ComponentType<{ size?: number | string }>
-  /** Actif meme sur les sous-routes (ex: /missions/new). */
-  prefix?: boolean
+  /** Actif aussi sur les sous-routes et sur ces autres chemins. */
+  prefixes?: string[]
+  badge?: number
 }
 
-const NAV: Record<Role, { section: string; items: NavItem[] }[]> = {
-  prestataire: [
-    {
-      section: 'Mon activité',
-      items: [
-        { href: '/missions', label: 'Mes prestations', icon: ListChecks, prefix: true },
-        { href: '/bordereaux', label: 'Mes bordereaux', icon: ClipboardList, prefix: true },
-        { href: '/factures', label: 'Mes factures', icon: Receipt },
-        { href: '/factures/deposer', label: 'Déposer une facture', icon: FileUp, prefix: true },
-        { href: '/profil', label: 'Mes informations', icon: UserCircle },
-      ],
-    },
-  ],
-  manager: [
-    {
-      section: 'Validation',
-      items: [
-        { href: '/validation', label: 'À valider', icon: CheckSquare },
-        { href: '/validation/bordereaux', label: 'Bordereaux', icon: ClipboardList },
-        { href: '/validation/historique', label: 'Historique', icon: FileText },
-      ],
-    },
-  ],
-  admin: [
-    {
-      section: 'Pilotage',
-      items: [
-        { href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard },
-        { href: '/admin/prestations', label: 'Toutes les prestations', icon: ListChecks },
-        { href: '/validation', label: 'Prestations à valider', icon: CheckSquare },
-        { href: '/validation/bordereaux', label: 'Bordereaux', icon: ClipboardList },
-        { href: '/admin/factures', label: 'Factures', icon: Receipt, prefix: true },
-        { href: '/admin/contrats', label: 'Contrats de coaching', icon: ScrollText, prefix: true },
-      ],
-    },
-    {
-      section: 'Paramètres',
-      items: [
-        { href: '/admin/prestataires', label: 'Prestataires', icon: Building2, prefix: true },
-        { href: '/admin/categories', label: 'Catégories de missions', icon: Tags },
-        { href: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users },
-      ],
-    },
-  ],
+/**
+ * Le moins d'entrées possible : chaque page regroupe ses vues en onglets.
+ * Un salarié n'a pas de facturation ; un fournisseur sans compte n'a pas
+ * d'espace du tout.
+ */
+function navFor(role: Role, salarie: boolean, unread: number): NavItem[] {
+  const messages: NavItem = { href: '/messages', label: 'Messages', icon: MessageSquare, prefixes: ['/messages'], badge: unread }
+  if (role === 'prestataire') {
+    return [
+      { href: '/missions', label: 'Prestations', icon: ListChecks, prefixes: ['/missions'] },
+      ...(salarie
+        ? []
+        : [{ href: '/factures', label: 'Facturation', icon: Receipt, prefixes: ['/factures', '/bordereaux'] }]),
+      { href: '/contrats', label: 'Mes contrats', icon: ScrollText, prefixes: ['/contrats'] },
+      messages,
+      { href: '/profil', label: 'Mes informations', icon: UserCircle, prefixes: ['/profil'] },
+    ]
+  }
+  const communs: NavItem[] = [
+    { href: '/validation', label: 'Prestations', icon: ListChecks, prefixes: ['/validation'] },
+    { href: '/bons-de-mission', label: 'Bons de mission', icon: ClipboardList, prefixes: ['/bons-de-mission'] },
+  ]
+  if (role === 'manager') return [...communs, messages]
+  return [
+    ...communs,
+    { href: '/admin/factures', label: 'Factures', icon: Receipt, prefixes: ['/admin/factures'] },
+    { href: '/admin/paie', label: 'Paie', icon: Wallet, prefixes: ['/admin/paie'] },
+    { href: '/admin/contrats', label: 'Contrats', icon: ScrollText, prefixes: ['/admin/contrats'] },
+    { href: '/admin/equipe', label: 'Équipe', icon: Users, prefixes: ['/admin/equipe', '/admin/prestataires'] },
+    messages,
+  ]
 }
 
 export function AppShell({
   user,
   banner,
+  salarie = false,
+  unread = 0,
   children,
 }: {
   user: { full_name: string; email: string; role: Role }
   banner?: React.ReactNode
+  salarie?: boolean
+  unread?: number
   children: React.ReactNode
 }) {
   const router = useRouter()
@@ -103,7 +92,7 @@ export function AppShell({
   }
 
   function isActive(item: NavItem) {
-    return item.prefix ? pathname.startsWith(item.href) : pathname === item.href
+    return (item.prefixes ?? [item.href]).some((p) => pathname === p || pathname.startsWith(`${p}/`))
   }
 
   return (
@@ -114,34 +103,48 @@ export function AppShell({
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3">
-          {NAV[user.role].map((group) => (
-            <div key={group.section} className="mb-5">
-              <p className="ds-eyebrow px-3 pb-2 text-gold-dark">{group.section}</p>
-              <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={clsx(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                        isActive(item)
-                          ? 'bg-navy font-medium text-cream shadow-sm'
-                          : 'text-navy/70 hover:bg-cream-deep hover:text-navy'
-                      )}
-                    >
-                      <Icon size={17} />
-                      {item.label}
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+          <div className="flex flex-col gap-0.5">
+            {navFor(user.role, salarie, unread).map((item) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={clsx(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                    isActive(item)
+                      ? 'bg-navy font-medium text-cream shadow-sm'
+                      : 'text-navy/70 hover:bg-cream-deep hover:text-navy'
+                  )}
+                >
+                  <Icon size={17} />
+                  <span className="flex-1">{item.label}</span>
+                  {!!item.badge && (
+                    <span className="rounded-full bg-gold px-1.5 py-px text-[11px] font-semibold text-navy">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
         </nav>
 
         <div className="border-t border-line p-3">
+          {user.role === 'admin' && (
+            <Link
+              href="/admin/categories"
+              className={clsx(
+                'mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                pathname === '/admin/categories'
+                  ? 'bg-navy font-medium text-cream'
+                  : 'text-navy/70 hover:bg-cream-deep hover:text-navy'
+              )}
+            >
+              <Tags size={17} />
+              Catégories
+            </Link>
+          )}
           <Link
             href="/compte"
             className={clsx(

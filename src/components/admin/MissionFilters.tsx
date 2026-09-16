@@ -24,7 +24,7 @@ export function MissionFilters({
     const next = new URLSearchParams(params.toString())
     if (value) next.set(key, value)
     else next.delete(key)
-    router.push(`/admin/prestations?${next.toString()}`)
+    router.push(`/validation/historique?${next.toString()}`)
   }
 
   const champ =
@@ -63,7 +63,7 @@ export function MissionFilters({
 
       {[...params.keys()].length > 0 && (
         <button
-          onClick={() => router.push('/admin/prestations')}
+          onClick={() => router.push('/validation/historique')}
           className="cursor-pointer text-sm text-muted underline hover:text-navy"
         >
           Tout effacer

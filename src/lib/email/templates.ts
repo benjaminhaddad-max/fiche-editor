@@ -1,4 +1,5 @@
-import { formatDate, money } from '@/lib/format'
+import { formatDate, formatDateLong, money } from '@/lib/format'
+import type { BillingCycle } from '@/lib/cycle'
 import { COMPANY } from '@/lib/types'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
@@ -168,28 +169,6 @@ export const templates = {
     ),
   }),
 
-  /** Le bordereau est arbitré : le prestataire peut facturer, avec une date. */
-  statementCleared: (p: {
-    providerName: string
-    total: number
-    deadline: string
-    paymentStart: string
-    reply: string | null
-  }) => ({
-    subject: `Votre bordereau est validé — ${money(p.total)} HT`,
-    html: layout(
-      'Vous pouvez établir votre facture',
-      `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
-       ${p.reply ? `<p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;
-            border-left:3px solid #c9a84c;">${p.reply}</p>` : ''}
-       <p style="margin:0 0 12px;">Votre bordereau est arrêté à <strong>${money(p.total)} HT</strong>.</p>
-       <p style="margin:0 0 12px;">Votre facture doit nous parvenir <strong>avant le ${formatDate(p.deadline)}</strong>.
-          Les paiements sont effectués à partir du ${formatDate(p.paymentStart)} — une facture reçue
-          après cette date partira sur le cycle suivant.</p>`,
-      { label: 'Voir mon bordereau', href: `${APP_URL}/bordereaux` }
-    ),
-  }),
-
   /** Relance quand la facture se fait attendre et que l'échéance approche. */
   statementReminder: (p: {
     providerName: string
@@ -222,6 +201,203 @@ export const templates = {
        <p style="margin:0;">${p.providerName} a transmis la facture <strong>${p.number}</strong>
           pour <strong>${money(p.total)}</strong>.</p>`,
       { label: 'Ouvrir la facture', href: `${APP_URL}/admin/factures` }
+    ),
+  }),
+
+  // ---------- Bons de mission ----------
+
+  orderSent: (p: {
+    providerName: string
+    managerName: string
+    title: string
+    total: number
+    start: string
+    end: string
+    conditions: string | null
+    tarif: string
+  }) => ({
+    subject: `Bon de mission — ${p.title}`,
+    html: layout(
+      'Une mission vous est proposée',
+      `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
+       <p style="margin:0 0 12px;">${p.managerName} vous propose la mission suivante :</p>
+       <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;border-left:3px solid #c9a84c;">
+         <strong>${p.title}</strong><br>
+         du ${formatDate(p.start)} au ${formatDate(p.end)}<br>
+         ${p.tarif} — <strong>${money(p.total)} HT</strong>
+         ${p.conditions ? `<br><span style="color:#7d8c9e;">${p.conditions}</span>` : ''}
+       </p>
+       <p style="margin:0;">Acceptez-la ou refusez-la depuis votre espace. Une fois acceptée,
+          elle sera ajoutée à vos prestations à la fin de la mission, sans rien ressaisir.</p>`,
+      { label: 'Répondre', href: `${APP_URL}/missions?onglet=bons` }
+    ),
+  }),
+
+  orderAnswered: (p: {
+    managerName: string
+    providerName: string
+    title: string
+    accepted: boolean
+    note: string | null
+  }) => ({
+    subject: `${p.providerName} a ${p.accepted ? 'accepté' : 'refusé'} : ${p.title}`,
+    html: layout(
+      p.accepted ? 'Bon de mission accepté' : 'Bon de mission refusé',
+      `<p style="margin:0 0 12px;">Bonjour ${p.managerName},</p>
+       <p style="margin:0 0 12px;">${p.providerName} a <strong>${p.accepted ? 'accepté' : 'refusé'}</strong>
+          la mission « ${p.title} ».</p>
+       ${p.note ? `<p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;">${p.note}</p>` : ''}`,
+      { label: 'Voir mes bons de mission', href: `${APP_URL}/bons-de-mission` }
+    ),
+  }),
+
+  orderDue: (p: { managerName: string; providerName: string; title: string; end: string; id: string }) => ({
+    subject: `Mission terminée ? ${p.title} — ${p.providerName}`,
+    html: layout(
+      'La mission devait se terminer',
+      `<p style="margin:0 0 12px;">Bonjour ${p.managerName},</p>
+       <p style="margin:0 0 12px;">La mission « <strong>${p.title}</strong> » confiée à ${p.providerName}
+          devait se terminer le ${formatDate(p.end)}.</p>
+       <p style="margin:0;">Confirmez qu’elle a été réalisée comme prévu, ou ajustez la quantité et le
+          montant : elle rejoindra alors automatiquement les prestations déclarées.</p>`,
+      { label: 'Clôturer la mission', href: `${APP_URL}/bons-de-mission/${p.id}` }
+    ),
+  }),
+
+  // ---------- Messagerie ----------
+
+  messageReceived: (p: {
+    recipientName: string
+    authorName: string
+    subject: string
+    excerpt: string
+    href: string
+  }) => ({
+    subject: `Message de ${p.authorName} — ${p.subject}`,
+    html: layout(
+      'Vous avez un nouveau message',
+      `<p style="margin:0 0 12px;">Bonjour ${p.recipientName},</p>
+       <p style="margin:0 0 12px;">${p.authorName} vous a écrit à propos de « ${p.subject} » :</p>
+       <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;border-left:3px solid #c9a84c;">${p.excerpt}</p>
+       <p style="margin:0;color:#7d8c9e;font-size:13px;">Répondez depuis la plateforme : l’échange reste attaché au dossier.</p>`,
+      { label: 'Répondre', href: `${APP_URL}${p.href}` }
+    ),
+  }),
+
+  // ---------- Calendrier mensuel ----------
+
+  monthCalendar: (p: { name: string; public: 'prestataire' | 'salarie' | 'manager'; cycle: BillingCycle }) => {
+    const c = p.cycle
+    const ligne = (quand: string, quoi: string) =>
+      `<tr><td style="padding:6px 12px 6px 0;white-space:nowrap;vertical-align:top;font-weight:600;color:#0e1e35;">${quand}</td>
+           <td style="padding:6px 0;vertical-align:top;">${quoi}</td></tr>`
+    const lignes =
+      p.public === 'manager'
+        ? [
+            ligne(`jusqu’au ${formatDateLong(c.declarationDeadline)}`, 'les prestataires déclarent ; vous pouvez déclarer pour eux et envoyer des bons de mission'),
+            ligne(`${formatDate(c.reviewStart)} → ${formatDate(c.reviewEnd)}`, 'vous vérifiez, corrigez et complétez leurs prestations'),
+            ligne(formatDateLong(c.statementDate), `envoi du bordereau global ; factures jusqu’au ${formatDateLong(c.invoiceDeadline)}`),
+            ligne(formatDateLong(c.paymentDate), 'paiement'),
+          ]
+        : p.public === 'salarie'
+          ? [
+              ligne(`jusqu’au ${formatDateLong(c.declarationDeadline)}`, 'déclarez vos prestations et vos bonus'),
+              ligne(`${formatDate(c.reviewStart)} → ${formatDate(c.reviewEnd)}`, 'vérification par votre manager'),
+              ligne(formatDateLong(c.statementDate), 'transmission au service paie — aucune facture à faire'),
+            ]
+          : [
+              ligne(`jusqu’au ${formatDateLong(c.declarationDeadline)}`, 'déclarez vos prestations du mois'),
+              ligne(`${formatDate(c.reviewStart)} → ${formatDate(c.reviewEnd)}`, 'vérification par vos managers'),
+              ligne(formatDateLong(c.statementDate), 'vous recevez votre bordereau'),
+              ligne(`jusqu’au ${formatDateLong(c.invoiceDeadline)}`, 'générez ou déposez votre facture'),
+              ligne(formatDateLong(c.paymentDate), 'paiement'),
+            ]
+    return {
+      subject: `Calendrier de ${c.label} — Diploma Invoice`,
+      html: layout(
+        `Le calendrier de ${c.label}`,
+        `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+         <p style="margin:0 0 12px;">Voici les dates à retenir ce mois-ci :</p>
+         <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">${lignes.join('')}</table>`,
+        { label: 'Ouvrir Diploma Invoice', href: APP_URL }
+      ),
+    }
+  },
+
+  declarationReminder: (p: { name: string; deadline: string; label: string }) => ({
+    subject: `Dernier jour pour déclarer vos prestations de ${p.label} : ${formatDateLong(p.deadline)}`,
+    html: layout(
+      'Pensez à déclarer vos prestations',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">Vos prestations de ${p.label} doivent être déclarées
+          <strong>au plus tard le ${formatDateLong(p.deadline)}</strong>.</p>
+       <p style="margin:0;">Après cette date, seul votre manager pourra en ajouter.</p>`,
+      { label: 'Déclarer mes prestations', href: `${APP_URL}/missions/new` }
+    ),
+  }),
+
+  reviewReminder: (p: { name: string; count: number; total: number; reviewEnd: string; label: string }) => ({
+    subject: `Vérification de ${p.label} : ${p.count} prestation${p.count > 1 ? 's' : ''} à valider avant le ${formatDate(p.reviewEnd)}`,
+    html: layout(
+      'À vous de vérifier',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">La période de déclaration de ${p.label} est close.
+          <strong>${p.count} prestation${p.count > 1 ? 's' : ''}</strong> (${money(p.total)} HT) attendent votre validation.</p>
+       <p style="margin:0;">Vous avez jusqu’au <strong>${formatDateLong(p.reviewEnd)}</strong> pour valider, corriger
+          ou compléter : le bordereau global part le lendemain.</p>`,
+      { label: 'Vérifier les prestations', href: `${APP_URL}/validation` }
+    ),
+  }),
+
+  statementSent: (p: {
+    providerName: string
+    total: number
+    lines: number
+    label: string
+    deadline: string
+    paymentDate: string
+    salaried: boolean
+  }) => ({
+    subject: p.salaried
+      ? `Vos éléments de ${p.label} sont transmis à la paie`
+      : `Votre bordereau de ${p.label} — ${money(p.total)} HT — facture avant le ${formatDate(p.deadline)}`,
+    html: layout(
+      p.salaried ? 'Vos éléments sont transmis' : 'Votre bordereau est prêt',
+      p.salaried
+        ? `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
+           <p style="margin:0;">Vos ${p.lines} élément${p.lines > 1 ? 's' : ''} validé${p.lines > 1 ? 's' : ''} de ${p.label}
+              (${money(p.total)}) sont transmis au service paie. Vous n’avez rien d’autre à faire.</p>`
+        : `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
+           <p style="margin:0 0 12px;">Votre bordereau de ${p.label} réunit <strong>${p.lines} prestation${p.lines > 1 ? 's' : ''}</strong>,
+              tous pôles confondus, pour <strong>${money(p.total)} HT</strong>.</p>
+           <p style="margin:0 0 12px;">Générez votre facture en un clic, ou déposez la vôtre,
+              <strong>au plus tard le ${formatDateLong(p.deadline)}</strong>.</p>
+           <p style="margin:0;">Paiement le ${formatDateLong(p.paymentDate)}. Une facture reçue plus tard partira au cycle suivant.
+              Un point à discuter ? Écrivez à votre manager depuis votre bordereau.</p>`,
+      { label: p.salaried ? 'Voir mes prestations' : 'Établir ma facture', href: `${APP_URL}${p.salaried ? '/missions' : '/factures'}` }
+    ),
+  }),
+
+  // ---------- Factures diverses ----------
+
+  miscInvoiceFiled: (p: { name: string; supplier: string; number: string; total: number; created: boolean }) => ({
+    subject: `Facture ${p.number} de ${p.supplier} bien reçue`,
+    html: layout(
+      'Facture enregistrée',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">La facture <strong>${p.number}</strong> de ${p.supplier}
+          (${money(p.total)} TTC) est enregistrée dans les factures validées.</p>
+       ${p.created ? '<p style="margin:0;color:#7d8c9e;font-size:13px;">Ce fournisseur n’existait pas : sa fiche a été créée à partir de la facture.</p>' : ''}`,
+      { label: 'Voir les factures', href: `${APP_URL}/admin/factures?onglet=validees` }
+    ),
+  }),
+
+  inboundRefused: (p: { reason: string }) => ({
+    subject: 'Votre facture n’a pas pu être enregistrée',
+    html: layout(
+      'Facture non enregistrée',
+      `<p style="margin:0 0 12px;">Bonjour,</p>
+       <p style="margin:0;">${p.reason}</p>`
     ),
   }),
 }

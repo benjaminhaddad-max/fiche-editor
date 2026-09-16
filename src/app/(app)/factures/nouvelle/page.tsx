@@ -3,6 +3,8 @@ import { EmptyState, PageHeader } from '@/components/ui/Page'
 import { NewInvoiceForm, type BillableMission } from '@/components/invoices/NewInvoiceForm'
 import { requireProvider } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { isSalaried } from '@/lib/types'
 import { createInvoice } from '../actions'
 
 interface Row {
@@ -14,17 +16,27 @@ interface Row {
   category: { name: string; provider_label: string | null } | null
 }
 
-export default async function NewInvoicePage() {
+export default async function NewInvoicePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bordereau?: string; mode?: string }>
+}) {
+  const { bordereau, mode } = await searchParams
   const { provider } = await requireProvider()
+  if (isSalaried(provider.employment_type)) redirect('/missions')
   const supabase = await createServerSupabase()
 
-  const { data } = await supabase
+  // Depuis un bordereau, on facture exactement ses lignes ; sinon, tout ce
+  // qui est validé et pas encore facturé.
+  let query = supabase
     .from('inv_missions')
     .select('id, detail, start_date, end_date, total_ht, category:inv_categories(name, provider_label)')
     .eq('provider_id', provider.id)
     .eq('status', 'approved')
     .is('invoice_id', null)
     .order('start_date')
+  if (bordereau) query = query.eq('statement_id', bordereau)
+  const { data } = await query
 
   const missions: BillableMission[] = ((data ?? []) as unknown as Row[]).map((m) => ({
     id: m.id,
@@ -59,7 +71,7 @@ export default async function NewInvoicePage() {
       {missions.length === 0 ? (
         <EmptyState
           title="Aucune prestation à facturer"
-          description="Seules les prestations validées par votre manager puis par l’administration peuvent être facturées."
+          description="Rien à facturer pour l’instant : votre bordereau du mois arrive le 1er, avec toutes vos prestations validées."
           action={
             <Link href="/missions" className="text-sm font-medium text-gold-dark underline">
               Voir mes prestations
@@ -71,6 +83,8 @@ export default async function NewInvoicePage() {
           action={createInvoice}
           missions={missions}
           vatRate={Number(provider.vat_rate)}
+          statementId={bordereau}
+          defaultMode={mode === 'uploaded' ? 'uploaded' : provider.invoice_mode}
         />
       )}
     </>

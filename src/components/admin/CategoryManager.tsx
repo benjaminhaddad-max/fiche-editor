@@ -2,7 +2,9 @@
 
 import { Fragment, useActionState, useState } from 'react'
 import { Check, Pencil, Plus, X } from 'lucide-react'
-import { Input } from '@/components/ui/Field'
+import { Input, Select } from '@/components/ui/Field'
+import { POLE_LABEL } from '@/lib/labels'
+import { POLES } from '@/lib/types'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { toggleCategoryVisibility } from '@/app/(app)/admin/actions'
@@ -57,6 +59,19 @@ function CategoryForm({
         defaultValue={category?.pennylane_category_id ?? ''}
         error={e.pennylane_category_id}
       />
+      <Select
+        id={`pole-${category?.id ?? 'new'}`}
+        name="pole"
+        label="Pôle"
+        defaultValue={category?.pole ?? 'autres'}
+        hint="Range la catégorie dans l’onglet et le type de contrat correspondants."
+      >
+        {POLES.map((p) => (
+          <option key={p} value={p}>
+            {POLE_LABEL[p]}
+          </option>
+        ))}
+      </Select>
       <Input
         id={`ord-${category?.id ?? 'new'}`}
         name="sort_order"
@@ -183,6 +198,7 @@ export function CategoryManager({
             <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Nom</th>
+                <th className="px-4 py-3 font-medium">Pôle</th>
                 <th className="px-4 py-3 font-medium">Libellé Pennylane</th>
                 <th className="px-4 py-3 font-medium">Libellé prestataire</th>
                 <th className="px-4 py-3 font-medium">id_pennylane</th>
@@ -196,6 +212,7 @@ export function CategoryManager({
                 <Fragment key={c.id}>
                   <tr className="hover:bg-cream-muted">
                     <td className="px-4 py-3 font-medium text-navy">{c.name}</td>
+                    <td className="px-4 py-3 text-navy/70">{POLE_LABEL[c.pole]}</td>
                     <td className="px-4 py-3 text-navy/70">
                       {c.pennylane_label ?? '—'}
                     </td>
@@ -231,7 +248,7 @@ export function CategoryManager({
                   </tr>
                   {editing === c.id && (
                     <tr>
-                      <td colSpan={7} className="bg-cream-muted px-4 py-5">
+                      <td colSpan={8} className="bg-cream-muted px-4 py-5">
                         <CategoryForm
                           action={saveAction}
                           category={c}

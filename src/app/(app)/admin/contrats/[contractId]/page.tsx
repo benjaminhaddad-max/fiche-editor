@@ -7,18 +7,18 @@ import { requireRole } from '@/lib/auth'
 import { formatDate, money } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { MissionStatus } from '@/lib/types'
+import { contractTitle } from '@/lib/contracts'
+import { POLE_LABEL } from '@/lib/labels'
 
-const PROGRAMME: Record<string, string> = {
-  pass_las_lsps: 'PASS / LAS / LSPS',
-  paes: 'PAES',
-  terminale_sante: 'Terminale Santé',
-}
 
 interface Contract {
   id: string
-  program: string
-  academic_year: string
-  classes_label: string
+  contract_type: import('@/lib/types').Pole
+  title: string | null
+  conditions: string | null
+  program: string | null
+  academic_year: string | null
+  classes_label: string | null
   headcount: number | null
   headcount_fixed_at: string | null
   rate_base_amount: number | null
@@ -75,16 +75,24 @@ export default async function ContractPage({
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={15} />
-        Contrats de coaching
+        Contrats
       </Link>
 
       <PageHeader
         title={c.provider?.legal_name ?? 'Contrat'}
-        description={`${PROGRAMME[c.program] ?? c.program} — ${c.academic_year}`}
+        description={`${POLE_LABEL[c.contract_type]} — ${contractTitle(c)}${c.academic_year ? ` — ${c.academic_year}` : ''}`}
       />
+
+      {c.conditions && (
+        <Card className="mb-6 p-6">
+          <h2 className="mb-2 text-sm font-semibold text-navy">Conditions</h2>
+          <p className="whitespace-pre-wrap text-sm text-navy/80">{c.conditions}</p>
+        </Card>
+      )}
 
       <Card className="mb-6 p-6">
         <h2 className="mb-4 text-sm font-semibold text-navy">Comment le montant est calculé</h2>
+        {!c.program && <p className="mb-3 text-sm text-navy/70">{money(c.total_ht)} au total.</p>}
         <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
           <div className="flex gap-3">
             <dt className="w-40 shrink-0 text-muted">Effectif retenu</dt>

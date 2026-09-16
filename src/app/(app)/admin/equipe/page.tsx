@@ -1,0 +1,118 @@
+import Link from 'next/link'
+import { NewUserForm } from '@/components/admin/NewUserForm'
+import { UsersTable, type EquipeRow } from '@/components/admin/UsersTable'
+import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
+import { Tabs } from '@/components/ui/Tabs'
+import { requireRole } from '@/lib/auth'
+import { money } from '@/lib/format'
+import { createServiceClient } from '@/lib/supabase/service'
+import type { AppUser, Employment } from '@/lib/types'
+import { createUserAccount } from '../actions'
+
+interface Fiche {
+  id: string
+  user_id: string | null
+  legal_name: string
+  employment_type: Employment
+  onboarding_complete: boolean
+  phone: string | null
+  contact_email: string | null
+  siret: string | null
+}
+
+export default async function EquipePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onglet?: string; nouveau?: string }>
+}) {
+  const { onglet, nouveau } = await searchParams
+  const me = await requireRole('admin')
+  const db = createServiceClient()
+
+  const [{ data: users }, { data: fiches }, { data: factures }] = await Promise.all([
+    db.from('inv_users').select('*').order('full_name'),
+    db.from('inv_providers').select('id, user_id, legal_name, employment_type, onboarding_complete, phone, contact_email, siret'),
+    db.from('inv_invoices').select('provider_id, total_ttc'),
+  ])
+
+  const parUser = new Map(((fiches ?? []) as Fiche[]).filter((f) => f.user_id).map((f) => [f.user_id!, f]))
+  const rows: EquipeRow[] = ((users ?? []) as (AppUser & { phone: string | null })[]).map((u) => {
+    const f = parUser.get(u.id)
+    return {
+      ...u,
+      phone: u.role === 'prestataire' ? (f?.phone ?? u.phone) : u.phone,
+      providerId: f?.id ?? null,
+      employment: f?.employment_type ?? null,
+      onboarding: f?.onboarding_complete,
+    }
+  })
+  const sansCompte = ((fiches ?? []) as Fiche[]).filter((f) => !f.user_id)
+  const facture = new Map<string, number>()
+  for (const i of factures ?? []) facture.set(i.provider_id, (facture.get(i.provider_id) ?? 0) + Number(i.total_ttc))
+
+  const groupes = {
+    prestataires: rows.filter((r) => r.is_active && r.role === 'prestataire' && r.employment !== 'vacataire' && r.employment !== 'alternant'),
+    salaries: rows.filter((r) => r.is_active && r.role === 'prestataire' && (r.employment === 'vacataire' || r.employment === 'alternant')),
+    equipe: rows.filter((r) => r.is_active && r.role !== 'prestataire'),
+    desactives: rows.filter((r) => !r.is_active),
+  }
+  const courant = onglet === 'fournisseurs' || (onglet && onglet in groupes) ? onglet : 'prestataires'
+
+  return (
+    <>
+      <PageHeader
+        title="Équipe"
+        description="Toutes les personnes : prestataires, salariés, managers, fournisseurs sans compte. Cochez plusieurs lignes pour inviter en une fois."
+        actions={
+          <Link href={`/admin/equipe?onglet=${courant}&nouveau`} className="inline-flex items-center rounded-lg bg-navy px-4 py-2 text-sm font-medium text-cream hover:bg-navy-light">
+            Ajouter une personne
+          </Link>
+        }
+      />
+
+      {nouveau !== undefined && (
+        <div className="mb-6">
+          <NewUserForm action={createUserAccount} />
+        </div>
+      )}
+
+      <Tabs
+        current={courant!}
+        items={[
+          { key: 'prestataires', label: 'Prestataires', href: '/admin/equipe', count: groupes.prestataires.length },
+          { key: 'salaries', label: 'Vacataires et alternants', href: '/admin/equipe?onglet=salaries', count: groupes.salaries.length },
+          { key: 'equipe', label: 'Managers et admins', href: '/admin/equipe?onglet=equipe', count: groupes.equipe.length },
+          { key: 'fournisseurs', label: 'Fournisseurs sans compte', href: '/admin/equipe?onglet=fournisseurs', count: sansCompte.length },
+          { key: 'desactives', label: 'Désactivés', href: '/admin/equipe?onglet=desactives' },
+        ]}
+      />
+
+      {courant === 'fournisseurs' ? (
+        sansCompte.length === 0 ? (
+          <EmptyState
+            title="Aucun fournisseur sans compte"
+            description="Ils sont créés automatiquement à partir des factures diverses déposées ou reçues par email."
+          />
+        ) : (
+          <Card className="divide-y divide-line/60 overflow-hidden">
+            {sansCompte.map((f) => (
+              <Link key={f.id} href={`/admin/prestataires/${f.id}`} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-cream-muted">
+                <span>
+                  <span className="text-sm font-medium text-navy">{f.legal_name}</span>
+                  <span className="block text-xs text-muted">
+                    {[f.siret && `SIRET ${f.siret}`, f.contact_email].filter(Boolean).join(' · ') || '—'}
+                  </span>
+                </span>
+                <span className="text-sm text-navy/70">{money(facture.get(f.id) ?? 0)}</span>
+              </Link>
+            ))}
+          </Card>
+        )
+      ) : groupes[courant as keyof typeof groupes].length === 0 ? (
+        <EmptyState title="Personne ici" />
+      ) : (
+        <UsersTable users={groupes[courant as keyof typeof groupes]} meId={me.id} />
+      )}
+    </>
+  )
+}

@@ -11,15 +11,16 @@
     "e2e": "node --experimental-websocket scripts/e2e.mjs",
     "demo": "node --experimental-websocket scripts/demo.mjs",
     "pennylane-refs": "node --experimental-websocket scripts/pennylane-refs.mjs",
-    "relances": "node --experimental-websocket scripts/relances.mjs",
     "contrats-coaching": "node --experimental-websocket scripts/contrats-coaching.mjs",
     "echeances": "node --experimental-websocket scripts/echeances.mjs",
     "lab-coaching": "node --experimental-websocket scripts/lab-coaching.mjs",
-    "bordereaux": "node --experimental-websocket scripts/bordereaux.mjs",
     "coach-test": "node --experimental-websocket scripts/coach-test.mjs",
     "inviter": "node --experimental-websocket scripts/inviter.mjs",
     "ajuster-effectifs": "node --experimental-websocket scripts/ajuster-effectifs.mjs",
-    "blocages": "node --experimental-websocket scripts/blocages.mjs"
+    "blocages": "node --experimental-websocket scripts/blocages.mjs",
+    "calendrier": "node scripts/calendrier.mjs",
+    "migrer": "node scripts/migrer.mjs",
+    "retirer": "node --experimental-websocket scripts/retirer.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

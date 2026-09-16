@@ -1,4 +1,6 @@
 import { MissionStatusBadge } from '@/components/ui/Badge'
+import { HistoriqueAdmin } from '@/components/prestations/HistoriqueAdmin'
+import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
 import { formatDate, formatPeriod, money } from '@/lib/format'
@@ -20,8 +22,21 @@ interface Row {
   provider: { legal_name: string } | null
 }
 
-export default async function HistoriquePage() {
+export default async function HistoriquePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>
+}) {
   const user = await requireRole('manager', 'admin')
+  if (user.role === 'admin') {
+    return (
+      <>
+        <PageHeader title="Prestations" description="Toutes les prestations, filtrables par mois, prestataire, catégorie et statut." />
+        <PrestationsNav user={user} current="historique" />
+        <HistoriqueAdmin f={await searchParams} />
+      </>
+    )
+  }
   const supabase = await createServerSupabase()
 
   let query = supabase
@@ -38,10 +53,8 @@ export default async function HistoriquePage() {
 
   return (
     <>
-      <PageHeader
-        title="Historique"
-        description="Les prestations que vous avez déjà traitées."
-      />
+      <PageHeader title="Prestations" description="Les prestations que vous avez déjà traitées." />
+      <PrestationsNav user={user} current="historique" />
 
       {rows.length === 0 ? (
         <EmptyState title="Aucune prestation traitée pour l’instant" />

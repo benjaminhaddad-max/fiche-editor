@@ -46,16 +46,20 @@ export default async function ProviderPage({
   return (
     <>
       <Link
-        href="/admin/prestataires"
+        href="/admin/equipe"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-navy"
       >
         <ArrowLeft size={15} />
-        Prestataires
+        Équipe
       </Link>
 
       <PageHeader
         title={provider.legal_name}
-        description={`${provider.user?.full_name ?? ''} · ${provider.user?.email ?? ''}`}
+        description={
+          provider.user
+            ? `${provider.user.full_name} · ${provider.user.email}`
+            : `Fournisseur sans compte${provider.contact_email ? ` · ${provider.contact_email}` : ''}`
+        }
       />
 
       <Card className="mb-6 p-6">

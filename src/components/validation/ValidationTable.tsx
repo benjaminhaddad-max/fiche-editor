@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
-import { approveMission, rejectMission } from '@/app/(app)/validation/actions'
+import { Check, Pencil, X } from 'lucide-react'
+import { approveMission, corrigerMission, rejectMission } from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
 import { formatPeriod, money } from '@/lib/format'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -77,6 +77,7 @@ export function ValidationTable({
   showManager?: boolean
 }) {
   const [rejecting, setRejecting] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [selection, setSelection] = useState<Set<string>>(new Set())
 
   const tousCoches = missions.length > 0 && missions.every((m) => selection.has(m.id))
@@ -175,6 +176,27 @@ export function ValidationTable({
 
                   {m.contract && <ContractBreakdown c={m.contract} />}
 
+                  {editing === m.id && (
+                    <form
+                      action={async (fd) => {
+                        await corrigerMission(fd)
+                        setEditing(null)
+                      }}
+                      className="mt-3 grid gap-2 rounded-lg border border-line bg-cream-muted p-3 sm:grid-cols-[1fr_90px_110px]"
+                    >
+                      <input type="hidden" name="mission_id" value={m.id} />
+                      <input name="detail" defaultValue={m.detail} className="field text-xs" aria-label="Désignation" required minLength={3} />
+                      <input name="quantity" type="number" step="0.25" min="0.25" defaultValue={m.quantity} className="field text-xs" aria-label="Quantité" required />
+                      <input name="unit_amount_ht" type="number" step="0.01" min="0" defaultValue={m.unit_amount_ht} className="field text-xs" aria-label="Prix unitaire HT" required />
+                      <div className="flex gap-2 sm:col-span-3">
+                        <SubmitButton size="sm" pendingLabel="…">Enregistrer la correction</SubmitButton>
+                        <button type="button" onClick={() => setEditing(null)} className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-navy/70 hover:bg-cream-deep">
+                          Annuler
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
                   {rejecting === m.id && (
                     <form action={rejectMission} className="mt-3 flex flex-col gap-2">
                       <input type="hidden" name="mission_id" value={m.id} />
@@ -228,6 +250,14 @@ export function ValidationTable({
                         Valider
                       </button>
                     </form>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(editing === m.id ? null : m.id)}
+                      title="Corriger la quantité ou le montant"
+                      className="inline-flex cursor-pointer items-center rounded-lg border border-line p-1.5 text-navy/70 hover:bg-cream-muted"
+                    >
+                      <Pencil size={14} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => setRejecting(rejecting === m.id ? null : m.id)}

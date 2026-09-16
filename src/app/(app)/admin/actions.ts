@@ -32,6 +32,8 @@ const NewUserSchema = z.object({
   role: z.enum(['prestataire', 'manager', 'admin']),
   password: z.string().min(8, 'Le mot de passe doit faire au moins 8 caractères.'),
   legal_name: z.string().trim().optional(),
+  employment_type: z.enum(['independant', 'vacataire', 'alternant']).default('independant'),
+  phone: z.string().trim().max(30).optional(),
 })
 
 /**
@@ -72,6 +74,7 @@ export async function createUserAccount(
       email: v.email,
       full_name: v.full_name,
       role: v.role,
+      phone: v.phone || null,
     })
     .select('id')
     .single()
@@ -87,6 +90,8 @@ export async function createUserAccount(
       user_id: appUser.id,
       legal_name: v.legal_name!.trim(),
       invoice_prefix: 'FACT',
+      employment_type: v.employment_type,
+      phone: v.phone || null,
     })
     if (providerError) {
       return {
@@ -104,8 +109,7 @@ export async function createUserAccount(
     payload: { role: v.role, email: v.email },
   })
 
-  revalidatePath('/admin/utilisateurs')
-  revalidatePath('/admin/prestataires')
+  revalidatePath('/admin/equipe')
   return { success: `Compte créé pour ${v.email}.` }
 }
 
@@ -118,7 +122,7 @@ export async function toggleUserActive(formData: FormData): Promise<void> {
   const supabase = await createServerSupabase()
   await supabase.from('inv_users').update({ is_active: !active }).eq('id', id)
 
-  revalidatePath('/admin/utilisateurs')
+  revalidatePath('/admin/equipe')
 }
 
 // ============================================================
@@ -136,6 +140,8 @@ const ProviderAdminSchema = z.object({
     .union([z.coerce.number<number>().int().positive(), z.literal('')])
     .transform((v) => (v === '' ? null : v)),
   default_manager_id: z.union([z.uuid(), z.literal('')]).transform((v) => v || null),
+  employment_type: z.enum(['independant', 'vacataire', 'alternant']),
+  phone: z.string().trim().max(30).optional(),
   notes: z.string().trim().max(2000).optional(),
 })
 
@@ -164,7 +170,7 @@ export async function updateProviderAdmin(
     action: 'admin_update',
   })
 
-  revalidatePath('/admin/prestataires')
+  revalidatePath('/admin/equipe')
   revalidatePath(`/admin/prestataires/${provider_id}`)
   return { success: 'Fiche enregistrée.' }
 }
@@ -182,6 +188,7 @@ const CategorySchema = z.object({
     .union([z.coerce.number<number>().int().positive(), z.literal('')])
     .transform((v) => (v === '' ? null : v)),
   sort_order: z.coerce.number<number>().int().min(0).max(999),
+  pole: z.enum(['coaching', 'professeur', 'referent', 'commercial', 'marketing', 'autres']),
   visible_to_provider: z.coerce.boolean<boolean>(),
   is_active: z.coerce.boolean<boolean>(),
 })
@@ -232,4 +239,15 @@ export async function toggleCategoryVisibility(formData: FormData): Promise<void
     .eq('id', id)
 
   revalidatePath('/admin/categories')
+}
+
+/** Numéro du manager, pour les SMS de la messagerie. */
+export async function setUserPhone(formData: FormData): Promise<void> {
+  const admin = await requireRole('admin')
+  const id = String(formData.get('user_id') ?? '')
+  const phone = String(formData.get('phone') ?? '').trim().slice(0, 30) || null
+  if (!id) return
+  await createServiceClient().from('inv_users').update({ phone }).eq('id', id)
+  await logAudit(null, { actorId: admin.id, entityType: 'user', entityId: id, action: 'telephone' })
+  revalidatePath('/admin/equipe')
 }

@@ -8,10 +8,24 @@ export type MissionStatus =
   | 'rejected'
   | 'contested'
   | 'invoiced'
-/** Origine d'une prestation : contrat signé, saisie manager, ou ajout du prestataire. */
-export type MissionOrigin = 'contract' | 'manager' | 'provider'
+/** Origine d'une prestation : contrat, saisie manager, ajout du prestataire, bon de mission. */
+export type MissionOrigin = 'contract' | 'manager' | 'provider' | 'order'
+/** Une prestation, ou un bonus (salariés). */
+export type MissionKind = 'prestation' | 'bonus'
 
-export type InvoiceStatus = 'draft' | 'issued' | 'sent' | 'paid'
+/** Pôle d'activité : organise les onglets et le type des contrats. */
+export type Pole = 'coaching' | 'professeur' | 'referent' | 'commercial' | 'marketing' | 'autres'
+export const POLES: Pole[] = ['coaching', 'professeur', 'referent', 'commercial', 'marketing', 'autres']
+
+/** Un indépendant facture ; un vacataire ou un alternant est payé en salaire. */
+export type Employment = 'independant' | 'vacataire' | 'alternant'
+export const isSalaried = (e: Employment | null | undefined) => e === 'vacataire' || e === 'alternant'
+
+export type OrderStatus = 'sent' | 'accepted' | 'declined' | 'done' | 'cancelled'
+export type ContractRateType = 'forfait' | 'mission' | 'horaire' | 'mensuel'
+
+export type InvoiceStatus = 'draft' | 'issued' | 'sent' | 'validated' | 'paid'
+export type InvoiceKind = 'platform' | 'misc'
 export type VatRegime = 'franchise' | 'normal'
 export type PennylaneStatus = 'not_synced' | 'synced' | 'error'
 /** Origine du PDF : produit par la plateforme, ou déposé par le prestataire. */
@@ -29,7 +43,10 @@ export interface AppUser {
 
 export interface Provider {
   id: string
-  user_id: string
+  /** Absent pour un fournisseur sans compte (facture reçue par email). */
+  user_id: string | null
+  employment_type: Employment
+  contact_email: string | null
   legal_name: string
   legal_form: string | null
   siret: string | null
@@ -64,6 +81,7 @@ export interface Category {
   visible_to_provider: boolean
   is_active: boolean
   sort_order: number
+  pole: Pole
 }
 
 export interface Mission {
@@ -89,7 +107,44 @@ export interface Mission {
   rejection_reason: string | null
   invoice_id: string | null
   origin: MissionOrigin
+  kind: MissionKind
+  declaration_id: string | null
+  order_id: string | null
+  declared_by: string | null
+  statement_id: string | null
   created_at: string
+}
+
+export interface MissionOrder {
+  id: string
+  provider_id: string
+  manager_id: string
+  category_id: string
+  title: string
+  conditions: string | null
+  start_date: string
+  end_date: string
+  pricing_type: PricingType
+  quantity: number
+  unit_amount_ht: number
+  total_ht: number
+  status: OrderStatus
+  responded_at: string | null
+  provider_note: string | null
+  reminded_at: string | null
+  done_at: string | null
+  mission_id: string | null
+  created_at: string
+}
+
+/** Résultat du contrôle d'une facture déposée, par lecture du PDF. */
+export interface AiCheck {
+  checked_at: string
+  expected_ht: number | null
+  read_ht: number | null
+  read_number: string | null
+  matches: boolean | null
+  message: string | null
 }
 
 export interface IssuerSnapshot {
@@ -114,6 +169,12 @@ export interface Invoice {
   provider_id: string
   number: string
   status: InvoiceStatus
+  kind: InvoiceKind
+  validated_at: string | null
+  category_id: string | null
+  description: string | null
+  ai_check: AiCheck | null
+  channel: string | null
   issue_date: string
   due_date: string
   period_start: string | null

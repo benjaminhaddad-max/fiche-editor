@@ -3,89 +3,19 @@
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { notifyStatementCleared, notifyStatementReminder } from '@/lib/email/notify'
-import { createServerSupabase } from '@/lib/supabase/server'
+import { envoyerBordereaux } from '@/lib/bordereaux'
+import { cycleForMonth } from '@/lib/cycle'
+import { notifyStatementReminder } from '@/lib/email/notify'
+import { createServiceClient } from '@/lib/supabase/service'
 
-export interface ArbitrageResult {
-  error?: string
-  success?: string
-}
-
-/**
- * Clôt un bordereau après arbitrage : le prestataire reçoit le feu vert,
- * avec le montant arrêté et la date à laquelle sa facture est attendue.
- *
- * Le total est recalculé ici, à partir des lignes réellement validées :
- * entre l'envoi du bordereau et son arbitrage, des lignes ont pu être
- * ajoutées, refusées ou corrigées.
- */
-export async function cloreBordereau(
-  _prev: ArbitrageResult,
-  formData: FormData
-): Promise<ArbitrageResult> {
-  const user = await requireRole('manager', 'admin')
-  const id = String(formData.get('statement_id') ?? '')
-  const reponse = String(formData.get('reponse') ?? '').trim()
-  const dateAttendue = String(formData.get('invoice_expected_at') ?? '').trim()
-  if (!id) return { error: 'Bordereau introuvable.' }
-
-  const supabase = await createServerSupabase()
-
-  const { data: lignes } = await supabase
-    .from('inv_missions')
-    .select('total_ht, status')
-    .eq('statement_id', id)
-    .eq('status', 'approved')
-
-  const total = (lignes ?? []).reduce((s, l) => s + Number(l.total_ht), 0)
-
-  if (reponse) {
-    const { error } = await supabase.from('inv_statement_replies').insert({
-      statement_id: id,
-      author_id: user.id,
-      message: reponse.slice(0, 2000),
-    })
-    if (error) return { error: `Réponse non enregistrée : ${error.message}` }
-  }
-
-  const { data, error } = await supabase
-    .from('inv_statements')
-    .update({
-      status: 'accepted',
-      accepted_at: new Date().toISOString(),
-      total_ht: total,
-      ...(dateAttendue ? { invoice_expected_at: dateAttendue } : {}),
-    })
-    .eq('id', id)
-    .select('id')
-
-  if (error) return { error: `Clôture impossible : ${error.message}` }
-  if (!data?.length) return { error: 'Ce bordereau n’est plus modifiable.' }
-
-  await logAudit(supabase, {
-    actorId: user.id,
-    entityType: 'invoice',
-    entityId: id,
-    action: 'bordereau_clos',
-    payload: { total, reponse: Boolean(reponse) },
-  })
-
-  await notifyStatementCleared(id, reponse || null)
-
-  revalidatePath('/validation/bordereaux')
-  return { success: 'Bordereau clos. Le prestataire a été prévenu qu’il peut facturer.' }
-}
-
-/** Relance un prestataire dont la facture se fait attendre. */
+/** Relance un prestataire dont la facture se fait attendre : email et SMS. */
 export async function relancer(formData: FormData): Promise<void> {
   const user = await requireRole('manager', 'admin')
   const id = String(formData.get('statement_id') ?? '')
   if (!id) return
 
   const envoye = await notifyStatementReminder(id)
-
-  const supabase = await createServerSupabase()
-  await logAudit(supabase, {
+  await logAudit(null, {
     actorId: user.id,
     entityType: 'invoice',
     entityId: id,
@@ -93,5 +23,28 @@ export async function relancer(formData: FormData): Promise<void> {
   })
 
   revalidatePath('/validation/bordereaux')
-  revalidatePath('/admin/factures')
+}
+
+/**
+ * Envoie les bordereaux d'un mois sans attendre la tâche du 1er : utile pour
+ * rattraper un mois, ou pour ajouter des lignes validées après l'envoi.
+ */
+export async function envoyerMaintenant(formData: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const mois = String(formData.get('mois') ?? '')
+  if (!/^\d{4}-\d{2}$/.test(mois)) return
+
+  const resultat = await envoyerBordereaux(cycleForMonth(mois), user.id)
+  await createServiceClient()
+    .from('inv_cycle_events')
+    .upsert({ cycle_month: mois, event: 'bordereaux', detail: { ...resultat, manuel: user.id } })
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: user.id,
+    action: 'bordereaux_envoyes',
+    payload: { mois, ...resultat },
+  })
+
+  revalidatePath('/validation/bordereaux')
 }

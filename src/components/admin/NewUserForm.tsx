@@ -87,6 +87,20 @@ export function NewUserForm({
         </div>
 
         {role === 'prestataire' && (
+          <Select id="employment_type" name="employment_type" label="Statut" defaultValue="independant">
+            <option value="independant">Indépendant — facture</option>
+            <option value="vacataire">Vacataire — salaire</option>
+            <option value="alternant">Alternant — salaire</option>
+          </Select>
+        )}
+        <Input
+          id="phone"
+          name="phone"
+          label="Téléphone"
+          hint={role === 'prestataire' ? 'Pour les relances SMS.' : 'Pour être prévenu par SMS des messages.'}
+        />
+
+        {role === 'prestataire' && (
           <div className="sm:col-span-2">
             <Input
               id="legal_name"

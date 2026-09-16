@@ -1,158 +1,108 @@
 import Link from 'next/link'
-import { AlertCircle } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
+import { ContractCard } from '@/components/contracts/ContractCard'
+import { NewContractForm } from '@/components/contracts/NewContractForm'
 import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
+import { SubmitButton } from '@/components/ui/SubmitButton'
+import { Tabs } from '@/components/ui/Tabs'
 import { requireRole } from '@/lib/auth'
-import { formatDate, money } from '@/lib/format'
+import { CONTRACT_SELECT, type ContractRow } from '@/lib/contracts'
+import { money } from '@/lib/format'
+import { POLE_LABEL } from '@/lib/labels'
+import { getActiveProviders, getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { POLES, type Pole } from '@/lib/types'
+import { changerStatutContrat } from './actions'
 
-const PROGRAMME: Record<string, string> = {
-  pass_las_lsps: 'PASS / LAS / LSPS',
-  paes: 'PAES',
-  terminale_sante: 'Terminale Santé',
-}
-
-interface Row {
-  id: string
-  program: string
-  academic_year: string
-  headcount: number | null
-  headcount_fixed_at: string | null
-  rate_base_amount: number | null
-  rate_base_headcount: number | null
-  total_ht: number
-  status: string
-  lab_coach_email: string | null
-  provider: { legal_name: string } | null
-  instalments: { id: string; amount_ht: number; due_date: string; mission_id: string | null }[]
-}
-
-export default async function ContractsPage() {
+export default async function ContratsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pole?: string; nouveau?: string; archives?: string }>
+}) {
+  const { pole, nouveau, archives } = await searchParams
   await requireRole('admin')
   const supabase = await createServerSupabase()
+  const [{ data }, providers, managers] = await Promise.all([
+    supabase.from('inv_coaching_contracts').select(CONTRACT_SELECT).order('created_at', { ascending: false }),
+    getActiveProviders(),
+    getManagers(),
+  ])
+  const tous = (data ?? []) as unknown as ContractRow[]
+  const courant = (POLES as string[]).includes(pole ?? '') ? (pole as Pole) : 'tous'
+  const actifs = tous.filter((c) => (archives !== undefined ? true : c.status === 'active' || c.status === 'draft'))
+  const liste = courant === 'tous' ? actifs : actifs.filter((c) => c.contract_type === courant)
 
-  const { data } = await supabase
-    .from('inv_coaching_contracts')
-    .select(
-      `id, program, academic_year, headcount, headcount_fixed_at, rate_base_amount,
-       rate_base_headcount, total_ht, status, lab_coach_email,
-       provider:inv_providers(legal_name),
-       instalments:inv_contract_instalments(id, amount_ht, due_date, mission_id)`
-    )
-    .order('total_ht', { ascending: false })
-
-  const contracts = (data ?? []) as unknown as Row[]
-  const total = contracts.reduce((s, c) => s + Number(c.total_ht), 0)
-  const ouvertes = contracts.flatMap((c) => c.instalments).filter((i) => i.mission_id)
-  const aVenir = contracts.flatMap((c) => c.instalments).filter((i) => !i.mission_id)
+  const echeances = liste.flatMap((c) => c.instalments ?? [])
+  const lien = (p: string, extra = '') => `/admin/contrats?${p !== 'tous' ? `pole=${p}&` : ''}${extra}`
 
   return (
     <>
       <PageHeader
-        title="Contrats de coaching"
-        description="Chaque contrat fige l'effectif au moment de sa signature et son échéancier."
+        title="Contrats"
+        description="Tous les contrats, pôle par pôle : coaching, professeurs, référents pédagogiques, commercial, marketing, autres."
+        actions={
+          <Link href={lien(courant, 'nouveau')} className="inline-flex items-center rounded-lg bg-navy px-4 py-2 text-sm font-medium text-cream hover:bg-navy-light">
+            Nouveau contrat
+          </Link>
+        }
       />
 
+      <Tabs
+        current={courant}
+        items={[
+          { key: 'tous', label: 'Tous', href: '/admin/contrats', count: tous.filter((c) => c.status === 'active').length },
+          ...POLES.map((p) => ({
+            key: p,
+            label: POLE_LABEL[p],
+            href: `/admin/contrats?pole=${p}`,
+            count: tous.filter((c) => c.contract_type === p && c.status === 'active').length,
+          })),
+        ]}
+      />
+
+      {nouveau !== undefined && (
+        <Card className="mb-6 p-5">
+          <NewContractForm providers={providers} managers={managers} defaultPole={courant === 'tous' ? 'professeur' : courant} />
+        </Card>
+      )}
+
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatTile label="Engagé sur l'année" value={money(total)} sub={`${contracts.length} contrat(s)`} accent="brand" />
-        <StatTile
-          label="Échéances ouvertes"
-          value={money(ouvertes.reduce((s, i) => s + Number(i.amount_ht), 0))}
-          sub={`${ouvertes.length} déjà facturables`}
-          accent="emerald"
-        />
-        <StatTile
-          label="Reste à venir"
-          value={money(aVenir.reduce((s, i) => s + Number(i.amount_ht), 0))}
-          sub={`${aVenir.length} échéance(s)`}
-        />
+        <StatTile label="Engagé (forfaits)" value={money(liste.reduce((s, c) => s + Number(c.total_ht), 0))} sub={`${liste.length} contrat(s)`} accent="brand" />
+        <StatTile label="Échéances ouvertes" value={money(echeances.filter((e) => e.mission_id).reduce((s, e) => s + Number(e.amount_ht), 0))} accent="emerald" />
+        <StatTile label="Reste à venir" value={money(echeances.filter((e) => !e.mission_id).reduce((s, e) => s + Number(e.amount_ht), 0))} />
       </div>
 
-      {contracts.length === 0 ? (
-        <EmptyState
-          title="Aucun contrat de coaching"
-          description="Les contrats se créent depuis Diploma Lab avec npm run contrats-coaching."
-        />
-      ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Coach</th>
-                  <th className="px-4 py-3 font-medium">Programme</th>
-                  <th className="px-4 py-3 text-right font-medium">Effectif</th>
-                  <th className="px-4 py-3 font-medium">Barème</th>
-                  <th className="px-4 py-3 text-right font-medium">Total année</th>
-                  <th className="px-4 py-3 font-medium">Échéances</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/60">
-                {contracts.map((c) => {
-                  const attendu =
-                    c.rate_base_amount && c.rate_base_headcount && c.headcount
-                      ? Math.round((Number(c.rate_base_amount) * c.headcount) / c.rate_base_headcount * 100) / 100 * 2
-                      : null
-                  const ecart = attendu !== null && Math.abs(attendu - Number(c.total_ht)) > 0.01
-                  const faites = c.instalments.filter((i) => i.mission_id).length
+      <p className="mb-3 text-right text-xs">
+        <Link href={archives !== undefined ? lien(courant) : lien(courant, 'archives')} className="text-gold-dark hover:underline">
+          {archives !== undefined ? 'Masquer les contrats terminés' : 'Afficher aussi les contrats terminés'}
+        </Link>
+      </p>
 
-                  return (
-                    <tr key={c.id} className="align-top hover:bg-cream-muted">
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/admin/contrats/${c.id}`}
-                          className="font-medium text-gold-dark hover:underline"
-                        >
-                          {c.provider?.legal_name}
-                        </Link>
-                        {c.lab_coach_email && (
-                          <p className="text-xs text-stone">{c.lab_coach_email}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-navy/70">
-                        {PROGRAMME[c.program] ?? c.program}
-                        <span className="block text-xs text-stone">{c.academic_year}</span>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <span className="font-semibold text-navy">{c.headcount ?? '—'}</span>
-                        {c.headcount_fixed_at && (
-                          <span className="block text-xs text-stone">
-                            figé le {formatDate(c.headcount_fixed_at)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">
-                        {c.rate_base_amount
-                          ? `${money(c.rate_base_amount)} / ${c.rate_base_headcount} élèves / semestre`
-                          : 'forfait'}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <span className="font-semibold text-navy">{money(c.total_ht)}</span>
-                        {ecart && (
-                          <span className="mt-0.5 flex items-center justify-end gap-1 text-xs text-amber-600">
-                            <AlertCircle size={11} />
-                            calcul : {money(attendu!)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <Badge
-                          className={
-                            faites === c.instalments.length
-                              ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                              : 'bg-cream-deep text-navy/70 ring-line'
-                          }
-                        >
-                          {faites} / {c.instalments.length} ouvertes
-                        </Badge>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+      {liste.length === 0 ? (
+        <EmptyState title="Aucun contrat ici" description="Créez-en un avec « Nouveau contrat »." />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {liste.map((c) => (
+            <ContractCard
+              key={c.id}
+              c={c}
+              showProvider
+              footer={
+                <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+                  <Link href={`/admin/contrats/${c.id}`} className="mr-auto font-medium text-gold-dark hover:underline">
+                    Détail et échéancier
+                  </Link>
+                  <form action={changerStatutContrat}>
+                    <input type="hidden" name="contract_id" value={c.id} />
+                    <input type="hidden" name="status" value={c.status === 'active' ? 'ended' : 'active'} />
+                    <SubmitButton size="sm" variant="ghost" pendingLabel="…">
+                      {c.status === 'active' ? 'Terminer le contrat' : 'Réactiver'}
+                    </SubmitButton>
+                  </form>
+                </div>
+              }
+            />
+          ))}
+        </div>
       )}
     </>
   )
