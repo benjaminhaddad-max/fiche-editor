@@ -1,7 +1,6 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { homePathFor } from '@/lib/auth'
@@ -16,19 +15,29 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { sendInvitation } from '@/lib/email/notify'
 import { revalidatePath } from 'next/cache'
 
+export interface SessionSwitch {
+  tokenHash?: string
+  destination?: string
+  error?: string
+}
+
 /**
- * Ouvre une session sur le compte d'un autre utilisateur, pour voir la
- * plateforme exactement comme lui.
+ * Prépare la prise de main sur le compte d'un autre utilisateur.
  *
  * Réservé aux administrateurs, tracé dans le journal d'audit, et signalé
- * par un bandeau permanent — on ne doit jamais oublier qu'on n'est pas
- * chez soi. Impossible de viser un autre administrateur : ça éviterait de
- * contourner une désactivation.
+ * par un bandeau permanent. Impossible de viser un autre administrateur :
+ * ça permettrait de contourner une désactivation.
+ *
+ * Le serveur ne change PAS la session lui-même : il renvoie un jeton à usage
+ * unique que le navigateur échange. Changer de session dans l'action puis
+ * rediriger faisait afficher la page suivante avec l'ancienne session — la
+ * prise de main semblait ne rien faire, et « Quitter ce compte » laissait
+ * sur le compte visité. Le navigateur, lui, écrit ses cookies avant de
+ * recharger : c'est ce que fait déjà la page d'invitation, sans histoire.
  */
-export async function impersonate(formData: FormData): Promise<void> {
+export async function prepareImpersonation(userId: string): Promise<SessionSwitch> {
   const admin = await requireRole('admin')
-  const userId = String(formData.get('user_id') ?? '')
-  if (!userId || userId === admin.id) return
+  if (!userId || userId === admin.id) return { error: 'Compte invalide.' }
 
   const service = createServiceClient()
   const { data: cible } = await service
@@ -37,34 +46,17 @@ export async function impersonate(formData: FormData): Promise<void> {
     .eq('id', userId)
     .maybeSingle()
 
-  if (!cible || !cible.is_active || cible.role === 'admin') return
+  if (!cible || !cible.is_active || cible.role === 'admin') {
+    return { error: 'Ce compte ne peut pas être ouvert.' }
+  }
 
-  // On passe par un lien magique à usage unique plutôt que par le mot de
-  // passe : l'administrateur n'a jamais à le connaître.
   const { data: link, error } = await service.auth.admin.generateLink({
     type: 'magiclink',
     email: cible.email,
   })
   if (error || !link?.properties?.hashed_token) {
     console.error('[impersonate]', error?.message)
-    return
-  }
-
-  const supabase = await createServerSupabase()
-
-  // On ferme d'abord la session administrateur : sans ça, la vérification
-  // peut s'appliquer par-dessus une session résiduelle et viser le mauvais
-  // compte. Portée locale : on ne déconnecte que ce navigateur, pas les
-  // autres appareils de l'administrateur.
-  await supabase.auth.signOut({ scope: 'local' })
-
-  const { error: otpError } = await supabase.auth.verifyOtp({
-    token_hash: link.properties.hashed_token,
-    type: 'magiclink',
-  })
-  if (otpError) {
-    console.error('[impersonate:verify]', otpError.message)
-    return
+    return { error: 'Impossible d’ouvrir ce compte. Réessayez.' }
   }
 
   const store = await cookies()
@@ -93,35 +85,27 @@ export async function impersonate(formData: FormData): Promise<void> {
     payload: { email: cible.email, role: cible.role },
   })
 
-  redirect(homePathFor(cible.role))
+  return { tokenHash: link.properties.hashed_token, destination: homePathFor(cible.role) }
 }
 
 /**
- * Quitte le compte visité et rend sa session à l'administrateur.
+ * Prépare le retour de l'administrateur sur son propre compte.
  *
- * Avant, on se contentait de déconnecter : l'administrateur se retrouvait
- * sur l'écran de connexion et devait retaper son mot de passe. On rouvre
- * maintenant sa session, mais seulement si le cookie signé le désigne, si
- * la session en cours est bien celle du compte visité, et s'il est toujours
- * administrateur actif.
+ * Le jeton n'est rendu que si le cookie signé le désigne, si la session en
+ * cours est bien celle du compte visité, et s'il est toujours
+ * administrateur actif. Sinon, pas de jeton : le navigateur se déconnecte.
  */
-export async function stopImpersonation(): Promise<void> {
+export async function prepareStopImpersonation(): Promise<SessionSwitch> {
   const prise = await readImpersonation()
+  const store = await cookies()
+  store.delete(IMPERSONATION_COOKIE)
+  if (!prise) return {}
+
   const supabase = await createServerSupabase()
   const service = createServiceClient()
-
   const {
     data: { user: courant },
   } = await supabase.auth.getUser()
-
-  // Portée locale : le compte visité ne doit pas être déconnecté de ses
-  // propres appareils parce qu'un administrateur quitte le sien.
-  await supabase.auth.signOut({ scope: 'local' })
-
-  const store = await cookies()
-  store.delete(IMPERSONATION_COOKIE)
-
-  if (!prise) redirect('/login')
 
   const [{ data: cible }, { data: admin }] = await Promise.all([
     service.from('inv_users').select('auth_id').eq('id', prise.targetId).maybeSingle(),
@@ -133,12 +117,11 @@ export async function stopImpersonation(): Promise<void> {
   ])
 
   const coherent =
-    courant?.id !== undefined &&
-    cible?.auth_id === courant.id &&
+    Boolean(courant?.id) &&
+    cible?.auth_id === courant?.id &&
     admin?.role === 'admin' &&
     admin.is_active
-
-  if (!coherent || !admin) redirect('/login')
+  if (!coherent || !admin) return {}
 
   const { data: link, error } = await service.auth.admin.generateLink({
     type: 'magiclink',
@@ -146,16 +129,7 @@ export async function stopImpersonation(): Promise<void> {
   })
   if (error || !link?.properties?.hashed_token) {
     console.error('[stopImpersonation]', error?.message)
-    redirect('/login')
-  }
-
-  const { error: otpError } = await supabase.auth.verifyOtp({
-    token_hash: link.properties.hashed_token,
-    type: 'magiclink',
-  })
-  if (otpError) {
-    console.error('[stopImpersonation:verify]', otpError.message)
-    redirect('/login')
+    return {}
   }
 
   await logAudit(service, {
@@ -165,7 +139,7 @@ export async function stopImpersonation(): Promise<void> {
     action: 'impersonate_stop',
   })
 
-  redirect('/admin/utilisateurs')
+  return { tokenHash: link.properties.hashed_token, destination: '/admin/utilisateurs' }
 }
 
 /**

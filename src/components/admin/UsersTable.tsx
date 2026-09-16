@@ -8,7 +8,8 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { formatDate } from '@/lib/format'
 import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
-import { impersonate, inviteUsers } from '@/app/(app)/admin/utilisateurs/actions'
+import { inviteUsers } from '@/app/(app)/admin/utilisateurs/actions'
+import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
 import { toggleUserActive } from '@/app/(app)/admin/actions'
 
 const ROLE_STYLE: Record<string, string> = {
@@ -136,16 +137,7 @@ export function UsersTable({ users, meId }: { users: AppUser[]; meId: string }) 
                             </form>
                           )}
                           {u.is_active && u.role !== 'admin' && (
-                            <form action={impersonate}>
-                              <input type="hidden" name="user_id" value={u.id} />
-                              <button
-                                type="submit"
-                                title="Voir la plateforme comme cette personne"
-                                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-gold-dark hover:bg-gold/10"
-                              >
-                                Se connecter en tant que
-                              </button>
-                            </form>
+                            <ImpersonateButton userId={u.id} />
                           )}
                           <form action={toggleUserActive}>
                             <input type="hidden" name="user_id" value={u.id} />
