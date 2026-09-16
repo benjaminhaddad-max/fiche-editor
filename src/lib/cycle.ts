@@ -8,7 +8,9 @@
  *   L+1 (le 1er)         le bordereau global part à chaque prestataire,
  *                        toutes les missions de tous les pôles réunies
  *   jusqu'à L+2 (le 2)   le prestataire génère ou dépose sa facture
- *   L+3 (le 3)           paiement, une fois toutes les factures reçues
+ *   L+3 (le 3)           paiement, une fois toutes les factures reçues ;
+ *                        un samedi, un dimanche ou un jour férié le
+ *                        reportent au premier jour ouvré suivant
  *
  * Jours calendaires, week-ends compris. Toutes les dates sont calculées en
  * UTC : un fuseau négatif ferait glisser une date d'un jour.
@@ -63,6 +65,52 @@ function parse(date: string | Date): Date {
   return typeof date === 'string' ? new Date(`${date.slice(0, 10)}T12:00:00Z`) : date
 }
 
+/** Dimanche de Pâques (algorithme de Meeus), en UTC. */
+function paques(year: number): Date {
+  const a = year % 19
+  const b = Math.floor(year / 100)
+  const c = year % 100
+  const d = Math.floor(b / 4)
+  const e = b % 4
+  const f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4)
+  const k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const month = Math.floor((h + l - 7 * m + 114) / 31)
+  const day = ((h + l - 7 * m + 114) % 31) + 1
+  return utc(year, month - 1, day)
+}
+
+/** Jours fériés légaux en métropole. */
+export function joursFeries(year: number): Set<string> {
+  const p = paques(year)
+  return new Set([
+    iso(utc(year, 0, 1)),
+    iso(addDays(p, 1)), // lundi de Pâques
+    iso(utc(year, 4, 1)),
+    iso(utc(year, 4, 8)),
+    iso(addDays(p, 39)), // Ascension
+    iso(addDays(p, 50)), // lundi de Pentecôte
+    iso(utc(year, 6, 14)),
+    iso(utc(year, 7, 15)),
+    iso(utc(year, 10, 1)),
+    iso(utc(year, 10, 11)),
+    iso(utc(year, 11, 25)),
+  ])
+}
+
+/** Le jour même s'il est ouvré, sinon le premier jour ouvré qui suit. */
+export function premierJourOuvre(d: Date): Date {
+  let out = d
+  while (out.getUTCDay() === 0 || out.getUTCDay() === 6 || joursFeries(out.getUTCFullYear()).has(iso(out))) {
+    out = addDays(out, 1)
+  }
+  return out
+}
+
 /** Aujourd'hui, à Paris : le changement de jour doit suivre l'heure française. */
 export function todayParis(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date())
@@ -72,7 +120,7 @@ export function todayParis(): string {
 export function billingCycle(year: number, month: number): BillingCycle {
   const last = utc(year, month + 1, 0)
   const statement = addDays(last, 1)
-  const payment = addDays(last, 1 + INVOICE_DAYS)
+  const payment = premierJourOuvre(addDays(last, 1 + INVOICE_DAYS))
 
   return {
     month: `${year}-${String(month + 1).padStart(2, '0')}`,
