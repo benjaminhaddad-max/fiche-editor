@@ -96,7 +96,20 @@ export default async function InvoicesPage() {
                       {money(inv.total_ttc)}
                     </td>
                     <td className="px-4 py-3">
-                      <InvoiceStatusBadge status={inv.status} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <InvoiceStatusBadge status={inv.status} />
+                        {/* « Émise » se lit comme « terminé ». Trois coachs se
+                            sont arrêtées là sans jamais l'envoyer : l'étape
+                            suivante doit se voir depuis la liste. */}
+                        {inv.status === 'issued' && (
+                          <Link
+                            href={`/factures/${inv.id}`}
+                            className="whitespace-nowrap text-xs font-medium text-gold-dark hover:underline"
+                          >
+                            À envoyer à Diploma Santé →
+                          </Link>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <a
