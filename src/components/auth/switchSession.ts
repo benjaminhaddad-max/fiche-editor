@@ -16,6 +16,7 @@ export async function switchSession(prep: SessionSwitch): Promise<string | null>
   await supabase.auth.signOut({ scope: 'local' })
 
   if (!prep.tokenHash) {
+    if (prep.refus) console.warn('[retour admin refusé]', prep.refus)
     window.location.assign('/login')
     return null
   }
@@ -25,6 +26,7 @@ export async function switchSession(prep: SessionSwitch): Promise<string | null>
     type: 'magiclink',
   })
   if (error) {
+    console.warn('[échange de session]', error.message)
     window.location.assign('/login')
     return null
   }

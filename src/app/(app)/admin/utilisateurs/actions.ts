@@ -19,6 +19,8 @@ export interface SessionSwitch {
   tokenHash?: string
   destination?: string
   error?: string
+  /** Pourquoi le retour à l'administrateur a été refusé. */
+  refus?: string
 }
 
 /**
@@ -96,16 +98,40 @@ export async function prepareImpersonation(userId: string): Promise<SessionSwitc
  * administrateur actif. Sinon, pas de jeton : le navigateur se déconnecte.
  */
 export async function prepareStopImpersonation(): Promise<SessionSwitch> {
-  const prise = await readImpersonation()
   const store = await cookies()
+  const brut = store.get(IMPERSONATION_COOKIE)?.value
+  const prise = await readImpersonation()
   store.delete(IMPERSONATION_COOKIE)
-  if (!prise) return {}
 
   const supabase = await createServerSupabase()
   const service = createServiceClient()
   const {
     data: { user: courant },
+    error: erreurSession,
   } = await supabase.auth.getUser()
+
+  // Un refus renvoie à l'écran de connexion : on en garde le motif exact,
+  // sans quoi on ne peut que deviner lequel des contrôles a bloqué.
+  const refuser = async (raison: string, detail: Record<string, unknown> = {}) => {
+    console.warn('[stopImpersonation] refus :', raison, detail)
+    if (prise?.adminId) {
+      await logAudit(service, {
+        actorId: prise.adminId,
+        entityType: 'user',
+        entityId: prise.targetId,
+        action: 'impersonate_stop_refused',
+        payload: { raison, ...detail },
+      })
+    }
+    return { refus: raison }
+  }
+
+  if (!prise) {
+    return refuser(brut ? 'cookie illisible' : 'cookie absent', {
+      longueur: brut?.length ?? 0,
+    })
+  }
+  if (!courant) return refuser('aucune session en cours', { erreur: erreurSession?.message })
 
   const [{ data: cible }, { data: admin }] = await Promise.all([
     service.from('inv_users').select('auth_id').eq('id', prise.targetId).maybeSingle(),
@@ -116,20 +142,22 @@ export async function prepareStopImpersonation(): Promise<SessionSwitch> {
       .maybeSingle(),
   ])
 
-  const coherent =
-    Boolean(courant?.id) &&
-    cible?.auth_id === courant?.id &&
-    admin?.role === 'admin' &&
-    admin.is_active
-  if (!coherent || !admin) return {}
+  if (cible?.auth_id !== courant.id) {
+    return refuser('la session n’est pas celle du compte visité', {
+      session: courant.id,
+      attendu: cible?.auth_id ?? null,
+    })
+  }
+  if (!admin || admin.role !== 'admin' || !admin.is_active) {
+    return refuser('administrateur introuvable ou inactif')
+  }
 
   const { data: link, error } = await service.auth.admin.generateLink({
     type: 'magiclink',
     email: admin.email,
   })
   if (error || !link?.properties?.hashed_token) {
-    console.error('[stopImpersonation]', error?.message)
-    return {}
+    return refuser('lien de retour impossible', { erreur: error?.message })
   }
 
   await logAudit(service, {
