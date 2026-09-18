@@ -7,14 +7,16 @@ import { requireRole } from '@/lib/auth'
 import { activeCycle, cycleForDate, todayParis } from '@/lib/cycle'
 import { formatDateLong } from '@/lib/format'
 import { getActiveProviders, getCategoriesWithPole, getManagers } from '@/lib/queries'
+import { baremesParPrestataire } from '@/lib/contracts/baremes'
 import { declarer } from '../../declarations/actions'
 
 export default async function DeclarerPourPage() {
   const user = await requireRole('manager', 'admin')
-  const [categories, managers, providers] = await Promise.all([
+  const [categories, managers, providers, tarifs] = await Promise.all([
     getCategoriesWithPole(),
     getManagers(),
     getActiveProviders(),
+    baremesParPrestataire(),
   ])
   const today = todayParis()
   const mois = cycleForDate(today)
@@ -41,6 +43,7 @@ export default async function DeclarerPourPage() {
         categories={categories}
         managers={managers}
         providers={providers}
+        tarifs={tarifs}
         defaultManagerId={user.id}
         today={today}
         deadlineText={texte}

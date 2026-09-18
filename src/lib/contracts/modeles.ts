@@ -1,4 +1,5 @@
 import { grilleEnTexte } from '@/lib/contracts/commissions'
+import { BAREMES_ENREGISTREMENT, bareme } from '@/lib/contracts/enregistrement'
 import { COMPANY } from '@/lib/types'
 import type { Employment, Pole } from '@/lib/types'
 
@@ -25,6 +26,10 @@ export interface CorpsContrat {
 }
 
 export interface Parametres {
+  /** Barème retenu, pour les modèles qui en proposent plusieurs. */
+  bareme?: string | null
+  /** Fac ou campus de rattachement, pour les enregistrements. */
+  lieu?: string | null
   nom: string
   email: string
   telephone: string | null
@@ -37,6 +42,10 @@ export interface Parametres {
 }
 
 export interface Modele {
+  /** Le modèle demande de choisir un barème (enregistrement). */
+  baremes?: { cle: string; nom: string; resume: string }[]
+  /** Le modèle demande un lieu (fac, campus). */
+  demandeLieu?: boolean
   cle: string
   nom: string
   pole: Pole
@@ -295,5 +304,61 @@ export const MODELES: Modele[] = [
     }),
   },
 ]
+
+MODELES.push({
+  cle: 'enregistrement',
+  nom: 'Enregistrement de cours',
+  pole: 'enregistrement',
+  employment: 'independant',
+  rateType: 'mission',
+  rateAmount: 25,
+  monthlyAuto: false,
+  signable: true,
+  demandeLieu: true,
+  baremes: BAREMES_ENREGISTREMENT.map((b) => ({ cle: b.cle, nom: b.nom, resume: b.resume })),
+  resume: 'Vacation à la durée : 25 à 70 € selon le barème et la fac',
+  corps: (p) => {
+    const b = bareme(p.bareme) ?? BAREMES_ENREGISTREMENT[0]
+    return {
+      intitule: `Contrat de prestation — enregistrement de cours${p.lieu ? ` (${p.lieu})` : ''}`,
+      profil: 'Enregistreur de cours',
+      resume: [
+        `Rémunération : ${b.resume}.`,
+        p.lieu ? `Fac de rattachement : ${p.lieu}.` : 'Fac de rattachement à préciser.',
+        `Début : ${dateFr(p.debut)}${p.fin ? ` — fin : ${dateFr(p.fin)}.` : ' — sans terme fixé.'}`,
+      ],
+      articles: [
+        entete(p),
+        {
+          titre: 'Objet',
+          texte:
+            'Le prestataire enregistre les cours dispensés à la faculté' +
+            (p.lieu ? ` (${p.lieu})` : '') +
+            ', selon le planning communiqué par ' +
+            `${COMPANY.name}. Il veille à la qualité du son et de l’image, et transmet les fichiers dans les délais convenus.`,
+        },
+        {
+          titre: 'Rémunération',
+          texte:
+            `Chaque vacation est rémunérée selon la durée effective : ${b.resume}. Ces montants s’entendent hors ` +
+            'prime de fiabilité et hors missions de renfort ou de remplacement, qui font l’objet d’un accord ' +
+            'particulier. Les frais de transport pris en charge, le cas échéant, sont précisés ci-dessous.',
+        },
+        FACTURATION,
+        INDEPENDANCE,
+        CONFIDENTIALITE,
+        {
+          titre: 'Droits sur les enregistrements',
+          texte:
+            `Les enregistrements réalisés dans ce cadre sont la propriété de ${COMPANY.name}, qui en dispose ` +
+            'librement pour ses formations. Le prestataire s’interdit d’en conserver ou d’en diffuser copie.',
+        },
+        resiliation('huit jours'),
+        LITIGES,
+        ...(p.precisions ? [{ titre: 'Dispositions particulières', texte: p.precisions }] : []),
+      ],
+    }
+  },
+})
 
 export const modele = (cle: string | null | undefined) => MODELES.find((m) => m.cle === cle)

@@ -89,6 +89,17 @@ export function ModeleContractForm({
           key={cle}
           hint="Laissez le montant du modèle, ou ajustez-le pour cette personne."
         />
+        {m.baremes && (
+          <Select id="bareme" name="bareme" label="Barème" defaultValue={m.baremes[0].cle} key={`b-${cle}`}>
+            {m.baremes.map((b) => (
+              <option key={b.cle} value={b.cle}>
+                {b.nom} — {b.resume}
+              </option>
+            ))}
+          </Select>
+        )}
+        {m.demandeLieu && <Input id="lieu" name="lieu" label="Fac ou campus" placeholder="Ex : UPEC L2" />}
+
         <div className="sm:col-span-2">
           <Textarea
             id="precisions"

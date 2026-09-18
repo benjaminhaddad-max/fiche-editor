@@ -178,6 +178,8 @@ const DepuisModele = z
     end_date: z.union([z.iso.date(), z.literal('')]).optional(),
     rate_amount: z.union([z.coerce.number<number>().nonnegative(), z.literal('')]).optional(),
     precisions: z.string().trim().max(3000).optional(),
+    bareme: z.string().trim().max(40).optional(),
+    lieu: z.string().trim().max(80).optional(),
     envoyer: z.enum(['oui', 'non']).default('oui'),
   })
   .refine((v) => v.provider_id !== 'nouveau' || (v.new_name && v.new_email), {
@@ -227,6 +229,8 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
 
   const montant = v.rate_amount === '' || v.rate_amount === undefined ? m.rateAmount : Number(v.rate_amount)
   const corps = composer(v.profile, {
+    bareme: v.bareme || null,
+    lieu: v.lieu || null,
     nom: compte?.full_name ?? fiche.legal_name,
     email: compte?.email ?? '',
     telephone: fiche.phone ?? compte?.phone ?? null,
@@ -255,8 +259,9 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
       manager_id: v.manager_id || user.id,
       category_id: categorie?.id ?? null,
       contract_type: m.pole,
-      profile: m.cle,
+      profile: v.bareme ? `${m.cle}_${v.bareme}` : m.cle,
       title: corps.intitule,
+      academic_year: null,
       start_date: v.start_date,
       end_date: v.end_date || null,
       rate_type: m.rateType,

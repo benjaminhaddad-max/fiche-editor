@@ -27,8 +27,15 @@ interface Ligne {
   unit_amount_ht: string
 }
 
+export interface TarifPersonne {
+  resume: string
+  paliers: { label: string; montant: number }[]
+}
+
 interface Props {
   action: (prev: DeclarationResult, fd: FormData) => Promise<DeclarationResult>
+  /** Barèmes négociés, par prestataire : évite de retaper les montants. */
+  tarifs?: Record<string, TarifPersonne>
   mode: 'prestataire' | 'manager' | 'admin'
   categories: DeclCategory[]
   managers: { id: string; full_name: string }[]
@@ -51,6 +58,7 @@ export function DeclarationForm(props: Props) {
       ? (props.employment ?? 'independant')
       : (providers?.find((p) => p.id === providerId)?.employment ?? 'independant')
   const salarie = employment !== 'independant'
+  const tarif = mode === 'prestataire' ? props.tarifs?.['moi'] : props.tarifs?.[providerId]
 
   const categorieParDefaut =
     categories.find((c) => c.pole === props.defaultPole)?.id ?? ''
@@ -150,6 +158,11 @@ export function DeclarationForm(props: Props) {
           )}
         </div>
         <p className="mt-3 text-xs text-muted">{props.deadlineText}</p>
+        {tarif && (
+          <p className="mt-1 text-xs text-navy/70">
+            Barème négocié : <strong>{tarif.resume}</strong>. Les boutons sous le prix remplissent le montant.
+          </p>
+        )}
       </Card>
 
       <Card className="overflow-hidden">
@@ -273,6 +286,27 @@ export function DeclarationForm(props: Props) {
                       <p className="mt-0.5 text-[11px] text-muted">
                         {l.kind === 'bonus' ? '€' : l.pricing_type === 'forfait_horaire' ? '€ / heure' : '€ / mission'}
                       </p>
+                      {tarif && l.kind !== 'bonus' && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {tarif.paliers.map((pal) => (
+                            <button
+                              key={pal.label}
+                              type="button"
+                              title={`${pal.label} — ${money(pal.montant)}`}
+                              onClick={() =>
+                                maj(l.cle, {
+                                  unit_amount_ht: String(pal.montant),
+                                  quantity: '1',
+                                  detail: l.detail || pal.label,
+                                })
+                              }
+                              className="cursor-pointer rounded border border-line bg-white px-1.5 py-0.5 text-[11px] text-navy/70 hover:border-gold hover:bg-gold/10"
+                            >
+                              {pal.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 pt-4 text-right font-semibold text-navy">
                       {money(ligneTotal)}

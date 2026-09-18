@@ -14,8 +14,24 @@ export type MissionOrigin = 'contract' | 'manager' | 'provider' | 'order'
 export type MissionKind = 'prestation' | 'bonus'
 
 /** Pôle d'activité : organise les onglets et le type des contrats. */
-export type Pole = 'coaching' | 'professeur' | 'referent' | 'commercial' | 'marketing' | 'autres'
-export const POLES: Pole[] = ['coaching', 'professeur', 'referent', 'commercial', 'marketing', 'autres']
+export type Pole =
+  | 'coaching'
+  | 'professeur'
+  | 'referent'
+  | 'enregistrement'
+  | 'commercial'
+  | 'marketing'
+  | 'autres'
+
+export const POLES: Pole[] = [
+  'coaching',
+  'professeur',
+  'referent',
+  'enregistrement',
+  'commercial',
+  'marketing',
+  'autres',
+]
 
 /** Un indépendant facture ; tous les autres statuts sont payés en salaire. */
 export type Employment =
