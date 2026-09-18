@@ -5,6 +5,7 @@ import { Card, PageHeader } from '@/components/ui/Page'
 import { ProviderAdminForm } from '@/components/admin/ProviderAdminForm'
 import { requireRole } from '@/lib/auth'
 import { getManagers } from '@/lib/queries'
+import { formaterIban, ibanValide } from '@/lib/iban'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Provider } from '@/lib/types'
 import { updateProviderAdmin } from '../../actions'
@@ -39,7 +40,12 @@ export default async function ProviderPage({
         .filter(Boolean)
         .join(', ') || null,
     ],
-    ['IBAN', provider.iban],
+    [
+      'IBAN',
+      provider.iban
+        ? `${formaterIban(provider.iban)}${ibanValide(provider.iban) ? '' : ' — clé de contrôle fausse, à faire corriger'}`
+        : null,
+    ],
     ['Téléphone', provider.phone],
   ]
 
@@ -70,7 +76,11 @@ export default async function ProviderPage({
           {identity.map(([label, value]) => (
             <div key={label} className="flex gap-3">
               <dt className="w-32 shrink-0 text-muted">{label}</dt>
-              <dd className={value ? 'text-navy' : 'text-amber-600'}>
+              <dd
+                className={
+                  !value || (label === 'IBAN' && !ibanValide(provider.iban)) ? 'text-amber-600' : 'text-navy'
+                }
+              >
                 {value ?? 'non renseigné'}
               </dd>
             </div>

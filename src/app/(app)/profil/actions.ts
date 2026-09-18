@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { requireProvider } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { ibanValide, normaliserIban } from '@/lib/iban'
 
 export interface ProfileResult {
   error?: string
@@ -57,8 +58,10 @@ const ProfileSchema = z
       z
         .string()
         .trim()
-        .transform((v) => v.replace(/\s+/g, '').toUpperCase())
-        .refine((v) => /^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(v), 'IBAN invalide.')
+        .transform(normaliserIban)
+        // Le contrôle de la clé attrape la faute de frappe : sans lui, le
+        // virement part dans le vide et Pennylane refuse la fiche.
+        .refine(ibanValide, 'IBAN invalide : vérifiez les deux chiffres qui suivent « FR », puis le reste du numéro.')
     ),
     bic: optional(z.string().trim().transform((v) => v.toUpperCase())),
     vat_regime: z.enum(['franchise', 'normal']),

@@ -12,6 +12,7 @@ import {
 } from '@/lib/pennylane/client'
 import { getInvoicePdf, loadInvoiceForRender } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
+import { ibanValide, normaliserIban } from '@/lib/iban'
 import { COMPANY, type InvoiceLine } from '@/lib/types'
 
 export interface SyncResult {
@@ -67,7 +68,9 @@ const norm = (s: string | null | undefined) =>
  * Par SIRET d'abord — c'est la seule clé sans ambiguïté —, puis par nom. Le
  * résultat est mémorisé sur la fiche : la recherche n'a lieu qu'une fois.
  */
-async function resolveSupplier(providerId: string): Promise<number> {
+async function resolveSupplier(
+  providerId: string
+): Promise<{ id: number; ibanIgnore: boolean; nom: string }> {
   const supabase = createServiceClient()
   const { data: p } = await supabase
     .from('inv_providers')
@@ -78,7 +81,13 @@ async function resolveSupplier(providerId: string): Promise<number> {
     .eq('id', providerId)
     .maybeSingle()
   if (!p) throw new PennylaneError('Prestataire introuvable.')
-  if (p.pennylane_supplier_id) return Number(p.pennylane_supplier_id)
+  if (p.pennylane_supplier_id) {
+    return {
+      id: Number(p.pennylane_supplier_id),
+      ibanIgnore: Boolean(p.iban) && !ibanValide(p.iban),
+      nom: p.legal_name,
+    }
+  }
 
   const siret = (p.siret ?? '').replace(/\s+/g, '')
   const fournisseurs = await listSuppliers()
@@ -96,7 +105,9 @@ async function resolveSupplier(providerId: string): Promise<number> {
       name: p.legal_name,
       ...(/^\d{14}$/.test(siret) ? { establishment_no: siret, reg_no: siret.slice(0, 9) } : {}),
       ...(p.vat_number ? { vat_number: p.vat_number } : {}),
-      ...(p.iban ? { iban: p.iban.replace(/\s+/g, '') } : {}),
+      // Un IBAN à la clé fausse ferait refuser toute la fiche fournisseur :
+      // on crée le fournisseur sans, et on le signale sur la facture.
+      ...(ibanValide(p.iban) ? { iban: normaliserIban(p.iban) } : {}),
       ...(email ? { emails: [email] } : {}),
       ...(p.address_line1 && p.postal_code && p.city
         ? { postal_address: { address: p.address_line1, postal_code: p.postal_code, city: p.city, country_alpha2: 'FR' } }
@@ -106,7 +117,7 @@ async function resolveSupplier(providerId: string): Promise<number> {
   }
 
   await supabase.from('inv_providers').update({ pennylane_supplier_id: id }).eq('id', providerId)
-  return id
+  return { id, ibanIgnore: Boolean(p.iban) && !ibanValide(p.iban), nom: p.legal_name }
 }
 
 /**
@@ -124,9 +135,9 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
     if (!loaded) throw new PennylaneError('Facture introuvable.')
     const { invoice, lines } = loaded
 
-    let supplierId: number
+    let fournisseur: { id: number; ibanIgnore: boolean; nom: string }
     try {
-      supplierId = await resolveSupplier(invoice.provider_id)
+      fournisseur = await resolveSupplier(invoice.provider_id)
     } catch (err) {
       throw new PennylaneError(
         `Fournisseur Pennylane introuvable et impossible à créer : ${err instanceof Error ? err.message : String(err)}. ` +
@@ -158,7 +169,7 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
 
     const pennylaneInvoiceId = await importSupplierInvoice({
       file_attachment_id: fileAttachmentId,
-      supplier_id: supplierId,
+      supplier_id: fournisseur.id,
       date: invoice.issue_date,
       deadline: invoice.due_date,
       invoice_number: invoice.number,
@@ -173,7 +184,9 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
     // ---- 3. la ventilation analytique
     // Non bloquante : la facture existe deja dans Pennylane, on ne la perd pas
     // parce que la categorisation a echoue. L'admin peut resynchroniser.
-    let categoryWarning: string | null = null
+    let categoryWarning: string | null = fournisseur.ibanIgnore
+      ? `IBAN de ${fournisseur.nom} non repris dans Pennylane : sa clé de contrôle est fausse. Demandez-lui de le corriger dans ses informations, puis complétez la fiche fournisseur.`
+      : null
     try {
       const weights = categoryWeights(lines)
       if (weights.length > 0) {
@@ -181,8 +194,8 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
       }
     } catch (err) {
       categoryWarning =
-        'Facture créée dans Pennylane, mais la ventilation par catégorie a échoué : ' +
-        (err instanceof Error ? err.message : String(err))
+        [categoryWarning, 'Facture créée dans Pennylane, mais la ventilation par catégorie a échoué : ' +
+          (err instanceof Error ? err.message : String(err))].filter(Boolean).join(' ')
       console.error('[pennylane:categories]', err)
     }
 
