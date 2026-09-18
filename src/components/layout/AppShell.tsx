@@ -43,7 +43,7 @@ function navFor(role: Role, salarie: boolean, unread: number): NavItem[] {
     return [
       { href: '/missions', label: 'Prestations', icon: ListChecks, prefixes: ['/missions'] },
       ...(salarie
-        ? []
+        ? [{ href: '/elements-paie', label: 'Mes éléments de paie', icon: Wallet, prefixes: ['/elements-paie'] }]
         : [{ href: '/factures', label: 'Facturation', icon: Receipt, prefixes: ['/factures', '/bordereaux'] }]),
       { href: '/documents', label: 'Mes documents', icon: ScrollText, prefixes: ['/documents', '/contrats'] },
       messages,
@@ -53,6 +53,7 @@ function navFor(role: Role, salarie: boolean, unread: number): NavItem[] {
   const communs: NavItem[] = [
     { href: '/validation', label: 'Prestations', icon: ListChecks, prefixes: ['/validation'] },
     { href: '/bons-de-mission', label: 'Bons de mission', icon: ClipboardList, prefixes: ['/bons-de-mission'] },
+    { href: '/paie-du-mois', label: 'Éléments de paie', icon: Wallet, prefixes: ['/paie-du-mois'] },
   ]
   if (role === 'manager') {
     return [

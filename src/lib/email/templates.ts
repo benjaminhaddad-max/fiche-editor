@@ -473,6 +473,27 @@ export const templates = {
     ),
   }),
 
+  /** Remplace le mail mensuel « Demande d'informations — Payes ». */
+  payrollInputsRequest: (p: { name: string; label: string; deadline: string; relance: boolean }) => ({
+    subject: p.relance
+      ? `Rappel — vos éléments de paie de ${p.label}`
+      : `Vos éléments de paie de ${p.label}`,
+    html: layout(
+      p.relance ? 'Il manque vos éléments de paie' : 'Vos éléments de paie du mois',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">Pour préparer votre bulletin de ${p.label}, indiquez en une minute :</p>
+       <ul style="margin:0 0 12px;padding-left:18px;color:#3b4c63;">
+         <li style="margin-bottom:4px;">vos heures supplémentaires ;</li>
+         <li style="margin-bottom:4px;">vos congés payés ou sans solde ;</li>
+         <li style="margin-bottom:4px;">votre abonnement de transport, avec le justificatif ;</li>
+         <li>votre choix sur la mutuelle d’entreprise.</li>
+       </ul>
+       <p style="margin:0 0 12px;">À renseigner <strong>avant le ${formatDateLong(p.deadline)}</strong>.
+          Rien à renvoyer par email : tout se fait depuis votre espace, et vous pouvez corriger jusqu’à la clôture.</p>`,
+      { label: 'Renseigner mes éléments', href: `${APP_URL}/elements-paie` }
+    ),
+  }),
+
   payslipFiled: (p: { name: string; personne: string; periode: string }) => ({
     subject: `Bulletin de ${p.personne} classé — ${p.periode}`,
     html: layout(
