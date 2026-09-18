@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
-import { syncInvoiceToPennylane } from '@/lib/invoice/pennylane'
+import { rafraichirPaiements, syncInvoiceToPennylane } from '@/lib/invoice/pennylane'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
 import { createServiceClient } from '@/lib/supabase/service'
 
@@ -173,4 +173,18 @@ export async function deposerFacturesDiverses(_prev: DepotDiversResult, fd: Form
     success: faites.length ? `Enregistrée${faites.length > 1 ? 's' : ''} dans les validées : ${faites.join(' · ')}` : undefined,
     error: ratees.length ? ratees.join(' · ') : undefined,
   }
+}
+
+/** Relit l'état de paiement dans Pennylane et met les factures à jour. */
+export async function actualiserPaiements(): Promise<void> {
+  const user = await requireRole('admin')
+  const r = await rafraichirPaiements()
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'invoice',
+    entityId: user.id,
+    action: 'paiements_actualises',
+    payload: { verifiees: r.verifiees, payees: r.payees.length, erreurs: r.erreurs.slice(0, 5) },
+  })
+  rafraichir()
 }

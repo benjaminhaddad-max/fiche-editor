@@ -212,3 +212,19 @@ export async function createSupplier(input: CreateSupplierInput): Promise<number
   }
   return json.id
 }
+
+export interface PennylaneInvoiceState {
+  id: number
+  paid?: boolean
+  payment_status?: string
+  remaining_amount_with_tax?: string | null
+}
+
+/** État d'une facture d'achat : payée ou non, et ce qu'il reste à régler. */
+export async function getSupplierInvoice(id: number): Promise<PennylaneInvoiceState> {
+  const res = await fetch(`${BASE_URL}/supplier_invoices/${id}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  })
+  if (!res.ok) await parseError(res)
+  return (await res.json()) as PennylaneInvoiceState
+}

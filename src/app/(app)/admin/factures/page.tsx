@@ -1,7 +1,10 @@
+import { RefreshCw } from 'lucide-react'
 import { InvoiceTable, type AdminInvoiceRow } from '@/components/admin/InvoiceTable'
 import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
 import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 import { Tabs } from '@/components/ui/Tabs'
+import { actualiserPaiements } from './actions'
 import { requireRole } from '@/lib/auth'
 import { money } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
@@ -84,7 +87,15 @@ export default async function AdminFacturesPage({
     <>
       <PageHeader
         title="Factures"
-        description="Les factures transmises arrivent ici. Validez-les, puis envoyez-les dans Pennylane en un clic."
+        description="Les factures transmises arrivent ici. Validez-les, puis envoyez-les dans Pennylane en un clic. Ce qui y est payé revient automatiquement."
+        actions={
+          <form action={actualiserPaiements}>
+            <SubmitButton variant="secondary" size="sm" pendingLabel="Relecture…">
+              <RefreshCw size={14} />
+              Actualiser depuis Pennylane
+            </SubmitButton>
+          </form>
+        }
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

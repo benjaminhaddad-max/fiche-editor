@@ -2,6 +2,8 @@ import {
   PennylaneError,
   amount,
   createSupplier,
+  getSupplierInvoice,
+  isPennylaneConfigured,
   listSuppliers,
   importSupplierInvoice,
   setSupplierInvoiceCategories,
@@ -219,4 +221,61 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
       .eq('id', invoiceId)
     return { ok: false, error: message }
   }
+}
+
+/** Statuts Pennylane qui valent « réglée ». */
+const PAYEE = new Set(['fully_paid', 'paid_offline'])
+
+export interface RetourPaiements {
+  verifiees: number
+  payees: { number: string; provider: string }[]
+  erreurs: string[]
+}
+
+/**
+ * Relit dans Pennylane l'état des factures qu'on y a poussées, et marque
+ * payées celles qui le sont.
+ *
+ * Le paiement se fait dans Pennylane, pas ici : sans cette relecture, le
+ * statut de la plateforme resterait éternellement « validée » et les
+ * relances repartiraient pour des factures déjà réglées.
+ */
+export async function rafraichirPaiements(): Promise<RetourPaiements> {
+  const out: RetourPaiements = { verifiees: 0, payees: [], erreurs: [] }
+  if (!isPennylaneConfigured()) return out
+
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('inv_invoices')
+    .select('id, number, pennylane_invoice_id, provider:inv_providers(legal_name)')
+    .eq('pennylane_status', 'synced')
+    .not('pennylane_invoice_id', 'is', null)
+    .neq('status', 'paid')
+    .limit(300)
+
+  for (const f of (data ?? []) as unknown as {
+    id: string
+    number: string
+    pennylane_invoice_id: number
+    provider: { legal_name: string } | null
+  }[]) {
+    out.verifiees++
+    try {
+      const etat = await getSupplierInvoice(Number(f.pennylane_invoice_id))
+      const reste = Number(etat.remaining_amount_with_tax ?? '0')
+      const payee = etat.paid === true || PAYEE.has(etat.payment_status ?? '') || (etat.paid !== false && reste === 0 && Boolean(etat.payment_status))
+      if (!payee) continue
+
+      const { data: maj } = await supabase
+        .from('inv_invoices')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', f.id)
+        .neq('status', 'paid')
+        .select('id')
+      if (maj?.length) out.payees.push({ number: f.number, provider: f.provider?.legal_name ?? '—' })
+    } catch (err) {
+      out.erreurs.push(`${f.number} : ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return out
 }

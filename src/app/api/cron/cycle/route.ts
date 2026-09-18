@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { envoyerBordereaux } from '@/lib/bordereaux'
 import { ouvrirEcheances } from '@/lib/echeances'
+import { rafraichirPaiements } from '@/lib/invoice/pennylane'
 import { cycleForDate, previousCycle, todayParis, type BillingCycle } from '@/lib/cycle'
 import { deliver, notifyStatementReminder } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
@@ -20,7 +21,8 @@ type Db = ReturnType<typeof createServiceClient>
  *   L−5               rappel aux prestataires : clôture des déclarations à L−3
  *   L−2               début de la vérification : rappel aux managers
  *   le 2              relance des factures manquantes (email + SMS)
- *   chaque jour       échéances de contrat arrivées à terme → prestations
+ *   chaque jour       état de paiement relu dans Pennylane
+ *                     échéances de contrat arrivées à terme → prestations
  *                     rappel au manager des bons de mission arrivés à échéance
  *
  * Chaque étape n'est jouée qu'une fois par mois (inv_cycle_events).
@@ -38,6 +40,10 @@ export async function GET(request: Request) {
   const precedent = previousCycle(courant)
   const db = createServiceClient()
   const fait: Record<string, unknown> = { date: today }
+
+  // Ce qui a été payé dans Pennylane doit cesser d'apparaître comme dû ici.
+  const paiements = await rafraichirPaiements()
+  fait.paiements = { verifiees: paiements.verifiees, payees: paiements.payees.length, erreurs: paiements.erreurs.length }
 
   // Avant les bordereaux : une échéance du dernier jour du mois doit y figurer.
   fait.echeances = await ouvrirEcheances(today)
