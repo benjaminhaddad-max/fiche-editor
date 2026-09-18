@@ -30,7 +30,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
-    .in('provider.employment_type', ['vacataire', 'alternant'])
+    .neq('provider.employment_type', 'independant')
     .gte('start_date', debut)
     .lte('start_date', fin)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])

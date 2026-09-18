@@ -5,7 +5,8 @@ import { Input, Select, Textarea } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import type { AdminResult } from '@/app/(app)/admin/actions'
-import type { Provider } from '@/lib/types'
+import { EMPLOYMENTS, type Provider } from '@/lib/types'
+import { EMPLOYMENT_HINT, EMPLOYMENT_LABEL } from '@/lib/labels'
 
 export function ProviderAdminForm({
   action,
@@ -67,11 +68,13 @@ export function ProviderAdminForm({
             name="employment_type"
             label="Statut"
             defaultValue={provider.employment_type}
-            hint="Un vacataire ou un alternant ne facture pas : ses prestations et bonus partent à la paie."
+            hint={EMPLOYMENT_HINT[provider.employment_type] ?? 'Détermine si la personne facture ou est payée en salaire.'}
           >
-            <option value="independant">Indépendant — facture</option>
-            <option value="vacataire">Vacataire — salaire</option>
-            <option value="alternant">Alternant — salaire</option>
+            {EMPLOYMENTS.map((e) => (
+              <option key={e} value={e}>
+                {EMPLOYMENT_LABEL[e]}
+              </option>
+            ))}
           </Select>
           <Input
             id="phone"

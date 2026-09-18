@@ -1,6 +1,7 @@
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
+import { classerDocument, enregistrerBulletin } from '@/lib/paie/bulletins'
 import { createServiceClient } from '@/lib/supabase/service'
 
 export interface Courriel {
@@ -16,12 +17,12 @@ export type Issue = 'ignore' | 'traite'
 const MAX_PDF = 15 * 1024 * 1024
 
 /**
- * Une facture envoyée à depotfactures@diploma-sante.fr.
+ * Ce qui arrive dans la boîte de dépôt.
  *
- * Seuls les managers et administrateurs actifs sont écoutés : un message
- * venu d'ailleurs est ignoré, sans réponse. Chaque PDF joint est lu, le
- * fournisseur retrouvé ou créé, et la facture rangée dans les validées ;
- * l'expéditeur reçoit un accusé, ou la raison du refus.
+ * Seuls les managers et administrateurs actifs sont écoutés : un message venu
+ * d'ailleurs est ignoré, sans réponse. Chaque PDF est d'abord identifié :
+ * une facture rejoint les factures validées, un bulletin de paie l'espace de
+ * la personne concernée. L'expéditeur reçoit un accusé, ou la raison du refus.
  */
 export async function traiterCourriel(c: Courriel): Promise<Issue> {
   const db = createServiceClient()
@@ -57,6 +58,35 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
       await refuser(`La pièce « ${piece.nom} » dépasse 15 Mo.`)
       continue
     }
+
+    let type: 'facture' | 'bulletin' | 'autre' = 'facture'
+    try {
+      type = await classerDocument(piece.contenu)
+    } catch (err) {
+      console.error('[depot] classement', err)
+    }
+
+    if (type === 'bulletin') {
+      const b = await enregistrerBulletin({
+        pdf: piece.contenu,
+        filename: piece.nom,
+        source: 'email',
+        uploadedBy: auteur.id,
+      })
+      if (b.ok) {
+        await deliver({
+          to: { email: auteur.email, name: auteur.full_name },
+          ...templates.payslipFiled({ name: auteur.full_name, personne: b.personne!, periode: b.periode! }),
+          template: 'payslip_filed',
+          entityType: 'provider',
+          entityId: b.documentId!,
+        })
+      } else {
+        await refuser(`« ${piece.nom} » (bulletin de paie) : ${b.error}`)
+      }
+      continue
+    }
+
     const r = await enregistrerFactureDiverse({
       pdf: piece.contenu,
       filename: piece.nom,

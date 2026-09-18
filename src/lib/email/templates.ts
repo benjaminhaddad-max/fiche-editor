@@ -473,6 +473,17 @@ export const templates = {
     ),
   }),
 
+  payslipFiled: (p: { name: string; personne: string; periode: string }) => ({
+    subject: `Bulletin de ${p.personne} classé — ${p.periode}`,
+    html: layout(
+      'Bulletin de salaire classé',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">Le bulletin de <strong>${p.personne}</strong> pour ${p.periode} est enregistré.</p>
+       <p style="margin:0;color:#7d8c9e;font-size:13px;">Il le retrouve dans son espace, rubrique « Mes documents ».</p>`,
+      { label: 'Voir la paie', href: `${APP_URL}/admin/paie?onglet=bulletins` }
+    ),
+  }),
+
   inboundRefused: (p: { reason: string }) => ({
     subject: 'Votre facture n’a pas pu être enregistrée',
     html: layout(

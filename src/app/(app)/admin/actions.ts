@@ -6,6 +6,7 @@ import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { EMPLOYMENTS } from '@/lib/types'
 
 export interface AdminResult {
   error?: string
@@ -32,7 +33,7 @@ const NewUserSchema = z.object({
   role: z.enum(['prestataire', 'manager', 'admin']),
   password: z.string().min(8, 'Le mot de passe doit faire au moins 8 caractères.'),
   legal_name: z.string().trim().optional(),
-  employment_type: z.enum(['independant', 'vacataire', 'alternant']).default('independant'),
+  employment_type: z.enum(EMPLOYMENTS as [string, ...string[]]).default('independant'),
   phone: z.string().trim().max(30).optional(),
 })
 
@@ -140,7 +141,7 @@ const ProviderAdminSchema = z.object({
     .union([z.coerce.number<number>().int().positive(), z.literal('')])
     .transform((v) => (v === '' ? null : v)),
   default_manager_id: z.union([z.uuid(), z.literal('')]).transform((v) => v || null),
-  employment_type: z.enum(['independant', 'vacataire', 'alternant']),
+  employment_type: z.enum(EMPLOYMENTS as [string, ...string[]]),
   phone: z.string().trim().max(30).optional(),
   notes: z.string().trim().max(2000).optional(),
 })

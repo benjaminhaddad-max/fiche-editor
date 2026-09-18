@@ -17,9 +17,41 @@ export type MissionKind = 'prestation' | 'bonus'
 export type Pole = 'coaching' | 'professeur' | 'referent' | 'commercial' | 'marketing' | 'autres'
 export const POLES: Pole[] = ['coaching', 'professeur', 'referent', 'commercial', 'marketing', 'autres']
 
-/** Un indépendant facture ; un vacataire ou un alternant est payé en salaire. */
-export type Employment = 'independant' | 'vacataire' | 'alternant'
-export const isSalaried = (e: Employment | null | undefined) => e === 'vacataire' || e === 'alternant'
+/** Un indépendant facture ; tous les autres statuts sont payés en salaire. */
+export type Employment =
+  | 'independant'
+  | 'vacataire'
+  | 'alternant'
+  | 'salarie'
+  | 'salarie_enseignant'
+  | 'interim'
+
+export const EMPLOYMENTS: Employment[] = [
+  'independant',
+  'vacataire',
+  'alternant',
+  'salarie',
+  'salarie_enseignant',
+  'interim',
+]
+
+export const isSalaried = (e: Employment | null | undefined) =>
+  Boolean(e) && e !== 'independant'
+
+export interface PersonDocument {
+  id: string
+  provider_id: string
+  kind: 'bulletin' | 'contrat' | 'attestation' | 'autre'
+  period: string | null
+  label: string
+  path: string
+  filename: string | null
+  source: string
+  gross_amount: number | null
+  net_amount: number | null
+  cost_amount: number | null
+  created_at: string
+}
 
 export type OrderStatus = 'sent' | 'accepted' | 'declined' | 'done' | 'cancelled'
 export type ContractRateType = 'forfait' | 'mission' | 'horaire' | 'mensuel'

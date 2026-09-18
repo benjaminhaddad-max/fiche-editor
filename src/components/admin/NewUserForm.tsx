@@ -4,7 +4,8 @@ import { useActionState, useState } from 'react'
 import { Input, Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { ROLE_LABEL } from '@/lib/labels'
+import { EMPLOYMENT_LABEL, ROLE_LABEL } from '@/lib/labels'
+import { EMPLOYMENTS } from '@/lib/types'
 import type { AdminResult } from '@/app/(app)/admin/actions'
 import type { Role } from '@/lib/types'
 
@@ -88,9 +89,11 @@ export function NewUserForm({
 
         {role === 'prestataire' && (
           <Select id="employment_type" name="employment_type" label="Statut" defaultValue="independant">
-            <option value="independant">Indépendant — facture</option>
-            <option value="vacataire">Vacataire — salaire</option>
-            <option value="alternant">Alternant — salaire</option>
+            {EMPLOYMENTS.map((e) => (
+              <option key={e} value={e}>
+                {EMPLOYMENT_LABEL[e]}
+              </option>
+            ))}
           </Select>
         )}
         <Input

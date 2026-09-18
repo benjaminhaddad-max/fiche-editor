@@ -45,7 +45,7 @@ function navFor(role: Role, salarie: boolean, unread: number): NavItem[] {
       ...(salarie
         ? []
         : [{ href: '/factures', label: 'Facturation', icon: Receipt, prefixes: ['/factures', '/bordereaux'] }]),
-      { href: '/contrats', label: 'Mes contrats', icon: ScrollText, prefixes: ['/contrats'] },
+      { href: '/documents', label: 'Mes documents', icon: ScrollText, prefixes: ['/documents', '/contrats'] },
       messages,
       { href: '/profil', label: 'Mes informations', icon: UserCircle, prefixes: ['/profil'] },
     ]

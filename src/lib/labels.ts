@@ -83,9 +83,29 @@ export const POLE_HINT: Record<Pole, string> = {
 }
 
 export const EMPLOYMENT_LABEL: Record<Employment, string> = {
-  independant: 'Indépendant (facture)',
-  vacataire: 'Vacataire (salaire)',
-  alternant: 'Alternant (salaire)',
+  independant: 'Indépendant — facture',
+  vacataire: 'Vacataire — salaire',
+  alternant: 'Alternant — salaire',
+  salarie: 'Salarié — salaire',
+  salarie_enseignant: 'Salarié enseignant — salaire',
+  interim: 'Intérim — via l’agence',
+}
+
+/** Le document qui fait foi pour chaque statut. */
+export const EMPLOYMENT_HINT: Record<Employment, string> = {
+  independant: 'Facture ses prestations depuis la plateforme.',
+  vacataire: 'Payé en salaire : prestations et bonus partent à la paie.',
+  alternant: 'Contrat d’apprentissage (CERFA) ; primes versées sur la paie.',
+  salarie: 'Contrat de travail ; bulletins classés dans son espace.',
+  salarie_enseignant: 'Salarié enseignant : heures de cours suivies ici, payées en salaire.',
+  interim: 'Mis à disposition par une agence, facturé par elle.',
+}
+
+export const DOCUMENT_LABEL: Record<string, string> = {
+  bulletin: 'Bulletin de salaire',
+  contrat: 'Contrat',
+  attestation: 'Attestation',
+  autre: 'Document',
 }
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
