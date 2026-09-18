@@ -1,5 +1,6 @@
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
 import { DeclarationForm } from '@/components/missions/DeclarationForm'
+import { GrilleCommissions } from '@/components/contracts/GrilleCommissions'
 import { PageHeader } from '@/components/ui/Page'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 import { requireRole } from '@/lib/auth'
@@ -44,6 +45,7 @@ export default async function DeclarerPourPage() {
         today={today}
         deadlineText={texte}
       />
+      <GrilleCommissions />
     </>
   )
 }

@@ -8,6 +8,12 @@ import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { POLES } from '@/lib/types'
+import { modele } from '@/lib/contracts/modeles'
+import type { CorpsContrat } from '@/lib/contracts/modeles'
+import { composer, nouveauJeton, rangerPdf } from '@/lib/contracts/signature'
+import { trouverOuCreerPrestataire } from '@/lib/personnes'
+import { deliver } from '@/lib/email/notify'
+import { templates } from '@/lib/email/templates'
 
 export interface ContractResult {
   error?: string
@@ -153,5 +159,187 @@ export async function changerStatutContrat(fd: FormData): Promise<void> {
   if (!id || !['active', 'ended', 'cancelled'].includes(statut)) return
   await createServiceClient().from('inv_coaching_contracts').update({ status: statut }).eq('id', id)
   await logAudit(null, { actorId: user.id, entityType: 'provider', entityId: id, action: `contrat_${statut}` })
+  revalidatePath('/admin/contrats', 'layout')
+}
+
+// ============================================================
+// MODÈLES, ENVOI ET SIGNATURE
+// ============================================================
+
+const DepuisModele = z
+  .object({
+    profile: z.string().min(2, 'Choisissez un modèle de contrat.'),
+    provider_id: z.union([z.uuid(), z.literal('nouveau')]),
+    new_name: z.string().trim().max(120).optional(),
+    new_email: z.union([z.email('Email invalide.'), z.literal('')]).optional(),
+    new_phone: z.string().trim().max(30).optional(),
+    manager_id: z.union([z.uuid(), z.literal('')]).optional(),
+    start_date: z.iso.date('Date de début invalide.'),
+    end_date: z.union([z.iso.date(), z.literal('')]).optional(),
+    rate_amount: z.union([z.coerce.number<number>().nonnegative(), z.literal('')]).optional(),
+    precisions: z.string().trim().max(3000).optional(),
+    envoyer: z.enum(['oui', 'non']).default('oui'),
+  })
+  .refine((v) => v.provider_id !== 'nouveau' || (v.new_name && v.new_email), {
+    message: 'Indiquez le nom et l’email de la personne.',
+    path: ['new_name'],
+  })
+
+/**
+ * Crée un contrat à partir d'un modèle, et l'envoie à signer.
+ *
+ * Le texte est figé ici : un modèle corrigé plus tard ne changera pas ce
+ * contrat. La personne peut ne pas exister encore — son compte est créé au
+ * passage, et le lien de signature lui sert aussi de première entrée.
+ */
+export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Promise<ContractResult> {
+  const user = await requireRole('manager', 'admin')
+  const parsed = DepuisModele.safeParse(Object.fromEntries(fd))
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  const v = parsed.data
+  const m = modele(v.profile)
+  if (!m) return { error: 'Modèle inconnu.' }
+
+  const db = createServiceClient()
+  let providerId = v.provider_id
+  let cree = false
+  if (v.provider_id === 'nouveau') {
+    const r = await trouverOuCreerPrestataire(db, {
+      nom: v.new_name!,
+      email: v.new_email as string,
+      telephone: v.new_phone || null,
+      employment: m.employment,
+    })
+    if ('error' in r) return { error: r.error }
+    providerId = r.providerId
+    cree = r.cree
+  } else {
+    await db.from('inv_providers').update({ employment_type: m.employment }).eq('id', providerId)
+  }
+
+  const { data: fiche } = await db
+    .from('inv_providers')
+    .select('id, legal_name, siret, address_line1, postal_code, city, phone, user:inv_users!inv_providers_user_id_fkey(full_name, email, phone)')
+    .eq('id', providerId)
+    .maybeSingle()
+  if (!fiche) return { error: 'Fiche introuvable.' }
+  const compte = (fiche as unknown as { user: { full_name: string; email: string; phone: string | null } | null }).user
+
+  const montant = v.rate_amount === '' || v.rate_amount === undefined ? m.rateAmount : Number(v.rate_amount)
+  const corps = composer(v.profile, {
+    nom: compte?.full_name ?? fiche.legal_name,
+    email: compte?.email ?? '',
+    telephone: fiche.phone ?? compte?.phone ?? null,
+    adresse: [fiche.address_line1, fiche.postal_code, fiche.city].filter(Boolean).join(', ') || null,
+    siret: fiche.siret,
+    debut: v.start_date,
+    fin: v.end_date || null,
+    montant,
+    precisions: v.precisions || null,
+  })
+  if (!corps) return { error: 'Modèle inconnu.' }
+
+  const { data: categorie } = await db
+    .from('inv_categories')
+    .select('id')
+    .eq('pole', m.pole)
+    .eq('is_active', true)
+    .order('sort_order')
+    .limit(1)
+    .maybeSingle()
+
+  const { data: contrat, error } = await db
+    .from('inv_coaching_contracts')
+    .insert({
+      provider_id: providerId,
+      manager_id: v.manager_id || user.id,
+      category_id: categorie?.id ?? null,
+      contract_type: m.pole,
+      profile: m.cle,
+      title: corps.intitule,
+      start_date: v.start_date,
+      end_date: v.end_date || null,
+      rate_type: m.rateType,
+      rate_amount: montant,
+      total_ht: 0,
+      monthly_auto: m.monthlyAuto && m.employment === 'independant',
+      conditions: [m.resume, v.precisions].filter(Boolean).join('\n\n'),
+      body: corps,
+      status: 'active',
+    })
+    .select('id')
+    .single()
+  if (error) return { error: `Création impossible : ${error.message}` }
+
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'provider',
+    entityId: contrat.id,
+    action: 'contrat_cree',
+    payload: { profil: m.cle, compte_cree: cree },
+  })
+
+  if (v.envoyer === 'non' || !m.signable) {
+    await rangerPdf(providerId, contrat.id, corps, null)
+    revalidatePath('/admin/contrats', 'layout')
+    return {
+      success: m.signable
+        ? 'Contrat enregistré. Vous pourrez l’envoyer à signer quand vous voudrez.'
+        : 'Annexe enregistrée. Le contrat de travail (CERFA) se signe en dehors de la plateforme : déposez-le ici une fois signé.',
+    }
+  }
+
+  const envoi = await envoyerASigner(contrat.id, user.id, user.full_name)
+  revalidatePath('/admin/contrats', 'layout')
+  return envoi.error ? { error: envoi.error } : { success: envoi.success }
+}
+
+/** Envoie (ou renvoie) le contrat à signer. */
+async function envoyerASigner(contractId: string, senderId: string, senderName: string): Promise<ContractResult> {
+  const db = createServiceClient()
+  const { data: c } = await db
+    .from('inv_coaching_contracts')
+    .select('id, provider_id, title, body, signature_token, signed_at, provider:inv_providers(legal_name, user:inv_users!inv_providers_user_id_fkey(full_name, email))')
+    .eq('id', contractId)
+    .maybeSingle()
+  if (!c) return { error: 'Contrat introuvable.' }
+  if (c.signed_at) return { error: 'Ce contrat est déjà signé.' }
+  const corps = c.body as CorpsContrat | null
+  if (!corps) return { error: 'Ce contrat n’a pas de texte : il a été saisi à la main. Déposez le PDF signé.' }
+
+  const dest = (c as unknown as { provider: { user: { full_name: string; email: string } | null } | null }).provider?.user
+  if (!dest?.email) return { error: 'Cette personne n’a pas d’email : complétez sa fiche.' }
+
+  await rangerPdf(c.provider_id, c.id, corps, null)
+  const jeton = c.signature_token ?? nouveauJeton()
+  await db
+    .from('inv_coaching_contracts')
+    .update({ signature_token: jeton, sent_at: new Date().toISOString(), sent_by: senderId })
+    .eq('id', c.id)
+
+  const app = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
+  await deliver({
+    to: { email: dest.email, name: dest.full_name },
+    ...templates.contractToSign({
+      name: dest.full_name,
+      senderName,
+      intitule: corps.intitule,
+      resume: corps.resume,
+      link: `${app}/signature/${jeton}`,
+    }),
+    template: 'contract_to_sign',
+    entityType: 'provider',
+    entityId: c.id,
+    providerId: c.provider_id,
+  })
+  return { success: `Contrat envoyé à ${dest.email}. Vous serez prévenu dès qu’il sera signé.` }
+}
+
+/** Bouton « Envoyer à signer » / « Renvoyer le lien ». */
+export async function envoyerContrat(fd: FormData): Promise<void> {
+  const user = await requireRole('manager', 'admin')
+  const id = String(fd.get('contract_id') ?? '')
+  if (!id) return
+  await envoyerASigner(id, user.id, user.full_name)
   revalidatePath('/admin/contrats', 'layout')
 }

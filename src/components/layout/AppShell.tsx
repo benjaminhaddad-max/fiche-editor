@@ -57,6 +57,7 @@ function navFor(role: Role, salarie: boolean, unread: number): NavItem[] {
   if (role === 'manager') {
     return [
       ...communs,
+      { href: '/admin/contrats', label: 'Contrats', icon: ScrollText, prefixes: ['/admin/contrats'] },
       { href: '/factures-diverses', label: 'Déposer une facture', icon: FileUp, prefixes: ['/factures-diverses'] },
       messages,
     ]

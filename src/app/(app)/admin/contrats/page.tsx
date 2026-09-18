@@ -1,11 +1,14 @@
 import Link from 'next/link'
 import { ContractCard } from '@/components/contracts/ContractCard'
 import { ContractDocumentUpload } from '@/components/contracts/ContractDocumentUpload'
+import { ContractSignature } from '@/components/contracts/ContractSignature'
+import { ModeleContractForm } from '@/components/contracts/ModeleContractForm'
 import { NewContractForm } from '@/components/contracts/NewContractForm'
 import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { Tabs } from '@/components/ui/Tabs'
 import { requireRole } from '@/lib/auth'
+import { todayParis } from '@/lib/cycle'
 import { CONTRACT_SELECT, type ContractRow } from '@/lib/contracts'
 import { money } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
@@ -20,13 +23,12 @@ export default async function ContratsPage({
   searchParams: Promise<{ pole?: string; nouveau?: string; archives?: string }>
 }) {
   const { pole, nouveau, archives } = await searchParams
-  await requireRole('admin')
+  const user = await requireRole('manager', 'admin')
   const supabase = await createServerSupabase()
-  const [{ data }, providers, managers] = await Promise.all([
-    supabase.from('inv_coaching_contracts').select(CONTRACT_SELECT).order('created_at', { ascending: false }),
-    getActiveProviders(),
-    getManagers(),
-  ])
+  let requete = supabase.from('inv_coaching_contracts').select(CONTRACT_SELECT).order('created_at', { ascending: false })
+  // Un manager suit les contrats dont il est responsable ; l'administration voit tout.
+  if (user.role === 'manager') requete = requete.eq('manager_id', user.id)
+  const [{ data }, providers, managers] = await Promise.all([requete, getActiveProviders(), getManagers()])
   const tous = (data ?? []) as unknown as ContractRow[]
   const courant = (POLES as string[]).includes(pole ?? '') ? (pole as Pole) : 'tous'
   const actifs = tous.filter((c) => (archives !== undefined ? true : c.status === 'active' || c.status === 'draft'))
@@ -62,7 +64,22 @@ export default async function ContratsPage({
 
       {nouveau !== undefined && (
         <Card className="mb-6 p-5">
-          <NewContractForm providers={providers} managers={managers} defaultPole={courant === 'tous' ? 'professeur' : courant} />
+          <h2 className="mb-1 text-sm font-semibold text-navy">Depuis un modèle</h2>
+          <p className="mb-4 text-xs text-muted">
+            Le contrat est pré-rempli, envoyé par email, signé en ligne, puis classé ici automatiquement.
+          </p>
+          <ModeleContractForm providers={providers} managers={managers} today={todayParis()} />
+
+          {user.role === 'admin' && (
+            <details className="mt-6 border-t border-line pt-4">
+              <summary className="cursor-pointer text-sm font-medium text-navy">
+                Saisir un contrat à la main (hors modèle)
+              </summary>
+              <div className="mt-4">
+                <NewContractForm providers={providers} managers={managers} defaultPole={courant === 'tous' ? 'professeur' : courant} />
+              </div>
+            </details>
+          )}
         </Card>
       )}
 
@@ -88,11 +105,19 @@ export default async function ContratsPage({
               c={c}
               showProvider
               footer={
-                <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+                <div className="flex flex-wrap items-center justify-end gap-3 text-xs">
                   <Link href={`/admin/contrats/${c.id}`} className="font-medium text-gold-dark hover:underline">
-                    Détail et échéancier
+                    Détail
                   </Link>
-                  <div className="mr-auto ml-4">
+                  <ContractSignature
+                    id={c.id}
+                    signable={Boolean(c.profile) && !c.profile?.startsWith('alternant')}
+                    sentAt={c.sent_at}
+                    signedAt={c.signed_at}
+                    signerName={c.signer_name}
+                    reference={c.id.slice(0, 8).toUpperCase()}
+                  />
+                  <div className="mr-auto">
                     <ContractDocumentUpload contractId={c.id} hasDocument={Boolean(c.document_path)} />
                   </div>
                   <form action={changerStatutContrat}>

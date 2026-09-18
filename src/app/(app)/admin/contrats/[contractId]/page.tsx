@@ -46,7 +46,7 @@ export default async function ContractPage({
   params: Promise<{ contractId: string }>
 }) {
   const { contractId } = await params
-  await requireRole('admin')
+  await requireRole('manager', 'admin')
   const supabase = await createServerSupabase()
 
   const { data } = await supabase

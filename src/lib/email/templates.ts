@@ -294,6 +294,57 @@ export const templates = {
     ),
   }),
 
+  // ---------- Contrats ----------
+
+  contractToSign: (p: {
+    name: string
+    senderName: string
+    intitule: string
+    resume: string[]
+    link: string
+  }) => ({
+    subject: `Votre contrat avec ${COMPANY.name} — à signer`,
+    html: layout(
+      'Votre contrat est prêt',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">${p.senderName} vous adresse votre <strong>${p.intitule}</strong>.</p>
+       <ul style="margin:0 0 12px;padding-left:18px;color:#3b4c63;">
+         ${p.resume.map((r) => `<li style="margin-bottom:4px;">${r}</li>`).join('')}
+       </ul>
+       <p style="margin:0 0 12px;">Lisez-le en ligne puis signez-le en deux clics : votre nom, une case à cocher,
+          c’est tout. Vous recevrez aussitôt le contrat signé en PDF.</p>
+       <p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel : ne le transférez pas.</p>`,
+      { label: 'Lire et signer mon contrat', href: p.link }
+    ),
+  }),
+
+  contractSigned: (p: {
+    name: string
+    signerName: string
+    intitule: string
+    date: string
+    reference: string
+    forSigner: boolean
+    link: string
+  }) => ({
+    subject: p.forSigner
+      ? `Votre contrat signé — ${p.intitule}`
+      : `${p.signerName} a signé son contrat`,
+    html: layout(
+      p.forSigner ? 'Votre contrat est signé' : 'Contrat signé',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">${
+         p.forSigner
+           ? `Votre <strong>${p.intitule}</strong> est signé.`
+           : `<strong>${p.signerName}</strong> a signé son ${p.intitule.toLowerCase()}.`
+       } Signature du ${p.date}, référence ${p.reference}.</p>
+       <p style="margin:0;">Le document signé est classé sur la plateforme${
+         p.forSigner ? ' et reste consultable depuis votre espace, dans « Mes contrats »' : ''
+       }.</p>`,
+      { label: p.forSigner ? 'Voir mon contrat' : 'Voir le contrat', href: p.link }
+    ),
+  }),
+
   // ---------- Messagerie ----------
 
   messageReceived: (p: {

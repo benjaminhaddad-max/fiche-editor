@@ -33,6 +33,11 @@ export interface ContractRow {
   status: string
   conditions: string | null
   document_path: string | null
+  profile: string | null
+  sent_at: string | null
+  signed_at: string | null
+  signer_name: string | null
+  monthly_auto: boolean
   provider?: { id: string; legal_name: string } | null
   manager?: { full_name: string } | null
   instalments?: { id: string; label: string; amount_ht: number; due_date: string; mission_id: string | null }[]
@@ -41,7 +46,7 @@ export interface ContractRow {
 export const CONTRACT_SELECT = `
   id, contract_type, title, program, classes_label, academic_year, start_date, end_date,
   rate_type, rate_amount, headcount, rate_base_amount, rate_base_headcount, total_ht,
-  status, conditions, document_path,
+  status, conditions, document_path, profile, sent_at, signed_at, signer_name, monthly_auto,
   provider:inv_providers(id, legal_name),
   manager:inv_users!inv_coaching_contracts_manager_id_fkey(full_name),
   instalments:inv_contract_instalments(id, label, amount_ht, due_date, mission_id)
