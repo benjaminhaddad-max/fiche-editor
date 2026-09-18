@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import {
   ClipboardList,
-  FileUp,
   KeyRound,
   ListChecks,
   LogOut,
@@ -53,20 +52,23 @@ function navFor(role: Role, salarie: boolean, unread: number): NavItem[] {
   const communs: NavItem[] = [
     { href: '/validation', label: 'Prestations', icon: ListChecks, prefixes: ['/validation'] },
     { href: '/bons-de-mission', label: 'Bons de mission', icon: ClipboardList, prefixes: ['/bons-de-mission'] },
-    { href: '/paie-du-mois', label: 'Éléments de paie', icon: Wallet, prefixes: ['/paie-du-mois'] },
   ]
   if (role === 'manager') {
     return [
       ...communs,
+      { href: '/remunerations', label: 'Rémunérations', icon: Wallet, prefixes: ['/remunerations', '/paie-du-mois', '/factures-diverses'] },
       { href: '/admin/contrats', label: 'Contrats', icon: ScrollText, prefixes: ['/admin/contrats'] },
-      { href: '/factures-diverses', label: 'Déposer une facture', icon: FileUp, prefixes: ['/factures-diverses'] },
       messages,
     ]
   }
   return [
     ...communs,
-    { href: '/admin/factures', label: 'Factures', icon: Receipt, prefixes: ['/admin/factures'] },
-    { href: '/admin/paie', label: 'Paie', icon: Wallet, prefixes: ['/admin/paie'] },
+    {
+      href: '/remunerations',
+      label: 'Rémunérations',
+      icon: Wallet,
+      prefixes: ['/remunerations', '/admin/factures', '/admin/paie', '/paie-du-mois'],
+    },
     { href: '/admin/contrats', label: 'Contrats', icon: ScrollText, prefixes: ['/admin/contrats'] },
     { href: '/admin/equipe', label: 'Équipe', icon: Users, prefixes: ['/admin/equipe', '/admin/prestataires'] },
     messages,

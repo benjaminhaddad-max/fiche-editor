@@ -9,6 +9,9 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import type { MissionStatus } from '@/lib/types'
 import { contractTitle } from '@/lib/contracts'
 import { ContractDocumentUpload } from '@/components/contracts/ContractDocumentUpload'
+import { ContractSignature } from '@/components/contracts/ContractSignature'
+import { SubmitButton } from '@/components/ui/SubmitButton'
+import { changerStatutContrat } from '../actions'
 import { POLE_LABEL } from '@/lib/labels'
 
 
@@ -18,6 +21,10 @@ interface Contract {
   title: string | null
   conditions: string | null
   document_path: string | null
+  profile: string | null
+  sent_at: string | null
+  signed_at: string | null
+  signer_name: string | null
   program: string | null
   academic_year: string | null
   classes_label: string | null
@@ -84,6 +91,17 @@ export default async function ContractPage({
         title={c.provider?.legal_name ?? 'Contrat'}
         description={`${POLE_LABEL[c.contract_type]} — ${contractTitle(c)}${c.academic_year ? ` — ${c.academic_year}` : ''}`}
       />
+
+      <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+        <ContractSignature
+          id={c.id}
+          signable={Boolean(c.profile) && !c.profile?.startsWith('alternant')}
+          sentAt={c.sent_at}
+          signedAt={c.signed_at}
+          signerName={c.signer_name}
+          reference={c.id.slice(0, 8).toUpperCase()}
+        />
+      </Card>
 
       <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 px-6 py-4">
         {c.document_path ? (
@@ -193,6 +211,14 @@ export default async function ContractPage({
           </tbody>
         </table>
       </Card>
+
+      <form action={changerStatutContrat} className="mt-6 flex justify-end">
+        <input type="hidden" name="contract_id" value={c.id} />
+        <input type="hidden" name="status" value={c.status === 'active' ? 'ended' : 'active'} />
+        <SubmitButton variant="ghost" size="sm" pendingLabel="…">
+          {c.status === 'active' ? 'Terminer le contrat' : 'Réactiver le contrat'}
+        </SubmitButton>
+      </form>
 
       {c.notes && (
         <Card className="mt-6 p-6">

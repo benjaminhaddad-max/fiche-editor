@@ -1,11 +1,8 @@
 import Link from 'next/link'
-import { ContractCard } from '@/components/contracts/ContractCard'
-import { ContractDocumentUpload } from '@/components/contracts/ContractDocumentUpload'
-import { ContractSignature } from '@/components/contracts/ContractSignature'
+import { ContractTile } from '@/components/contracts/ContractTile'
 import { ModeleContractForm } from '@/components/contracts/ModeleContractForm'
 import { NewContractForm } from '@/components/contracts/NewContractForm'
 import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
-import { SubmitButton } from '@/components/ui/SubmitButton'
 import { Tabs } from '@/components/ui/Tabs'
 import { requireRole } from '@/lib/auth'
 import { todayParis } from '@/lib/cycle'
@@ -15,7 +12,6 @@ import { POLE_LABEL } from '@/lib/labels'
 import { getActiveProviders, getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { POLES, type Pole } from '@/lib/types'
-import { changerStatutContrat } from './actions'
 
 export default async function ContratsPage({
   searchParams,
@@ -97,39 +93,32 @@ export default async function ContratsPage({
 
       {liste.length === 0 ? (
         <EmptyState title="Aucun contrat ici" description="Créez-en un avec « Nouveau contrat »." />
+      ) : courant === 'tous' ? (
+        POLES.filter((p) => liste.some((c) => c.contract_type === p)).map((p) => {
+          const duPole = liste.filter((c) => c.contract_type === p)
+          return (
+            <section key={p} className="mb-8">
+              <div className="mb-3 flex items-baseline justify-between">
+                <Link href={`/admin/contrats?pole=${p}`} className="text-sm font-semibold text-navy hover:underline">
+                  {POLE_LABEL[p]}
+                  <span className="ml-2 font-normal text-muted">{duPole.length}</span>
+                </Link>
+                <span className="text-sm text-navy/70">
+                  {money(duPole.reduce((s, c) => s + Number(c.total_ht), 0))}
+                </span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {duPole.map((c) => (
+                  <ContractTile key={c.id} c={c} showProvider />
+                ))}
+              </div>
+            </section>
+          )
+        })
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {liste.map((c) => (
-            <ContractCard
-              key={c.id}
-              c={c}
-              showProvider
-              footer={
-                <div className="flex flex-wrap items-center justify-end gap-3 text-xs">
-                  <Link href={`/admin/contrats/${c.id}`} className="font-medium text-gold-dark hover:underline">
-                    Détail
-                  </Link>
-                  <ContractSignature
-                    id={c.id}
-                    signable={Boolean(c.profile) && !c.profile?.startsWith('alternant')}
-                    sentAt={c.sent_at}
-                    signedAt={c.signed_at}
-                    signerName={c.signer_name}
-                    reference={c.id.slice(0, 8).toUpperCase()}
-                  />
-                  <div className="mr-auto">
-                    <ContractDocumentUpload contractId={c.id} hasDocument={Boolean(c.document_path)} />
-                  </div>
-                  <form action={changerStatutContrat}>
-                    <input type="hidden" name="contract_id" value={c.id} />
-                    <input type="hidden" name="status" value={c.status === 'active' ? 'ended' : 'active'} />
-                    <SubmitButton size="sm" variant="ghost" pendingLabel="…">
-                      {c.status === 'active' ? 'Terminer le contrat' : 'Réactiver'}
-                    </SubmitButton>
-                  </form>
-                </div>
-              }
-            />
+            <ContractTile key={c.id} c={c} showProvider />
           ))}
         </div>
       )}
