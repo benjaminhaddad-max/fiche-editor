@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState } from 'react'
+import { clsx } from 'clsx'
 import { creerDepuisModele, type ContractResult } from '@/app/(app)/admin/contrats/actions'
 import { Input, Select, Textarea } from '@/components/ui/Field'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -42,17 +43,77 @@ export function ModeleContractForm({
           </p>
         </div>
 
-        <Select id="provider_id" name="provider_id" label="Personne" value={qui} onChange={(e) => setQui(e.target.value)} required>
-          <option value="" disabled>
-            Choisir…
-          </option>
-          <option value="nouveau">+ Nouvelle personne (compte à créer)</option>
-          {providers.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </Select>
+        <div>
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+            <span className="field-label mb-0">Personne</span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setQui('')}
+                className={clsx(
+                  'rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors',
+                  qui === 'nouveau'
+                    ? 'border-line bg-white text-navy/60 hover:text-navy'
+                    : 'border-navy bg-navy text-cream'
+                )}
+              >
+                Déjà sur la plateforme
+              </button>
+              <button
+                type="button"
+                onClick={() => setQui('nouveau')}
+                className={clsx(
+                  'rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors',
+                  qui === 'nouveau'
+                    ? 'border-navy bg-navy text-cream'
+                    : 'border-line bg-white text-navy/60 hover:text-navy'
+                )}
+              >
+                + Nouvelle personne
+              </button>
+            </div>
+          </div>
+          {qui === 'nouveau' ? (
+            <>
+              <input type="hidden" name="provider_id" value="nouveau" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input id="new_name" name="new_name" label="Nom et prénom" placeholder="Camille Durand" required />
+                <Input
+                  id="new_email"
+                  name="new_email"
+                  type="email"
+                  label="Email"
+                  placeholder="camille.durand@exemple.fr"
+                  required
+                />
+              </div>
+              <div className="mt-3">
+                <Input
+                  id="new_phone"
+                  name="new_phone"
+                  type="tel"
+                  label="Téléphone (facultatif)"
+                  placeholder="06 12 34 56 78"
+                />
+              </div>
+              <p className="mt-2 text-xs text-navy/70">
+                C’est tout : son compte est créé à l’envoi. SIRET, adresse et IBAN, c’est elle qui les
+                remplira en arrivant sur la plateforme — le lien de signature lui sert de première entrée.
+              </p>
+            </>
+          ) : (
+            <Select id="provider_id" name="provider_id" value={qui} onChange={(e) => setQui(e.target.value)} required>
+              <option value="" disabled>
+                Choisir…
+              </option>
+              {providers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </div>
         <Select id="manager_id" name="manager_id" label="Responsable du contrat" defaultValue="">
           <option value="">Moi</option>
           {managers.map((x) => (
@@ -61,18 +122,6 @@ export function ModeleContractForm({
             </option>
           ))}
         </Select>
-
-        {qui === 'nouveau' && (
-          <div className="grid gap-4 rounded-lg border border-gold/40 bg-gold/5 p-4 sm:col-span-2 sm:grid-cols-3">
-            <Input id="new_name" name="new_name" label="Nom et prénom" required />
-            <Input id="new_email" name="new_email" type="email" label="Email" required />
-            <Input id="new_phone" name="new_phone" type="tel" label="Téléphone" placeholder="06 12 34 56 78" />
-            <p className="text-xs text-navy/70 sm:col-span-3">
-              Son compte est créé à l’envoi. Le lien de signature lui sert aussi de première entrée sur la
-              plateforme.
-            </p>
-          </div>
-        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Input id="start_date" name="start_date" type="date" label="Début" defaultValue={today} required />

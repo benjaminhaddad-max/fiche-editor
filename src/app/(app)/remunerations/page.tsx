@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/Page'
-import { Tabs, type TabItem } from '@/components/ui/Tabs'
+import type { TabItem } from '@/components/ui/Tabs'
 import { VueBulletins, VueMois } from '@/components/remunerations/VueMois'
 import { VueElements } from '@/components/remunerations/VueElements'
 import { VueFactures } from '@/components/remunerations/VueFactures'
@@ -52,9 +52,9 @@ export default async function RemunerationsPage({
       <PageHeader
         title="Rémunérations"
         description="Ce que vous versez chaque mois : factures des indépendants, éléments variables des salariés, bulletins."
+        tabs={vues}
+        currentTab={courant}
       />
-
-      <Tabs items={vues} current={courant} />
 
       {courant !== 'deposer' && (
         <div className="mb-5 flex flex-wrap items-center gap-3 text-sm">

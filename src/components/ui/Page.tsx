@@ -1,21 +1,44 @@
 import { clsx } from 'clsx'
+import { Tabs, type TabItem } from '@/components/ui/Tabs'
 
+/**
+ * Bandeau de titre, repris de Diploma Lab : un pavé navy en dégradé, coins
+ * inférieurs arrondis, qui déborde des marges de la page et se fond dans le
+ * crème en bas. Les onglets vivent dedans, sur une rangée assombrie — c'est
+ * ce qui donne à chaque page un vrai titre au lieu d'un texte posé.
+ */
 export function PageHeader({
   title,
   description,
   actions,
+  tabs,
+  currentTab,
 }: {
   title: string
   description?: string
   actions?: React.ReactNode
+  /** Onglets de la page, affichés dans le bandeau. */
+  tabs?: TabItem[]
+  currentTab?: string
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-      <div>
-        <h1 className="font-display text-[26px] font-semibold tracking-tight text-navy">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+    <div className="ds-panel-header-slot -mx-8 -mt-8 mb-7">
+      <div className="ds-panel-header">
+        <div className="ds-panel-header__body flex flex-wrap items-start justify-between gap-4 px-8 pb-6 pt-7">
+          <div className="min-w-0">
+            <h1 className="font-display text-[28px] font-semibold leading-tight tracking-tight text-cream">
+              {title}
+            </h1>
+            {description && <p className="mt-1.5 max-w-3xl text-sm text-cream/65">{description}</p>}
+          </div>
+          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        </div>
+        {tabs && tabs.length > 0 && (
+          <div className="ds-panel-header__tabs px-8 pt-1">
+            <Tabs items={tabs} current={currentTab ?? tabs[0].key} tone="dark" />
+          </div>
+        )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   )
 }

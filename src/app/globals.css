@@ -90,13 +90,125 @@
   @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-stone;
 }
 
-/* ── Bloc de marque, repris de Diploma Lab ─────────────────────────────────
-   Le logo vit dans un pavé navy en dégradé, coins inférieurs arrondis, posé
-   sur une barre latérale crème. C'est la signature visuelle des deux
-   plateformes : on la reproduit à l'identique plutôt que d'en inventer une. */
+/* ══════════════════════════════════════════════════════════════════════════
+   CHÂSSIS — repris trait pour trait de Diploma Lab (EXOTEACHBIS)
+   Deux bandeaux navy en dégradé, coins inférieurs arrondis, halo doré en
+   diagonale et fondu crème en pied : celui de la barre latérale porte la
+   marque, celui du contenu porte le titre de la page. Les valeurs viennent
+   d'admin-rail-header / admin-panel-header, elles ne sont pas réinventées.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ds-rail-header-slot {
+  flex-shrink: 0;
+  background: var(--color-cream-muted);
+}
+
 .ds-rail-header {
+  position: relative;
+  display: flex;
+  height: 5.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  overflow: hidden;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
+  border: none;
   border-bottom: 1px solid rgba(201, 168, 76, 0.12);
   border-radius: 0 0 12px 12px;
   background: linear-gradient(135deg, #0b1628 0%, #0e1e35 52%, #152a44 100%);
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Halo doré en diagonale : ce qui empêche le pavé navy d'être un aplat mort. */
+.ds-rail-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.42;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 18% 50%, rgba(201, 168, 76, 0.14) 0%, transparent 68%);
+}
+
+/* Fondu crème en pied : le bandeau se raccorde au corps au lieu de le couper. */
+.ds-rail-header::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 10px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(251, 248, 241, 0.35));
+}
+
+.ds-panel-header-slot {
+  background: var(--color-cream);
+}
+
+/* Bandeau de titre de page : navy atténué, fondu crème en bas. */
+.ds-panel-header {
+  position: relative;
+  overflow: hidden;
+  border: none;
+  border-radius: 0 0 16px 16px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.14);
+  background: linear-gradient(168deg, #0e1e35 0%, #122640 42%, #1a3350 78%, #243d52 100%);
+  box-shadow: 0 4px 20px -12px rgba(11, 22, 40, 0.22);
+}
+
+.ds-panel-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.38;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 14% 30%, rgba(201, 168, 76, 0.16) 0%, transparent 62%);
+}
+
+.ds-panel-header::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 40px;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--color-cream) 5%, rgba(247, 244, 238, 0.35) 50%, transparent 100%);
+}
+
+.ds-panel-header__body {
+  position: relative;
+  z-index: 1;
+}
+
+/* Rangée d'onglets, assombrie pour se détacher du dégradé. */
+.ds-panel-header__tabs {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(14, 30, 53, 0.28) 0%, transparent 100%);
+}
+
+/* Barre latérale : ascenseur discret, comme sur Diploma Lab. */
+.ds-rail-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 22, 40, 0.16) transparent;
+}
+.ds-rail-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.ds-rail-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(11, 22, 40, 0.16);
+}
+.ds-rail-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(11, 22, 40, 0.28);
+}
+
+/* Boutons posés dans le bandeau navy du titre : l'or pour l'action
+   principale, un contour clair pour les secondaires. Un bouton navy y
+   serait invisible. */
+.ds-header-action {
+  @apply inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2 text-sm font-semibold
+         text-navy transition-colors hover:bg-gold-light;
+}
+
+.ds-header-action-ghost {
+  @apply inline-flex items-center gap-2 rounded-lg border border-cream/25 bg-white/5 px-4 py-2
+         text-sm font-medium text-cream transition-colors hover:bg-white/12;
 }

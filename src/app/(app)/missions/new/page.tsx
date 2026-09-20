@@ -41,7 +41,7 @@ export default async function NewMissionPage({
           !isSalaried(provider.employment_type) ? (
             <Link
               href="/factures/deposer"
-              className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-navy hover:bg-cream-muted"
+              className="ds-header-action-ghost"
             >
               <FileUp size={16} />
               Importer depuis une facture PDF

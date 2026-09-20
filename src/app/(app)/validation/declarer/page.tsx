@@ -1,7 +1,7 @@
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
 import { DeclarationForm } from '@/components/missions/DeclarationForm'
 import { GrilleCommissions } from '@/components/contracts/GrilleCommissions'
-import { PageHeader } from '@/components/ui/Page'
+
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 import { requireRole } from '@/lib/auth'
 import { activeCycle, cycleForDate, todayParis } from '@/lib/cycle'
@@ -31,11 +31,11 @@ export default async function DeclarerPourPage() {
 
   return (
     <>
-      <PageHeader
-        title="Prestations"
+      <PrestationsNav
+        user={user}
+        current="declarer"
         description="Déclarez directement les missions de vos prestataires : elles rejoindront leur bordereau du mois."
       />
-      <PrestationsNav user={user} current="declarer" />
       <CalendrierMois pour="manager" />
       <DeclarationForm
         action={declarer}

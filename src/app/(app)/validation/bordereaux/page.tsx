@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { AlertTriangle, Bell, MessageSquare, Send } from 'lucide-react'
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
 import { InvoiceStatusBadge } from '@/components/ui/Badge'
-import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
+import { Card, EmptyState, StatTile } from '@/components/ui/Page'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { requireRole } from '@/lib/auth'
@@ -94,11 +94,11 @@ export default async function BordereauxPage({
 
   return (
     <>
-      <PageHeader
-        title="Prestations"
+      <PrestationsNav
+        user={user}
+        current="bordereaux"
         description="Le bordereau global part le 1er : toutes les missions de chaque prestataire, tous pôles réunis."
       />
-      <PrestationsNav user={user} current="bordereaux" />
       <CalendrierMois pour="manager" />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

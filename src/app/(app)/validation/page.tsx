@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Clock } from 'lucide-react'
-import { EmptyState, PageHeader } from '@/components/ui/Page'
+import { EmptyState } from '@/components/ui/Page'
 import { ValidationTable } from '@/components/validation/ValidationTable'
 import { requireRole } from '@/lib/auth'
 import { money } from '@/lib/format'
@@ -22,10 +22,6 @@ export default async function ValidationPage({
     const missions = await getMissionsByStatus(['submitted'], { managerId: user.id })
     return (
       <>
-        <PageHeader
-          title="Prestations"
-          description="Validez, corrigez ou refusez les prestations de vos prestataires avant le bordereau du mois."
-        />
         <PrestationsNav user={user} current="a-valider" />
         <CalendrierMois pour="manager" />
         {missions.length === 0 ? (
@@ -68,11 +64,11 @@ export default async function ValidationPage({
 
   return (
     <>
-      <PageHeader
-        title="Prestations"
+      <PrestationsNav
+        user={user}
+        current="a-valider"
         description="Ce que les managers ont validé part dans le bordereau du 1er. Vous pouvez intervenir avant."
       />
-      <PrestationsNav user={user} current="a-valider" />
 
       <Suspense fallback={null}>
         <ManagerPicker managers={managers} value={choix} ailleurs={ailleurs} />

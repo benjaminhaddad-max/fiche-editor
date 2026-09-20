@@ -37,7 +37,7 @@ export default async function MessagesPage({
           !afficherFormulaire ? (
             <Link
               href="/messages?nouveau"
-              className="inline-flex items-center rounded-lg bg-navy px-4 py-2 text-sm font-medium text-cream hover:bg-navy-light"
+              className="ds-header-action"
             >
               Nouveau message
             </Link>

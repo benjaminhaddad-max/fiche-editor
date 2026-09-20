@@ -1,9 +1,25 @@
-import { Tabs } from '@/components/ui/Tabs'
+import { PageHeader } from '@/components/ui/Page'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
 
-/** Les quatre vues d'une même page « Prestations », côté manager et admin. */
-export async function PrestationsNav({ user, current }: { user: AppUser; current: string }) {
+/**
+ * Le bandeau de la page « Prestations », côté manager et admin : un seul
+ * titre, et ses quatre vues en onglets dedans. Le compteur « à valider » est
+ * relu à chaque affichage, c'est lui qui appelle à l'action.
+ */
+export async function PrestationsNav({
+  user,
+  current,
+  title = 'Prestations',
+  description = 'Validez, corrigez ou refusez les prestations de vos prestataires avant le bordereau du mois.',
+  actions,
+}: {
+  user: AppUser
+  current: string
+  title?: string
+  description?: string
+  actions?: React.ReactNode
+}) {
   const supabase = await createServerSupabase()
   let q = supabase
     .from('inv_missions')
@@ -13,9 +29,12 @@ export async function PrestationsNav({ user, current }: { user: AppUser; current
   const { count } = await q
 
   return (
-    <Tabs
-      current={current}
-      items={[
+    <PageHeader
+      title={title}
+      description={description}
+      actions={actions}
+      currentTab={current}
+      tabs={[
         { key: 'a-valider', label: 'À valider', href: '/validation', count: count ?? 0 },
         { key: 'declarer', label: 'Déclarer pour un prestataire', href: '/validation/declarer' },
         { key: 'bordereaux', label: 'Bordereaux du mois', href: '/validation/bordereaux' },

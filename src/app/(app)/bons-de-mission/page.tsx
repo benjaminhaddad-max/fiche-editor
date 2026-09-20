@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { OrderStatusBadge } from '@/components/ui/Badge'
 import { NewOrderForm } from '@/components/orders/OrderForms'
 import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
-import { Tabs } from '@/components/ui/Tabs'
 import { requireRole } from '@/lib/auth'
 import { todayParis } from '@/lib/cycle'
 import { formatPeriod, money } from '@/lib/format'
@@ -48,10 +47,8 @@ export default async function BonsDeMissionPage({
       <PageHeader
         title="Bons de mission"
         description="Proposez une mission avec son tarif et ses conditions. Acceptée, puis clôturée à la date de fin, elle rejoint les prestations déclarées sans ressaisie."
-      />
-      <Tabs
-        current={courant}
-        items={[
+        currentTab={courant}
+        tabs={[
           { key: 'nouveau', label: 'Nouveau bon', href: '/bons-de-mission?onglet=nouveau' },
           { key: 'a-cloturer', label: 'À clôturer', href: '/bons-de-mission?onglet=a-cloturer', count: groupes['a-cloturer'].length },
           { key: 'en-cours', label: 'En cours', href: '/bons-de-mission?onglet=en-cours', count: groupes['en-cours'].length },

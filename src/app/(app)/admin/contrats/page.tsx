@@ -1,13 +1,12 @@
 import Link from 'next/link'
-import { ContractTile } from '@/components/contracts/ContractTile'
+import { ContractRows, type LigneContrat } from '@/components/contracts/ContractRows'
 import { ModeleContractForm } from '@/components/contracts/ModeleContractForm'
 import { NewContractForm } from '@/components/contracts/NewContractForm'
 import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
-import { Tabs } from '@/components/ui/Tabs'
 import { requireRole } from '@/lib/auth'
 import { todayParis } from '@/lib/cycle'
-import { CONTRACT_SELECT, type ContractRow } from '@/lib/contracts'
-import { money } from '@/lib/format'
+import { CONTRACT_STATUS_LABEL, CONTRACT_SELECT, contractRate, contractTitle, type ContractRow } from '@/lib/contracts'
+import { formatDate, formatPeriod, money } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
 import { getActiveProviders, getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
@@ -39,15 +38,12 @@ export default async function ContratsPage({
         title="Contrats"
         description="Tous les contrats, pôle par pôle : coaching, professeurs, référents pédagogiques, commercial, marketing, autres."
         actions={
-          <Link href={lien(courant, 'nouveau')} className="inline-flex items-center rounded-lg bg-navy px-4 py-2 text-sm font-medium text-cream hover:bg-navy-light">
+          <Link href={lien(courant, 'nouveau')} className="ds-header-action">
             Nouveau contrat
           </Link>
         }
-      />
-
-      <Tabs
-        current={courant}
-        items={[
+        currentTab={courant}
+        tabs={[
           { key: 'tous', label: 'Tous', href: '/admin/contrats', count: tous.filter((c) => c.status === 'active').length },
           ...POLES.map((p) => ({
             key: p,
@@ -93,35 +89,40 @@ export default async function ContratsPage({
 
       {liste.length === 0 ? (
         <EmptyState title="Aucun contrat ici" description="Créez-en un avec « Nouveau contrat »." />
-      ) : courant === 'tous' ? (
-        POLES.filter((p) => liste.some((c) => c.contract_type === p)).map((p) => {
-          const duPole = liste.filter((c) => c.contract_type === p)
-          return (
-            <section key={p} className="mb-8">
-              <div className="mb-3 flex items-baseline justify-between">
-                <Link href={`/admin/contrats?pole=${p}`} className="text-sm font-semibold text-navy hover:underline">
-                  {POLE_LABEL[p]}
-                  <span className="ml-2 font-normal text-muted">{duPole.length}</span>
-                </Link>
-                <span className="text-sm text-navy/70">
-                  {money(duPole.reduce((s, c) => s + Number(c.total_ht), 0))}
-                </span>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {duPole.map((c) => (
-                  <ContractTile key={c.id} c={c} showProvider />
-                ))}
-              </div>
-            </section>
-          )
-        })
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {liste.map((c) => (
-            <ContractTile key={c.id} c={c} showProvider />
-          ))}
-        </div>
+        <ContractRows lignes={liste.map(enLigne)} grouper={courant === 'tous'} />
       )}
     </>
   )
+}
+
+/** Ce qu'une ligne de la liste montre d'un contrat, et rien de plus. */
+function enLigne(c: ContractRow): LigneContrat {
+  const echeances = c.instalments ?? []
+  const signature = c.signed_at ? 'signe' : c.sent_at ? 'envoye' : c.document_path ? 'depose' : 'manquant'
+  // Une seule précision par ligne, et seulement quand elle apprend quelque
+  // chose : « Déposé » se suffit à lui-même, une date de signature non.
+  const detail = c.signed_at
+    ? formatDate(c.signed_at)
+    : c.sent_at
+      ? `le ${formatDate(c.sent_at)}`
+      : ''
+
+  return {
+    id: c.id,
+    personne: c.provider?.legal_name ?? '—',
+    intitule: contractTitle(c),
+    pole: c.contract_type,
+    poleLabel: POLE_LABEL[c.contract_type],
+    montant: Number(c.total_ht) || Number(c.rate_amount) || 0,
+    base: contractRate(c),
+    periode: c.academic_year ? `Année ${c.academic_year}` : formatPeriod(c.start_date, c.end_date),
+    echeancesOuvertes: echeances.filter((e) => e.mission_id).length,
+    echeancesTotal: echeances.length,
+    responsable: c.manager?.full_name ?? '',
+    signature,
+    signatureDetail: detail,
+    statut: c.status,
+    statutLabel: c.status === 'active' ? null : (CONTRACT_STATUS_LABEL[c.status] ?? c.status),
+  }
 }

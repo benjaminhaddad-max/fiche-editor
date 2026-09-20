@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/layout/AppShell'
+import { FicheAcompleter } from '@/components/profile/FicheAcompleter'
 import { ImpersonationBanner } from '@/components/layout/ImpersonationBanner'
 import { requireUser } from '@/lib/auth'
 import { getImpersonator } from '@/lib/impersonation'
@@ -28,9 +29,10 @@ export default async function AppLayout({
       salarie={salarie}
       unread={unread}
       banner={
-        impersonator ? (
-          <ImpersonationBanner admin={impersonator} viewing={user.full_name} />
-        ) : null
+        <>
+          {impersonator && <ImpersonationBanner admin={impersonator} viewing={user.full_name} />}
+          {user.role === 'prestataire' && <FicheAcompleter userId={user.id} />}
+        </>
       }
     >
       {children}

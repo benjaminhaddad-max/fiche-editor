@@ -6,7 +6,7 @@ import { OrderAnswer } from '@/components/orders/OrderAnswer'
 import { Badge, MissionStatusBadge, OrderStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, PageHeader, StatTile } from '@/components/ui/Page'
-import { Tabs, type TabItem } from '@/components/ui/Tabs'
+import type { TabItem } from '@/components/ui/Tabs'
 import { requireProvider } from '@/lib/auth'
 import { cycleForDate } from '@/lib/cycle'
 import { formatDate, formatPeriod, money } from '@/lib/format'
@@ -106,13 +106,13 @@ export default async function MissionsPage({
             : 'Déclarez vos missions, suivez leur validation ; le bordereau du mois les réunit toutes pour votre facture.'
         }
         actions={
-          <Link href="/missions/new">
-            <Button>
-              <Plus size={16} />
-              Déclarer
-            </Button>
+          <Link href="/missions/new" className="ds-header-action">
+            <Plus size={16} />
+            Déclarer
           </Link>
         }
+        tabs={onglets}
+        currentTab={courant}
       />
 
       <CalendrierMois pour={salarie ? 'salarie' : 'prestataire'} />
@@ -149,8 +149,6 @@ export default async function MissionsPage({
           sub={aRepondre.length ? `${aRepondre.length} à accepter` : '—'}
         />
       </div>
-
-      <Tabs items={onglets} current={courant} />
 
       {courant === 'bons' ? (
         orders.length === 0 ? (

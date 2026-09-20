@@ -7,7 +7,7 @@ import { clsx } from 'clsx'
  * symbole hérite de `currentColor` : une seule définition sert en navy sur
  * fond clair comme en crème sur fond navy.
  */
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg
       viewBox="75.7 121.9 118.3 121.5"
@@ -15,6 +15,7 @@ export function LogoMark({ className }: { className?: string }) {
       role="img"
       aria-label="Diploma Santé"
       className={className}
+      style={style}
     >
       <path d="M134.68,176.4l6.88,4.56.94-10.21s-.08-.05-.12-.07l-7.15-4.74-.56,10.46Z" />
       <path d="M190.71,200.74c.06-.31.1-.63.1-.95l.15-67.27-1.13-.19c-5.08-.85-12.64-1.86-18.69-2.18-.15-.03-.3-.04-.43-.04-5.18-.1-11.34.04-17.77,1.92-.22.03-.45.08-.66.17-4.75,1.8-8.54,4.55-11.3,8.18-2.16-4.25-5.58-7.69-10.15-10.24-.07-.04-.13-.08-.22-.12l-.08-.05c-.15-.08-.3-.15-.46-.2-6.14-2.79-12.26-3.78-17.41-4.38-.24-.03-.47-.04-.71-.03-6.05.32-13.61,1.33-18.69,2.18l-1.13.19.15,67.27c0,.32.04.64.1.95l1.31,6.36,1.75-.29c4.9-.82,12.16-1.79,17.87-2.1,4.36.09,9.42.42,14.13,2.55,4.79,2.67,8.02,6.65,9.35,11.52l1.83,6.71,1.83-6.71c1.33-4.87,4.56-8.85,9.35-11.52,4.71-2.13,9.77-2.46,14.13-2.55,5.71.31,12.97,1.28,17.87,2.1l1.75.29,1.31-6.36ZM123.61,199.99c-4.71-2.05-9.63-2.42-13.92-2.51-.04,0-.09,0-.13,0-5.13.27-11.56,1.09-16.4,1.85l-.14-63.4c4.75-.74,11.05-1.56,16.32-1.85,4.75.56,10.3,1.47,15.68,3.9,4.42,2.47,7.5,5.87,9.16,10.11l-.61,11.42-6.53-4.33-2.44,45.61c-.32-.28-.65-.55-.99-.81ZM187.65,199.33c-4.84-.76-11.27-1.58-16.4-1.85-.04,0-.09,0-.13,0-4.29.09-9.21.46-13.92,2.51-2.48,1.85-4.44,4.04-5.86,6.53l-2.6-48.62-6.68,4.43.6-11.19c1.66-4.24,4.74-7.64,9.16-10.11,5.38-2.43,10.93-3.34,15.68-3.9,5.27.29,11.57,1.11,16.32,1.85l-.14,63.4Z" />
@@ -25,9 +26,14 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 /**
- * Marque Diploma Invoice, calquée sur celle de Diploma Lab : le symbole à
- * gauche, le nom empilé sur deux lignes en Poppins — la police la plus
- * proche du lettrage officiel.
+ * Marque Diploma Invoice, calquée sur le lettrage de Diploma Lab : le symbole
+ * en haut à gauche, à la hauteur d'une ligne, puis le nom empilé sur deux
+ * lignes en Poppins — la police libre la plus proche du lettrage officiel.
+ *
+ * Les proportions sont relevées sur le logo Lab (logo-diploma-lab-header) :
+ * le symbole fait 0,8 cadratin, l'interligne 0,86, et le bloc de texte occupe
+ * toute la largeur restante. C'est ce rapport-là qui fait la ressemblance,
+ * pas la couleur — elle est déjà commune aux deux plateformes.
  */
 export function Logo({
   className,
@@ -37,25 +43,20 @@ export function Logo({
   className?: string
   /** `light` sur fond navy, `navy` sur fond clair. */
   tone?: 'navy' | 'light'
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'rail' | 'lg'
 }) {
-  const dimensions = {
-    sm: { mark: 'w-7', text: 'text-[15px]' },
-    md: { mark: 'w-10', text: 'text-[22px]' },
-    lg: { mark: 'w-14', text: 'text-[30px]' },
-  }[size]
+  const em = { sm: 19, md: 30, rail: 34, lg: 46 }[size]
+  const teinte = tone === 'light' ? 'text-cream' : 'text-navy'
 
   return (
-    <span className={clsx('flex items-center gap-3', className)}>
+    <span className={clsx('flex items-start gap-[0.26em]', className)} style={{ fontSize: em }}>
       <LogoMark
-        className={clsx(dimensions.mark, 'shrink-0', tone === 'light' ? 'text-cream' : 'text-navy')}
+        className={clsx('mt-[0.06em] shrink-0', teinte)}
+        style={{ height: '0.8em', width: 'auto' }}
       />
       <span
-        className={clsx(
-          'font-brand font-medium leading-[0.98] tracking-[-0.01em]',
-          dimensions.text,
-          tone === 'light' ? 'text-cream' : 'text-navy'
-        )}
+        className={clsx('font-brand font-medium leading-[0.86] tracking-[-0.015em]', teinte)}
+        style={{ fontSize: em }}
       >
         <span className="block">Diploma</span>
         <span className="block">Invoice</span>

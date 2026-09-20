@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { NewUserForm } from '@/components/admin/NewUserForm'
 import { UsersTable, type EquipeRow } from '@/components/admin/UsersTable'
 import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
-import { Tabs } from '@/components/ui/Tabs'
 import { requireRole } from '@/lib/auth'
 import { money } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -64,21 +63,12 @@ export default async function EquipePage({
         title="Équipe"
         description="Toutes les personnes : prestataires, salariés, managers, fournisseurs sans compte. Cochez plusieurs lignes pour inviter en une fois."
         actions={
-          <Link href={`/admin/equipe?onglet=${courant}&nouveau`} className="inline-flex items-center rounded-lg bg-navy px-4 py-2 text-sm font-medium text-cream hover:bg-navy-light">
+          <Link href={`/admin/equipe?onglet=${courant}&nouveau`} className="ds-header-action">
             Ajouter une personne
           </Link>
         }
-      />
-
-      {nouveau !== undefined && (
-        <div className="mb-6">
-          <NewUserForm action={createUserAccount} />
-        </div>
-      )}
-
-      <Tabs
-        current={courant!}
-        items={[
+        currentTab={courant!}
+        tabs={[
           { key: 'prestataires', label: 'Prestataires', href: '/admin/equipe', count: groupes.prestataires.length },
           { key: 'salaries', label: 'Vacataires et alternants', href: '/admin/equipe?onglet=salaries', count: groupes.salaries.length },
           { key: 'equipe', label: 'Managers et admins', href: '/admin/equipe?onglet=equipe', count: groupes.equipe.length },
@@ -86,6 +76,12 @@ export default async function EquipePage({
           { key: 'desactives', label: 'Désactivés', href: '/admin/equipe?onglet=desactives' },
         ]}
       />
+
+      {nouveau !== undefined && (
+        <div className="mb-6">
+          <NewUserForm action={createUserAccount} />
+        </div>
+      )}
 
       {courant === 'fournisseurs' ? (
         sansCompte.length === 0 ? (

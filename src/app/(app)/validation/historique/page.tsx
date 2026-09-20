@@ -1,7 +1,7 @@
 import { MissionStatusBadge } from '@/components/ui/Badge'
 import { HistoriqueAdmin } from '@/components/prestations/HistoriqueAdmin'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
-import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
+import { Card, EmptyState } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
 import { formatDate, formatPeriod, money } from '@/lib/format'
 import { MISSION_WITH_RELATIONS } from '@/lib/missions'
@@ -31,8 +31,11 @@ export default async function HistoriquePage({
   if (user.role === 'admin') {
     return (
       <>
-        <PageHeader title="Prestations" description="Toutes les prestations, filtrables par mois, prestataire, catégorie et statut." />
-        <PrestationsNav user={user} current="historique" />
+        <PrestationsNav
+          user={user}
+          current="historique"
+          description="Toutes les prestations, filtrables par mois, prestataire, catégorie et statut."
+        />
         <HistoriqueAdmin f={await searchParams} />
       </>
     )
@@ -53,8 +56,7 @@ export default async function HistoriquePage({
 
   return (
     <>
-      <PageHeader title="Prestations" description="Les prestations que vous avez déjà traitées." />
-      <PrestationsNav user={user} current="historique" />
+      <PrestationsNav user={user} current="historique" description="Les prestations que vous avez déjà traitées." />
 
       {rows.length === 0 ? (
         <EmptyState title="Aucune prestation traitée pour l’instant" />
