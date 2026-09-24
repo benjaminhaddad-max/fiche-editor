@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
+import { cycleForDate, providerCanDeclare } from '@/lib/cycle'
 import { money, round2 } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
 import type { DeclarationResult } from '@/app/(app)/declarations/actions'
@@ -21,6 +22,8 @@ interface Ligne {
   category_id: string
   manager_id: string
   pay_basis: 'brut' | 'net'
+  formation: string
+  regularisation: boolean
   detail: string
   date: string
   kind: 'prestation' | 'bonus'
@@ -49,6 +52,9 @@ interface Props {
   deadlineText: string
 }
 
+/** Suggestions de formation : le champ reste libre, on ne fait qu'aider. */
+const FORMATIONS = ['PASS', 'LAS', 'LSPS', 'PAES', 'Terminale Santé', 'Prépa concours']
+
 let compteur = 0
 
 export function DeclarationForm(props: Props) {
@@ -71,6 +77,8 @@ export function DeclarationForm(props: Props) {
     category_id: categorieParDefaut,
     manager_id: '',
     pay_basis: 'brut',
+    formation: '',
+    regularisation: false,
     detail: '',
     date: today,
     kind: 'prestation',
@@ -104,10 +112,12 @@ export function DeclarationForm(props: Props) {
   }, [categories])
 
   const serialisees = JSON.stringify(
-    lignes.map(({ category_id, manager_id, pay_basis, detail, date, kind, pricing_type, quantity, unit_amount_ht }) => ({
+    lignes.map(({ category_id, manager_id, pay_basis, formation, regularisation, detail, date, kind, pricing_type, quantity, unit_amount_ht }) => ({
       category_id,
       manager_id,
       pay_basis,
+      formation,
+      regularisation,
       detail,
       date,
       kind,
@@ -120,6 +130,11 @@ export function DeclarationForm(props: Props) {
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="lignes" value={serialisees} />
+      <datalist id="ds-formations">
+        {FORMATIONS.map((f) => (
+          <option key={f} value={f} />
+        ))}
+      </datalist>
 
       <Card className="p-5">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -175,12 +190,13 @@ export function DeclarationForm(props: Props) {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] table-fixed text-sm">
+          <table className="w-full min-w-[1330px] table-fixed text-sm">
             <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="w-[200px] px-3 py-2.5 font-medium">Type</th>
                 {mode !== 'manager' && <th className="w-[180px] px-3 py-2.5 font-medium">Confiée par</th>}
                 <th className="px-3 py-2.5 font-medium">Désignation</th>
+                <th className="w-[150px] px-3 py-2.5 font-medium">Formation</th>
                 <th className="w-[150px] px-3 py-2.5 font-medium">Date</th>
                 <th className="w-[115px] px-3 py-2.5 font-medium">Tarif</th>
                 <th className="w-[90px] px-3 py-2.5 font-medium">Qté</th>
@@ -262,12 +278,36 @@ export function DeclarationForm(props: Props) {
                     </td>
                     <td className="px-3 py-2.5">
                       <input
+                        className="field w-full"
+                        list="ds-formations"
+                        value={l.formation}
+                        maxLength={120}
+                        placeholder="Ex : PASS"
+                        onChange={(e) => maj(l.cle, { formation: e.target.value })}
+                        aria-label="Formation concernée"
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <input
                         type="date"
                         className="field w-full"
                         value={l.date}
                         onChange={(e) => maj(l.cle, { date: e.target.value })}
                         aria-label="Date"
                       />
+                      {mode === 'prestataire' && !providerCanDeclare(l.date, today) && (
+                        <label className="mt-1.5 flex items-start gap-1.5 text-[11px] text-navy/70">
+                          <input
+                            type="checkbox"
+                            checked={l.regularisation}
+                            onChange={(e) => maj(l.cle, { regularisation: e.target.checked })}
+                            className="mt-0.5 accent-navy"
+                          />
+                          <span>
+                            Régularisation <span className="text-muted">{cycleForDate(l.date).label}</span>
+                          </span>
+                        </label>
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
                       {l.kind === 'bonus' ? (

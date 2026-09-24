@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Check, Pencil, X } from 'lucide-react'
 import { approveMission, corrigerMission, rejectMission } from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
+import { cycleForDate } from '@/lib/cycle'
 import { formatPeriod, money } from '@/lib/format'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
@@ -13,6 +14,8 @@ import type { ContractContext } from '@/lib/contract-context'
 export interface ReviewMission {
   id: string
   detail: string
+  formation: string | null
+  regularisation: boolean
   start_date: string
   end_date: string | null
   pricing_type: PricingType
@@ -167,8 +170,16 @@ export function ValidationTable({
                   {m.provider_name}
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-navy">{m.detail}</p>
+                  <p className="flex flex-wrap items-center gap-2 text-navy">
+                    {m.detail}
+                    {m.regularisation && (
+                      <span className="rounded-full bg-amber-50 px-2 py-px text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                        Régularisation {cycleForDate(m.start_date).label}
+                      </span>
+                    )}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted">
+                    {m.formation ? `${m.formation} · ` : ''}
                     {m.category_name} · {PRICING_LABEL[m.pricing_type]} ·{' '}
                     {Number(m.quantity)} {PRICING_UNIT[m.pricing_type]} ×{' '}
                     {money(m.unit_amount_ht)}

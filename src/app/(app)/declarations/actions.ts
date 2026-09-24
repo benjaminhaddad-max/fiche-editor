@@ -25,6 +25,10 @@ const Ligne = z.object({
   kind: z.enum(['prestation', 'bonus']).default('prestation'),
   /** Salarié : le montant est-il en brut ou en net ? Vide pour un indépendant. */
   pay_basis: z.union([z.enum(['brut', 'net']), z.literal('')]).optional(),
+  /** Formation concernée, écrite librement : PASS, LAS, Terminale Santé… */
+  formation: z.string().trim().max(120).optional(),
+  /** Rattrapage d'un mois clos : la date reste vraie, le paiement suit le cycle en cours. */
+  regularisation: z.coerce.boolean().optional(),
   pricing_type: z.enum(['forfait_mission', 'forfait_horaire']),
   quantity: z.coerce.number<number>().positive('Quantité supérieure à 0.').max(10000),
   unit_amount_ht: z.coerce.number<number>().nonnegative('Montant invalide.').max(1000000),
@@ -125,9 +129,9 @@ export async function declarer(
       lineErrors[i] = 'Les bonus concernent les vacataires et alternants.'
       return
     }
-    if (user.role === 'prestataire' && !providerCanDeclare(r.data.date)) {
+    if (user.role === 'prestataire' && !providerCanDeclare(r.data.date) && !r.data.regularisation) {
       const c = cycleForDate(r.data.date)
-      lineErrors[i] = `Trop tard pour ${c.label} (clôture le ${formatDateLong(c.declarationDeadline)}). Demandez à votre manager de l’ajouter.`
+      lineErrors[i] = `Trop tard pour ${c.label} (clôture le ${formatDateLong(c.declarationDeadline)}). Cochez « régularisation » si c’est un rattrapage, ou demandez à votre manager de l’ajouter.`
       return
     }
     if (user.role === 'manager' && !managerCanEdit(r.data.date)) {
@@ -155,6 +159,10 @@ export async function declarer(
     start_date: l.date,
     end_date: l.date,
     kind: l.kind,
+    formation: l.formation || null,
+    // Une régularisation ne se déclare que sur un mois déjà clos ; ailleurs,
+    // la case cochée par mégarde ne doit rien changer.
+    regularisation: Boolean(l.regularisation) && !providerCanDeclare(l.date),
     // Un indépendant facture : la question brut/net ne se pose pas pour lui.
     pay_basis: provider.employment_type === 'independant' ? null : l.pay_basis || 'brut',
     pricing_type: l.kind === 'bonus' ? 'forfait_mission' : l.pricing_type,

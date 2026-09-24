@@ -29,17 +29,17 @@ const JUIN = '2027-06-30'
 
 const COACHS = [
   // PAES — base 60 étudiants, prorata au-delà
-  { nom: 'Marie-Lou Traens', email: '', programme: 'paes', classes: 'Classes 1 et 2', lieu: 'Présentiel', effectif: 60, janvier: 500, juin: 1000, note: 'Base 60 étudiants, prorata au-delà. Montant ajusté si l’effectif dépasse 60.' },
-  { nom: 'Laura Gheorghita', email: '', programme: 'paes', classes: 'Classes 3, 4 et 5', lieu: 'Présentiel', effectif: 90, janvier: 750, juin: 1500, note: 'Base 60 étudiants, prorata au-delà. Estimation au prorata de 90 étudiants.' },
+  { nom: 'Marie-Lou Traens', email: 'marie-lou.traens@orange.fr', tel: '+33 7 84 17 71 53', programme: 'paes', classes: 'Classes 1 et 2', lieu: 'Présentiel', effectif: 60, janvier: 500, juin: 1000, note: 'Base 60 étudiants, prorata au-delà. Montant ajusté si l’effectif dépasse 60.' },
+  { nom: 'Laura Gheorghita', email: 'laurandreeagheorghita@gmail.com', tel: '+33 6 52 56 10 96', programme: 'paes', classes: 'Classes 3, 4 et 5', lieu: 'Présentiel', effectif: 90, janvier: 750, juin: 1500, note: 'Base 60 étudiants, prorata au-delà. Estimation au prorata de 90 étudiants.' },
   { nom: 'Merwane Bouharaouï-Rother', email: 'merwane.bouharaoui@gmail.com', programme: 'paes', classes: 'Classe en ligne', lieu: 'À distance', effectif: null, janvier: 500, juin: 1000, note: 'Forfait fixe, sans prorata.' },
 
   // Terminale Santé — forfait fixe
   { nom: 'Ayna Boulemsamer Le Cunff', email: 'aynabroucuny4@gmail.com', programme: 'terminale_sante', classes: 'Classes 1 et 2', lieu: 'Quai de la Rapée', effectif: 60, janvier: 1000, juin: 1000, note: 'Forfait fixe. Rémunération dérogatoire.' },
-  { nom: 'Mélina Oukil', email: '', programme: 'terminale_sante', classes: 'Classes 3 et 4', lieu: 'Quai de la Rapée', effectif: 60, janvier: 500, juin: 1000, note: 'Forfait fixe.' },
-  { nom: 'Assya Kaoukab', email: '', programme: 'terminale_sante', classes: 'Classes 5 et 6', lieu: 'Lauriston', effectif: 60, janvier: 500, juin: 1000, note: 'Forfait fixe.' },
-  { nom: 'Pratchi Ariana Aryal', email: '', programme: 'terminale_sante', classes: 'Classes 7 et 8', lieu: 'Ledru-Rollin', effectif: 60, janvier: 500, juin: 1000, note: 'Forfait fixe. Mission à compter d’octobre 2026.', debut: '2026-10-01' },
-  { nom: 'Yasmine Lina Benhida', email: '', programme: 'terminale_sante', classes: 'Classe à distance (binôme)', lieu: 'À distance', effectif: null, janvier: 500, juin: 1000, note: 'Forfait fixe. Binôme avec Laura Issa.' },
-  { nom: 'Laura Issa', email: '', programme: 'terminale_sante', classes: 'Classe à distance (binôme)', lieu: 'À distance', effectif: null, janvier: 500, juin: 1000, note: 'Forfait fixe. Binôme avec Yasmine Lina Benhida.' },
+  { nom: 'Mélina Oukil', email: 'oukil.melina@outlook.fr', tel: '+33 7 83 62 82 87', programme: 'terminale_sante', classes: 'Classes 3 et 4', lieu: 'Quai de la Rapée', effectif: 60, janvier: 500, juin: 1000, note: 'Forfait fixe.' },
+  { nom: 'Assya Kaoukab', email: 'assyak.kaoukab@yahoo.com', tel: '+33 6 58 93 72 71', programme: 'terminale_sante', classes: 'Classes 5 et 6', lieu: 'Lauriston', effectif: 60, janvier: 500, juin: 1000, note: 'Forfait fixe.' },
+  { nom: 'Pratchi Ariana Aryal', email: 'pratchi376@gmail.com', tel: '+33 7 81 41 50 07', programme: 'terminale_sante', classes: 'Classes 7 et 8', lieu: 'Ledru-Rollin', effectif: 60, janvier: 500, juin: 1000, note: 'Forfait fixe. Mission à compter d’octobre 2026.', debut: '2026-10-01' },
+  { nom: 'Yasmine Lina Benhida', email: 'benhida.yasmin@gmail.com', tel: '+33 7 48 40 11 13', programme: 'terminale_sante', classes: 'Classe à distance (binôme)', lieu: 'À distance', effectif: null, janvier: 500, juin: 1000, note: 'Forfait fixe. Binôme avec Laura Issa.' },
+  { nom: 'Laura Issa', email: 'laura02azza@gmail.com', tel: '+33 7 82 62 49 31', programme: 'terminale_sante', classes: 'Classe à distance (binôme)', lieu: 'À distance', effectif: null, janvier: 500, juin: 1000, note: 'Forfait fixe. Binôme avec Yasmine Lina Benhida.' },
   // Isa Lys (classes 9 et 10) : mission à compter de janvier 2027, rémunération
   // non arrêtée — rien à enregistrer tant que le montant n'est pas fixé.
 ]
@@ -55,9 +55,29 @@ for (const c of COACHS) {
   const total = c.janvier + c.juin
   if (!c.email) { enAttente.push(`${c.nom} — ${total} € — email manquant`); continue }
 
-  const { data: user } = await db.from('inv_users').select('id').ilike('email', c.email).maybeSingle()
-  if (!user) { enAttente.push(`${c.nom} — ${total} € — aucun compte pour ${c.email}`); continue }
-  const { data: fiche } = await db.from('inv_providers').select('id').eq('user_id', user.id).maybeSingle()
+  let { data: user } = await db.from('inv_users').select('id, role').ilike('email', c.email).maybeSingle()
+  if (user && user.role !== 'prestataire') { enAttente.push(`${c.nom} — ${c.email} appartient à l’équipe`); continue }
+  if (!user && APPLY) {
+    const { data: auth, error: eA } = await db.auth.admin.createUser({ email: c.email, email_confirm: true })
+    if (eA) { enAttente.push(`${c.nom} : ${eA.message}`); continue }
+    const r = await db.from('inv_users')
+      .insert({ auth_id: auth.user.id, email: c.email, full_name: c.nom, role: 'prestataire', phone: c.tel ?? null })
+      .select('id, role').single()
+    if (r.error) { enAttente.push(`${c.nom} : ${r.error.message}`); continue }
+    user = r.data
+  }
+  if (!user) { console.log(`  (compte à créer pour ${c.email})`); crees++; continue }
+
+  let { data: fiche } = await db.from('inv_providers').select('id').eq('user_id', user.id).maybeSingle()
+  if (!fiche && APPLY) {
+    const r = await db.from('inv_providers').insert({
+      user_id: user.id, legal_name: c.nom, phone: c.tel ?? null, invoice_prefix: 'FACT',
+      default_manager_id: shirel.id, employment_type: 'independant',
+      notes: `Coaching ${LIBELLE[c.programme]} — ${c.classes}. ${c.lieu}.`,
+    }).select('id').single()
+    if (r.error) { enAttente.push(`${c.nom} : ${r.error.message}`); continue }
+    fiche = r.data
+  }
   if (!fiche) { enAttente.push(`${c.nom} — fiche prestataire introuvable`); continue }
 
   const titre = `Coaching ${LIBELLE[c.programme]} — ${c.classes}`
