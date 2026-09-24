@@ -19,7 +19,10 @@ export default async function ValidationPage({
   const { manager } = await searchParams
 
   if (user.role === 'manager') {
-    const missions = await getMissionsByStatus(['submitted'], { managerId: user.id })
+    const [missions, managers] = await Promise.all([
+      getMissionsByStatus(['submitted'], { managerId: user.id }),
+      getManagers(),
+    ])
     return (
       <>
         <PrestationsNav user={user} current="a-valider" />
@@ -37,7 +40,7 @@ export default async function ValidationPage({
                 {money(missions.reduce((s, m) => s + m.total_ht, 0))} HT
               </span>
             </p>
-            <ValidationTable missions={missions} />
+            <ValidationTable missions={missions} managers={managers} />
           </>
         )}
       </>
@@ -91,7 +94,7 @@ export default async function ValidationPage({
         {awaitingAdmin.length === 0 ? (
           <EmptyState title="Rien de validé en attente du bordereau" />
         ) : (
-          <ValidationTable missions={awaitingAdmin} showManager />
+          <ValidationTable missions={awaitingAdmin} showManager managers={managers} />
         )}
       </section>
 
@@ -108,7 +111,7 @@ export default async function ValidationPage({
         {awaitingManager.length === 0 ? (
           <EmptyState title="Aucune prestation en attente côté manager" />
         ) : (
-          <ValidationTable missions={awaitingManager} showManager />
+          <ValidationTable missions={awaitingManager} showManager managers={managers} />
         )}
       </section>
     </>

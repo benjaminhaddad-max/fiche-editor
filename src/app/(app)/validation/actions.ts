@@ -183,6 +183,7 @@ export async function corrigerMission(formData: FormData): Promise<void> {
   const detail = String(formData.get('detail') ?? '').trim()
   const quantity = Number(formData.get('quantity'))
   const unit = Number(formData.get('unit_amount_ht'))
+  const nouveauManager = String(formData.get('manager_id') ?? '').trim()
   if (!id || detail.length < 3 || !(quantity > 0) || !(unit >= 0)) return
 
   const db = createServiceClient()
@@ -195,10 +196,24 @@ export async function corrigerMission(formData: FormData): Promise<void> {
   if (!['submitted', 'manager_approved', 'approved'].includes(m.status)) return
   if (user.role === 'manager' && (m.manager_id !== user.id || !managerCanEdit(m.start_date))) return
 
+  // Réattribuer, c'est envoyer la ligne se faire vérifier ailleurs : on ne
+  // la confie qu'à quelqu'un qui encadre vraiment, et encore en poste.
+  let managerId = m.manager_id
+  if (nouveauManager && nouveauManager !== m.manager_id) {
+    const { data: cible } = await db
+      .from('inv_users')
+      .select('id')
+      .eq('id', nouveauManager)
+      .in('role', ['manager', 'admin'])
+      .eq('is_active', true)
+      .maybeSingle()
+    if (cible) managerId = cible.id
+  }
+
   const total = round2(quantity * unit)
   await db
     .from('inv_missions')
-    .update({ detail, quantity, unit_amount_ht: unit, total_ht: total })
+    .update({ detail, quantity, unit_amount_ht: unit, total_ht: total, manager_id: managerId })
     .eq('id', id)
 
   await logAudit(null, {
@@ -207,8 +222,8 @@ export async function corrigerMission(formData: FormData): Promise<void> {
     entityId: id,
     action: 'correction',
     payload: {
-      avant: { detail: m.detail, quantity: Number(m.quantity), unit_amount_ht: Number(m.unit_amount_ht), total_ht: Number(m.total_ht) },
-      apres: { detail, quantity, unit_amount_ht: unit, total_ht: total },
+      avant: { detail: m.detail, quantity: Number(m.quantity), unit_amount_ht: Number(m.unit_amount_ht), total_ht: Number(m.total_ht), manager_id: m.manager_id },
+      apres: { detail, quantity, unit_amount_ht: unit, total_ht: total, manager_id: managerId },
     },
   })
 

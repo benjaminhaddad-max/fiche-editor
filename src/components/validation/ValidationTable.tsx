@@ -16,6 +16,7 @@ export interface ReviewMission {
   detail: string
   formation: string | null
   regularisation: boolean
+  manager_id: string | null
   start_date: string
   end_date: string | null
   pricing_type: PricingType
@@ -75,9 +76,12 @@ function ContractBreakdown({ c }: { c: ContractContext }) {
 export function ValidationTable({
   missions,
   showManager,
+  managers = [],
 }: {
   missions: ReviewMission[]
   showManager?: boolean
+  /** Pour réattribuer une prestation au bon manager depuis la correction. */
+  managers?: { id: string; full_name: string }[]
 }) {
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -199,6 +203,23 @@ export function ValidationTable({
                       <input name="detail" defaultValue={m.detail} className="field text-xs" aria-label="Désignation" required minLength={3} />
                       <input name="quantity" type="number" step="0.25" min="0.25" defaultValue={m.quantity} className="field text-xs" aria-label="Quantité" required />
                       <input name="unit_amount_ht" type="number" step="0.01" min="0" defaultValue={m.unit_amount_ht} className="field text-xs" aria-label="Prix unitaire HT" required />
+                      {managers.length > 0 && (
+                        <label className="text-xs text-navy/70 sm:col-span-3">
+                          Manager rattaché
+                          <select
+                            name="manager_id"
+                            defaultValue={m.manager_id ?? ''}
+                            className="field mt-1 text-xs"
+                            aria-label="Manager rattaché"
+                          >
+                            {managers.map((x) => (
+                              <option key={x.id} value={x.id}>
+                                {x.full_name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                       <div className="flex gap-2 sm:col-span-3">
                         <SubmitButton size="sm" pendingLabel="…">Enregistrer la correction</SubmitButton>
                         <button type="button" onClick={() => setEditing(null)} className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-navy/70 hover:bg-cream-deep">
