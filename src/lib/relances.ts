@@ -27,10 +27,26 @@ export interface Relance {
  */
 export async function relancerDeclarations(
   cycle: BillingCycle,
-  auteurId: string | null
+  auteurId: string | null,
+  /** Restreint la relance aux prestataires de ce manager. */
+  pourManager?: string
 ): Promise<Relance> {
   const db = createServiceClient()
   const out: Relance = { rappeles: 0, invites: 0, ignores: 0, managers: 0, echecs: [] }
+
+  // Un manager ne relance que les siens : ceux qui lui sont rattachés par
+  // défaut, et ceux dont il a déjà validé une prestation.
+  let siens: Set<string> | null = null
+  if (pourManager) {
+    const [{ data: parDefaut }, { data: parMission }] = await Promise.all([
+      db.from('inv_providers').select('id').eq('default_manager_id', pourManager),
+      db.from('inv_missions').select('provider_id').eq('manager_id', pourManager),
+    ])
+    siens = new Set([
+      ...(parDefaut ?? []).map((f) => f.id as string),
+      ...(parMission ?? []).map((m) => m.provider_id as string),
+    ])
+  }
 
   const [{ data: gens }, { data: invitations }, { data: missions }] = await Promise.all([
     db
@@ -60,6 +76,7 @@ export async function relancerDeclarations(
   }[]) {
     const fiche = Array.isArray(u.provider) ? u.provider[0] : u.provider
     if (!fiche) continue
+    if (siens && !siens.has(fiche.id)) continue
 
     // Jamais entré : ni lien consommé, ni fiche complétée.
     if (!venus.has(u.id) && !fiche.onboarding_complete) {
@@ -106,11 +123,13 @@ export async function relancerDeclarations(
   // les factures qui ne suivent aucune prestation. Et leur date n'est pas
   // celle des déclarations — une facture qu'ils envoient est déjà vérifiée
   // de leur côté — mais celle où toutes les factures doivent être reçues.
-  const { data: encadrants } = await db
-    .from('inv_users')
-    .select('id, email, full_name')
-    .in('role', ['manager', 'admin'])
-    .eq('is_active', true)
+  const { data: encadrants } = pourManager
+    ? { data: [] }
+    : await db
+        .from('inv_users')
+        .select('id, email, full_name')
+        .in('role', ['manager', 'admin'])
+        .eq('is_active', true)
 
   for (const m of encadrants ?? []) {
     if (!venus.has(m.id as string)) {

@@ -5,7 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { cycleForDate, providerCanDeclare } from '@/lib/cycle'
+import { cycleForDate, cycleForMonth, providerCanDeclare } from '@/lib/cycle'
 import { money, round2 } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
 import type { DeclarationResult } from '@/app/(app)/declarations/actions'
@@ -24,6 +24,7 @@ interface Ligne {
   pay_basis: 'brut' | 'net'
   formation: string
   regularisation: boolean
+  regul_period: string
   detail: string
   date: string
   kind: 'prestation' | 'bonus'
@@ -62,6 +63,16 @@ const UNITE: Record<PricingType, { quantite: string; pluriel: string; prix: stri
   forfait_horaire: { quantite: 'Heures', pluriel: 'heures', prix: '€ / heure' },
 }
 
+/** Les douze derniers mois, pour dire quelle période on rattrape. */
+function MOIS_RECENTS(today: string) {
+  const [a, m] = today.slice(0, 7).split('-').map(Number)
+  return Array.from({ length: 13 }, (_, i) => {
+    const d = new Date(Date.UTC(a, m - 1 - i, 1))
+    const valeur = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+    return { valeur, label: cycleForMonth(valeur).label }
+  })
+}
+
 let compteur = 0
 
 export function DeclarationForm(props: Props) {
@@ -86,6 +97,7 @@ export function DeclarationForm(props: Props) {
     pay_basis: 'brut',
     formation: '',
     regularisation: false,
+    regul_period: '',
     detail: '',
     date: today,
     kind: 'prestation',
@@ -119,12 +131,13 @@ export function DeclarationForm(props: Props) {
   }, [categories])
 
   const serialisees = JSON.stringify(
-    lignes.map(({ category_id, manager_id, pay_basis, formation, regularisation, detail, date, kind, pricing_type, quantity, unit_amount_ht }) => ({
+    lignes.map(({ category_id, manager_id, pay_basis, formation, regularisation, regul_period, detail, date, kind, pricing_type, quantity, unit_amount_ht }) => ({
       category_id,
       manager_id,
       pay_basis,
       formation,
       regularisation,
+      regul_period,
       detail,
       date,
       kind,
@@ -302,18 +315,38 @@ export function DeclarationForm(props: Props) {
                         onChange={(e) => maj(l.cle, { date: e.target.value })}
                         aria-label="Date"
                       />
-                      {mode === 'prestataire' && !providerCanDeclare(l.date, today) && (
-                        <label className="mt-1.5 flex items-start gap-1.5 text-[11px] text-navy/70">
-                          <input
-                            type="checkbox"
-                            checked={l.regularisation}
-                            onChange={(e) => maj(l.cle, { regularisation: e.target.checked })}
-                            className="mt-0.5 accent-navy"
-                          />
-                          <span>
-                            Régularisation <span className="text-muted">{cycleForDate(l.date).label}</span>
-                          </span>
-                        </label>
+                      <label className="mt-1.5 flex items-start gap-1.5 text-[11px] text-navy/70">
+                        <input
+                          type="checkbox"
+                          checked={l.regularisation}
+                          onChange={(e) =>
+                            maj(l.cle, {
+                              regularisation: e.target.checked,
+                              regul_period: e.target.checked ? l.regul_period || l.date.slice(0, 7) : '',
+                            })
+                          }
+                          className="mt-0.5 accent-navy"
+                        />
+                        <span>Rattrapage</span>
+                      </label>
+                      {l.regularisation && (
+                        <select
+                          className="field mt-1 w-full text-[11px]"
+                          value={l.regul_period || l.date.slice(0, 7)}
+                          onChange={(e) => maj(l.cle, { regul_period: e.target.value })}
+                          aria-label="Mois rattrapé"
+                        >
+                          {MOIS_RECENTS(today).map((m) => (
+                            <option key={m.valeur} value={m.valeur}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {!providerCanDeclare(l.date, today) && !l.regularisation && (
+                        <p className="mt-1 text-[11px] text-amber-700">
+                          {cycleForDate(l.date).label} est clos : cochez « rattrapage ».
+                        </p>
                       )}
                     </td>
                     <td className="px-3 py-2.5">

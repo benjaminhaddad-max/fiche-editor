@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Check, Pencil, X } from 'lucide-react'
 import { approveMission, corrigerMission, rejectMission } from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
-import { cycleForDate } from '@/lib/cycle'
+import { cycleForDate, cycleForMonth } from '@/lib/cycle'
 import { formatPeriod, money } from '@/lib/format'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
@@ -16,6 +16,7 @@ export interface ReviewMission {
   detail: string
   formation: string | null
   regularisation: boolean
+  regul_period: string | null
   manager_id: string | null
   abatement_rate: number
   start_date: string
@@ -179,7 +180,7 @@ export function ValidationTable({
                     {m.detail}
                     {m.regularisation && (
                       <span className="rounded-full bg-amber-50 px-2 py-px text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-                        Régularisation {cycleForDate(m.start_date).label}
+                        Rattrapage {m.regul_period ? cycleForMonth(m.regul_period).label : cycleForDate(m.start_date).label}
                       </span>
                     )}
                   </p>

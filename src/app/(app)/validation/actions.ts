@@ -1,6 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { trouverOuCreerPrestataire } from '@/lib/personnes'
+import { templates } from '@/lib/email/templates'
+import { deliver, sendInvitation } from '@/lib/email/notify'
+import { cycleForDate, todayParis } from '@/lib/cycle'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { notifyMissionRejected, notifyReadyToInvoice } from '@/lib/email/notify'
@@ -230,4 +234,68 @@ export async function corrigerMission(formData: FormData): Promise<void> {
   })
 
   revalidatePath('/validation')
+}
+
+export interface AjoutResultat {
+  message?: string
+  error?: string
+}
+
+/**
+ * Ajoute un prestataire, depuis l'écran d'un manager.
+ *
+ * Deux champs suffisent : un nom, une adresse. Le reste — SIRET, adresse
+ * postale, IBAN — c'est la personne qui le remplira, elle seule le connaît.
+ * L'accès et le calendrier du mois partent dans la foulée si on le demande.
+ */
+export async function ajouterPrestataire(
+  _prev: AjoutResultat | null,
+  fd: FormData
+): Promise<AjoutResultat> {
+  const user = await requireRole('manager', 'admin')
+  const nom = String(fd.get('nom') ?? '').trim()
+  const email = String(fd.get('email') ?? '').trim().toLowerCase()
+  const telephone = String(fd.get('telephone') ?? '').trim() || null
+  const prevenir = fd.get('prevenir') === '1'
+
+  if (nom.length < 3) return { error: 'Indiquez le nom et le prénom.' }
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) return { error: 'Cette adresse email n’est pas valide.' }
+
+  const db = createServiceClient()
+  const trouve = await trouverOuCreerPrestataire(db, { nom, email, telephone })
+  if ('error' in trouve) return { error: trouve.error }
+
+  // Le manager qui l'ajoute devient son interlocuteur par défaut.
+  if (trouve.cree) {
+    await db.from('inv_providers').update({ default_manager_id: user.id }).eq('id', trouve.providerId)
+  }
+
+  if (prevenir) {
+    const envoye = await sendInvitation(trouve.userId, user.id)
+    if (envoye) {
+      const cycle = cycleForDate(todayParis())
+      await deliver({
+        to: { email, name: nom },
+        ...templates.monthCalendar({ name: nom, public: 'prestataire', cycle }),
+        template: 'month_calendar',
+        entityType: 'user',
+        entityId: trouve.userId,
+      })
+    }
+  }
+
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'provider',
+    entityId: trouve.providerId,
+    action: trouve.cree ? 'prestataire_ajoute' : 'prestataire_retrouve',
+    payload: { email, prevenir },
+  })
+  revalidatePath('/validation')
+
+  return {
+    message: trouve.cree
+      ? `${nom} est ajouté${prevenir ? ' et a reçu son accès ainsi que le calendrier du mois' : ''}.`
+      : `${nom} était déjà sur la plateforme${prevenir ? ', son accès vient de lui être renvoyé' : ''}.`,
+  }
 }

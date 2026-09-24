@@ -27,8 +27,10 @@ const Ligne = z.object({
   pay_basis: z.union([z.enum(['brut', 'net']), z.literal('')]).optional(),
   /** Formation concernée, écrite librement : PASS, LAS, Terminale Santé… */
   formation: z.string().trim().max(120).optional(),
-  /** Rattrapage d'un mois clos : la date reste vraie, le paiement suit le cycle en cours. */
+  /** Rattrapage : la date reste celle du travail, le paiement suit le cycle en cours. */
   regularisation: z.coerce.boolean().optional(),
+  /** Mois que ce rattrapage concerne, quand ce n'est pas celui de la date. */
+  regul_period: z.union([z.string().regex(/^\d{4}-\d{2}$/), z.literal('')]).optional(),
   pricing_type: z.enum(['forfait_mission', 'forfait_horaire', 'forfait_journalier']),
   quantity: z.coerce.number<number>().positive('Quantité supérieure à 0.').max(10000),
   unit_amount_ht: z.coerce.number<number>().nonnegative('Montant invalide.').max(1000000),
@@ -166,9 +168,11 @@ export async function declarer(
     end_date: l.date,
     kind: l.kind,
     formation: l.formation || null,
-    // Une régularisation ne se déclare que sur un mois déjà clos ; ailleurs,
-    // la case cochée par mégarde ne doit rien changer.
-    regularisation: Boolean(l.regularisation) && !providerCanDeclare(l.date),
+    // Un rattrapage se déclare quand on veut : on peut être en octobre et
+    // rattraper août. La date reste celle du travail, la période rattrapée
+    // est écrite à part quand elle en diffère.
+    regularisation: Boolean(l.regularisation),
+    regul_period: l.regularisation ? l.regul_period || l.date.slice(0, 7) : null,
     // Un indépendant facture : la question brut/net ne se pose pas pour lui.
     pay_basis: provider.employment_type === 'independant' ? null : l.pay_basis || 'brut',
     pricing_type: l.kind === 'bonus' ? 'forfait_mission' : l.pricing_type,

@@ -69,6 +69,12 @@ export async function GET(request: Request) {
       relancerDeclarations(courant, null)
     )
   }
+  // La veille : un dernier rappel, pour ceux qui n'ont toujours rien écrit.
+  if (today === addDays(courant.declarationDeadline, -1)) {
+    fait.dernierRappel = await uneFois(db, courant.month, 'dernier_rappel', () =>
+      relancerDeclarations(courant, null)
+    )
+  }
   if (today === addDays(courant.declarationDeadline, -2)) {
     fait.elementsPaie = await uneFois(db, courant.month, 'elements_paie', () => demanderElements(db, courant, false))
   }

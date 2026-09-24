@@ -4,7 +4,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { getContractContext } from '@/lib/contract-context'
 
 export const MISSION_WITH_RELATIONS = `
-  id, detail, formation, regularisation, manager_id, start_date, end_date, pricing_type, quantity, unit_amount_ht,
+  id, detail, formation, regularisation, regul_period, manager_id, start_date, end_date, pricing_type, quantity, unit_amount_ht,
   total_ht, abatement_rate, status, submitted_at, manager_approved_at, admin_approved_at,
   rejected_at, rejection_reason,
   category:inv_categories(name, provider_label),
@@ -17,6 +17,7 @@ interface RawMission {
   detail: string
   formation: string | null
   regularisation: boolean
+  regul_period: string | null
   manager_id: string | null
   abatement_rate: number
   start_date: string
@@ -36,6 +37,7 @@ export function toReviewMission(row: RawMission): ReviewMission {
     detail: row.detail,
     formation: row.formation,
     regularisation: row.regularisation,
+    regul_period: row.regul_period,
     manager_id: row.manager_id,
     abatement_rate: Number(row.abatement_rate ?? 0),
     start_date: row.start_date,

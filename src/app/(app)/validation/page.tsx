@@ -1,4 +1,6 @@
 import { Suspense } from 'react'
+import { cycleForDate, todayParis } from '@/lib/cycle'
+import { OutilsManager } from '@/components/validation/OutilsManager'
 import { Clock } from 'lucide-react'
 import { EmptyState } from '@/components/ui/Page'
 import { ValidationTable } from '@/components/validation/ValidationTable'
@@ -17,6 +19,7 @@ export default async function ValidationPage({
 }) {
   const user = await requireRole('manager', 'admin')
   const { manager } = await searchParams
+  const cycle = cycleForDate(todayParis())
 
   if (user.role === 'manager') {
     const [missions, managers] = await Promise.all([
@@ -27,6 +30,7 @@ export default async function ValidationPage({
       <>
         <PrestationsNav user={user} current="a-valider" />
         <CalendrierMois pour="manager" />
+        <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin={false} />
         {missions.length === 0 ? (
           <EmptyState
             title="Rien à valider"
@@ -72,6 +76,7 @@ export default async function ValidationPage({
         current="a-valider"
         description="Ce que les managers ont validé part dans le bordereau du 1er. Vous pouvez intervenir avant."
       />
+      <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin />
 
       <Suspense fallback={null}>
         <ManagerPicker managers={managers} value={choix} ailleurs={ailleurs} />

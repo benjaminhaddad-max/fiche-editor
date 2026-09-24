@@ -251,11 +251,13 @@ export interface RelanceResultat {
  * la date de réception des factures pour les managers.
  */
 export async function relancerMaintenant(): Promise<RelanceResultat> {
-  const user = await requireRole('admin')
+  const user = await requireRole('manager', 'admin')
   const cycle = cycleForDate(todayParis())
 
   try {
-    const r = await relancerDeclarations(cycle, user.id)
+    // Un manager ne relance que ses prestataires ; l'administration relance
+    // tout le monde, managers compris.
+    const r = await relancerDeclarations(cycle, user.id, user.role === 'manager' ? user.id : undefined)
     const morceaux = [
       r.rappeles && `${r.rappeles} rappel(s) de déclaration`,
       r.invites && `${r.invites} invitation(s) envoyée(s)`,
