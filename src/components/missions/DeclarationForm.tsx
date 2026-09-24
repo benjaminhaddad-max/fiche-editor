@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import { clsx } from 'clsx'
 import { Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -71,6 +72,24 @@ function MOIS_RECENTS(today: string) {
     const valeur = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
     return { valeur, label: cycleForMonth(valeur).label }
   })
+}
+
+/** Un champ et son intitulé : sur une fiche, rien ne doit rester muet. */
+function Champ({
+  label,
+  className,
+  children,
+}: {
+  label: string
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <label className={clsx('block', className)}>
+      <span className="mb-1 block text-xs font-medium text-navy/75">{label}</span>
+      {children}
+    </label>
+  )
 }
 
 let compteur = 0
@@ -209,242 +228,238 @@ export function DeclarationForm(props: Props) {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1330px] table-fixed text-sm">
-            <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
-              <tr>
-                <th className="w-[200px] px-3 py-2.5 font-medium">Type</th>
-                {mode !== 'manager' && <th className="w-[180px] px-3 py-2.5 font-medium">Confiée par</th>}
-                <th className="px-3 py-2.5 font-medium">Désignation</th>
-                <th className="w-[150px] px-3 py-2.5 font-medium">Formation</th>
-                <th className="w-[150px] px-3 py-2.5 font-medium">Date</th>
-                <th className="w-[115px] px-3 py-2.5 font-medium">Tarif</th>
-                <th className="w-[90px] px-3 py-2.5 font-medium">Qté</th>
-                <th className="w-[115px] px-3 py-2.5 font-medium">PU HT</th>
-                <th className="w-[100px] px-3 py-2.5 text-right font-medium">Total HT</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line/60">
-              {lignes.map((l, i) => {
-                const erreur = state.lineErrors?.[i]
-                const ligneTotal = round2((Number(l.quantity) || 0) * (Number(l.unit_amount_ht) || 0))
-                return (
-                  <tr key={l.cle} className="align-top">
-                    <td className="px-3 py-2.5">
-                      <select
-                        className="field w-full"
-                        value={l.category_id}
-                        onChange={(e) => maj(l.cle, { category_id: e.target.value })}
-                        aria-label="Type de prestation"
-                      >
-                        <option value="" disabled>
-                          Choisir…
-                        </option>
-                        {parPole.map(([pole, cats]) => (
-                          <optgroup key={pole} label={POLE_LABEL[pole]}>
-                            {cats.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.label}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                      {salarie && (
-                        <label className="mt-1.5 flex items-center gap-1.5 text-xs text-navy/70">
-                          <input
-                            type="checkbox"
-                            checked={l.kind === 'bonus'}
-                            onChange={(e) =>
-                              maj(l.cle, {
-                                kind: e.target.checked ? 'bonus' : 'prestation',
-                                quantity: e.target.checked ? '1' : l.quantity,
-                              })
-                            }
-                            className="accent-navy"
-                          />
-                          C’est un bonus
-                        </label>
-                      )}
-                    </td>
-                    {mode !== 'manager' && (
-                      <td className="px-3 py-2.5">
-                        <select
-                          className="field w-full"
-                          value={l.manager_id}
-                          onChange={(e) => maj(l.cle, { manager_id: e.target.value })}
-                          aria-label="Manager qui a confié cette mission"
-                        >
-                          <option value="">Manager par défaut</option>
-                          {managers.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.full_name}
+        {/* Une fiche par ligne, empilée en colonne quand l'écran est étroit.
+            Le tableau d'avant faisait mille trois cents pixels de large : sur
+            une tablette, la colonne du prix sortait de l'écran et personne ne
+            trouvait où écrire son montant. */}
+        <div className="divide-y divide-line/60">
+          {lignes.map((l, i) => {
+            const erreur = state.lineErrors?.[i]
+            const ligneTotal = round2((Number(l.quantity) || 0) * (Number(l.unit_amount_ht) || 0))
+            return (
+              <div key={l.cle} className="p-4 sm:p-5">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Ligne {i + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() => setLignes((ls) => (ls.length > 1 ? ls.filter((x) => x.cle !== l.cle) : ls))}
+                    disabled={lignes.length === 1}
+                    title="Supprimer la ligne"
+                    className="cursor-pointer rounded p-1.5 text-muted hover:bg-red-50 hover:text-red-700 disabled:opacity-30"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-12">
+                  <Champ label="Type de prestation" className="lg:col-span-4">
+                    <select
+                      className="field w-full"
+                      value={l.category_id}
+                      onChange={(e) => maj(l.cle, { category_id: e.target.value })}
+                      aria-label="Type de prestation"
+                    >
+                      <option value="" disabled>
+                        Choisir…
+                      </option>
+                      {parPole.map(([pole, cats]) => (
+                        <optgroup key={pole} label={POLE_LABEL[pole]}>
+                          {cats.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label}
                             </option>
                           ))}
-                        </select>
-                      </td>
-                    )}
-                    <td className="px-3 py-2.5">
-                      <input
-                        className="field w-full"
-                        value={l.detail}
-                        maxLength={500}
-                        placeholder={l.kind === 'bonus' ? 'Ex : prime objectifs septembre' : 'Ex : TD Anatomie — groupe B'}
-                        onChange={(e) => maj(l.cle, { detail: e.target.value })}
-                        aria-label="Désignation"
-                      />
-                      {erreur && <p className="mt-1 text-xs text-red-600">{erreur}</p>}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <input
-                        className="field w-full"
-                        list="ds-formations"
-                        value={l.formation}
-                        maxLength={120}
-                        placeholder="Ex : PASS"
-                        onChange={(e) => maj(l.cle, { formation: e.target.value })}
-                        aria-label="Formation concernée"
-                      />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <input
-                        type="date"
-                        className="field w-full"
-                        value={l.date}
-                        onChange={(e) => maj(l.cle, { date: e.target.value })}
-                        aria-label="Date"
-                      />
-                      <label className="mt-1.5 flex items-start gap-1.5 text-[11px] text-navy/70">
+                        </optgroup>
+                      ))}
+                    </select>
+                    {salarie && (
+                      <label className="mt-1.5 flex items-center gap-1.5 text-xs text-navy/70">
                         <input
                           type="checkbox"
-                          checked={l.regularisation}
+                          checked={l.kind === 'bonus'}
                           onChange={(e) =>
                             maj(l.cle, {
-                              regularisation: e.target.checked,
-                              regul_period: e.target.checked ? l.regul_period || l.date.slice(0, 7) : '',
+                              kind: e.target.checked ? 'bonus' : 'prestation',
+                              quantity: e.target.checked ? '1' : l.quantity,
                             })
                           }
-                          className="mt-0.5 accent-navy"
+                          className="accent-navy"
                         />
-                        <span>Rattrapage</span>
+                        C’est un bonus
                       </label>
-                      {l.regularisation && (
-                        <select
-                          className="field mt-1 w-full text-[11px]"
-                          value={l.regul_period || l.date.slice(0, 7)}
-                          onChange={(e) => maj(l.cle, { regul_period: e.target.value })}
-                          aria-label="Mois rattrapé"
-                        >
-                          {MOIS_RECENTS(today).map((m) => (
-                            <option key={m.valeur} value={m.valeur}>
-                              {m.label}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      {!providerCanDeclare(l.date, today) && !l.regularisation && (
-                        <p className="mt-1 text-[11px] text-amber-700">
-                          {cycleForDate(l.date).label} est clos : cochez « rattrapage ».
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {l.kind === 'bonus' ? (
-                        <span className="text-xs text-muted">Montant fixe</span>
-                      ) : (
-                        <select
-                          className="field w-full"
-                          value={l.pricing_type}
-                          onChange={(e) => maj(l.cle, { pricing_type: e.target.value as PricingType })}
-                          aria-label="Tarification"
-                        >
-                          <option value="forfait_mission">À la mission</option>
-                          <option value="forfait_journalier">À la journée</option>
-                          <option value="forfait_horaire">À l’heure</option>
-                        </select>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <input
-                        type="number"
-                        step="0.25"
-                        min="0.25"
+                    )}
+                  </Champ>
+
+                  {mode !== 'manager' && (
+                    <Champ label="Confiée par" className="lg:col-span-4">
+                      <select
                         className="field w-full"
-                        value={l.quantity}
-                        disabled={l.kind === 'bonus'}
-                        onChange={(e) => maj(l.cle, { quantity: e.target.value })}
-                        aria-label={UNITE[l.pricing_type].quantite}
-                      />
-                      <p className="mt-0.5 text-[11px] text-muted">
-                        {l.kind === 'bonus' ? '' : UNITE[l.pricing_type].pluriel}
-                      </p>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="field w-full"
-                        value={l.unit_amount_ht}
-                        onChange={(e) => maj(l.cle, { unit_amount_ht: e.target.value })}
-                        aria-label="Prix unitaire HT"
-                      />
-                      <p className="mt-0.5 text-[11px] text-muted">
-                        {l.kind === 'bonus' ? '€' : UNITE[l.pricing_type].prix}
-                      </p>
-                      {salarie && (
-                        <label className="mt-1 flex items-center gap-1.5 text-[11px] text-navy/70">
-                          <input
-                            type="checkbox"
-                            checked={l.pay_basis === 'net'}
-                            onChange={(e) => maj(l.cle, { pay_basis: e.target.checked ? 'net' : 'brut' })}
-                            className="accent-navy"
-                          />
-                          Montant net
-                        </label>
-                      )}
-                      {tarif && l.kind !== 'bonus' && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {tarif.paliers.map((pal) => (
-                            <button
-                              key={pal.label}
-                              type="button"
-                              title={`${pal.label} — ${money(pal.montant)}`}
-                              onClick={() =>
-                                maj(l.cle, {
-                                  unit_amount_ht: String(pal.montant),
-                                  quantity: '1',
-                                  detail: l.detail || pal.label,
-                                })
-                              }
-                              className="cursor-pointer rounded border border-line bg-white px-1.5 py-0.5 text-[11px] text-navy/70 hover:border-gold hover:bg-gold/10"
-                            >
-                              {pal.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 pt-4 text-right font-semibold text-navy">
-                      {money(ligneTotal)}
-                    </td>
-                    <td className="px-2 py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setLignes((ls) => (ls.length > 1 ? ls.filter((x) => x.cle !== l.cle) : ls))}
-                        disabled={lignes.length === 1}
-                        title="Supprimer la ligne"
-                        className="mt-1.5 cursor-pointer rounded p-1.5 text-muted hover:bg-red-50 hover:text-red-700 disabled:opacity-30"
+                        value={l.manager_id}
+                        onChange={(e) => maj(l.cle, { manager_id: e.target.value })}
+                        aria-label="Manager qui a confié cette mission"
                       >
-                        <Trash2 size={15} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                        <option value="">Manager par défaut</option>
+                        {managers.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    </Champ>
+                  )}
+
+                  <Champ label="Formation concernée" className="lg:col-span-4">
+                    <input
+                      className="field w-full"
+                      list="ds-formations"
+                      value={l.formation}
+                      maxLength={120}
+                      placeholder="Ex : PASS"
+                      onChange={(e) => maj(l.cle, { formation: e.target.value })}
+                      aria-label="Formation concernée"
+                    />
+                  </Champ>
+
+                  <Champ label="Ce que vous avez fait" className="lg:col-span-12">
+                    <input
+                      className="field w-full"
+                      value={l.detail}
+                      maxLength={500}
+                      placeholder={l.kind === 'bonus' ? 'Ex : prime objectifs septembre' : 'Ex : TD Anatomie — groupe B'}
+                      onChange={(e) => maj(l.cle, { detail: e.target.value })}
+                      aria-label="Désignation"
+                    />
+                    {erreur && <p className="mt-1 text-xs text-red-600">{erreur}</p>}
+                  </Champ>
+
+                  <Champ label="Date" className="lg:col-span-3">
+                    <input
+                      type="date"
+                      className="field w-full"
+                      value={l.date}
+                      onChange={(e) => maj(l.cle, { date: e.target.value })}
+                      aria-label="Date"
+                    />
+                    <label className="mt-1.5 flex items-start gap-1.5 text-xs text-navy/70">
+                      <input
+                        type="checkbox"
+                        checked={l.regularisation}
+                        onChange={(e) =>
+                          maj(l.cle, {
+                            regularisation: e.target.checked,
+                            regul_period: e.target.checked ? l.regul_period || l.date.slice(0, 7) : '',
+                          })
+                        }
+                        className="mt-0.5 accent-navy"
+                      />
+                      <span>Rattrapage d’un mois passé</span>
+                    </label>
+                    {l.regularisation && (
+                      <select
+                        className="field mt-1 w-full text-xs"
+                        value={l.regul_period || l.date.slice(0, 7)}
+                        onChange={(e) => maj(l.cle, { regul_period: e.target.value })}
+                        aria-label="Mois rattrapé"
+                      >
+                        {MOIS_RECENTS(today).map((m) => (
+                          <option key={m.valeur} value={m.valeur}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {mode === 'prestataire' && !providerCanDeclare(l.date, today) && !l.regularisation && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        {cycleForDate(l.date).label} est clos : cochez « rattrapage ».
+                      </p>
+                    )}
+                  </Champ>
+
+                  <Champ label="Compté" className="lg:col-span-3">
+                    {l.kind === 'bonus' ? (
+                      <p className="field w-full bg-cream-muted text-muted">Montant fixe</p>
+                    ) : (
+                      <select
+                        className="field w-full"
+                        value={l.pricing_type}
+                        onChange={(e) => maj(l.cle, { pricing_type: e.target.value as PricingType })}
+                        aria-label="Tarification"
+                      >
+                        <option value="forfait_mission">À la mission</option>
+                        <option value="forfait_journalier">À la journée</option>
+                        <option value="forfait_horaire">À l’heure</option>
+                      </select>
+                    )}
+                  </Champ>
+
+                  <Champ label={UNITE[l.pricing_type].quantite} className="lg:col-span-2">
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="0.25"
+                      className="field w-full"
+                      value={l.quantity}
+                      disabled={l.kind === 'bonus'}
+                      onChange={(e) => maj(l.cle, { quantity: e.target.value })}
+                      aria-label={UNITE[l.pricing_type].quantite}
+                    />
+                  </Champ>
+
+                  <Champ
+                    label={l.kind === 'bonus' ? 'Montant en euros' : `Prix ${UNITE[l.pricing_type].prix}`}
+                    className="lg:col-span-4"
+                  >
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="field w-full"
+                      value={l.unit_amount_ht}
+                      placeholder="0,00"
+                      onChange={(e) => maj(l.cle, { unit_amount_ht: e.target.value })}
+                      aria-label="Prix unitaire HT"
+                    />
+                    {salarie && (
+                      <label className="mt-1.5 flex items-center gap-1.5 text-xs text-navy/70">
+                        <input
+                          type="checkbox"
+                          checked={l.pay_basis === 'net'}
+                          onChange={(e) => maj(l.cle, { pay_basis: e.target.checked ? 'net' : 'brut' })}
+                          className="accent-navy"
+                        />
+                        Montant net
+                      </label>
+                    )}
+                    {tarif && l.kind !== 'bonus' && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {tarif.paliers.map((pal) => (
+                          <button
+                            key={pal.label}
+                            type="button"
+                            title={`${pal.label} — ${money(pal.montant)}`}
+                            onClick={() =>
+                              maj(l.cle, {
+                                unit_amount_ht: String(pal.montant),
+                                quantity: '1',
+                                detail: l.detail || pal.label,
+                              })
+                            }
+                            className="cursor-pointer rounded border border-line bg-white px-2 py-0.5 text-xs text-navy/70 hover:border-gold hover:bg-gold/10"
+                          >
+                            {pal.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </Champ>
+                </div>
+
+                <p className="mt-3 text-right text-sm text-navy">
+                  Total de la ligne : <strong className="font-display">{money(ligneTotal)}</strong> HT
+                </p>
+              </div>
+            )
+          })}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-cream-muted px-4 py-3">
           <button

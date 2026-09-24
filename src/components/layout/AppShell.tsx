@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import {
   ClipboardList,
+  Menu,
+  X,
   KeyRound,
   ListChecks,
   LogOut,
@@ -148,6 +150,16 @@ export function AppShell({
   const router = useRouter()
   const pathname = usePathname()
   const [loggingOut, setLoggingOut] = useState(false)
+  // Sur un écran étroit, le menu se replie : à 375 px il occupait les trois
+  // quarts de la largeur et le contenu passait en colonne d'un mot.
+  const [menuOuvert, setMenuOuvert] = useState(false)
+
+  // Changer de page referme le menu, sinon il reste devant le contenu.
+  const [vue, setVue] = useState(pathname)
+  if (vue !== pathname) {
+    setVue(pathname)
+    if (menuOuvert) setMenuOuvert(false)
+  }
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -165,10 +177,34 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-[17rem] shrink-0 flex-col border-r border-line bg-cream-muted">
+      {/* Voile derrière le menu déplié, pour le refermer d'un geste. */}
+      {menuOuvert && (
+        <button
+          type="button"
+          aria-label="Fermer le menu"
+          onClick={() => setMenuOuvert(false)}
+          className="fixed inset-0 z-30 bg-navy/40 lg:hidden"
+        />
+      )}
+
+      <aside
+        className={clsx(
+          'flex w-[17rem] shrink-0 flex-col border-r border-line bg-cream-muted',
+          'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:transition-transform',
+          menuOuvert ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full'
+        )}
+      >
         <div className="ds-rail-header-slot">
           <div className="ds-rail-header">
             <Logo tone="light" size="rail" className="relative z-[1]" />
+            <button
+              type="button"
+              onClick={() => setMenuOuvert(false)}
+              aria-label="Fermer le menu"
+              className="relative z-[1] ml-auto rounded-lg border border-cream/20 p-1.5 text-cream/80 lg:hidden"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
 
@@ -224,9 +260,22 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="flex-1 overflow-x-auto bg-cream">
+      <main className="min-w-0 flex-1 bg-cream">
+        {/* Barre d'ouverture du menu, seulement quand il est replié. */}
+        <div className="ds-panel-header-slot flex items-center gap-3 border-b border-line bg-cream-muted px-4 py-2.5 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMenuOuvert(true)}
+            aria-label="Ouvrir le menu"
+            className="rounded-lg border border-line bg-white p-2 text-navy"
+          >
+            <Menu size={18} />
+          </button>
+          <Logo size="sm" />
+        </div>
+
         {banner}
-        <div className="mx-auto max-w-6xl px-8 py-8">{children}</div>
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">{children}</div>
       </main>
     </div>
   )
