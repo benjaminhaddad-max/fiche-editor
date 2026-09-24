@@ -1,4 +1,5 @@
 import { PROGRAMME_LABEL } from '@/lib/contracts'
+import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 
 interface Due {
@@ -40,6 +41,10 @@ export async function ouvrirEcheances(aujourdhui: string): Promise<{ ouvertes: n
     .is('mission_id', null)
 
   const { data: cats } = await db.from('inv_categories').select('id, pole').eq('is_active', true).order('sort_order')
+  // L'abattement du contrat vaut aussi pour une échéance : le montant écrit
+  // au contrat est celui qu'on aurait versé à un auto-entrepreneur.
+  const { data: fiches } = await db.from('inv_providers').select('id, pay_abatement')
+  const abattement = new Map((fiches ?? []).map((f) => [f.id as string, Number(f.pay_abatement ?? 0)]))
   const ignorees: string[] = []
   let ouvertes = 0
   const now = new Date().toISOString()
@@ -71,7 +76,8 @@ export async function ouvrirEcheances(aujourdhui: string): Promise<{ ouvertes: n
         pricing_type: 'forfait_mission',
         quantity: 1,
         unit_amount_ht: e.amount_ht,
-        total_ht: e.amount_ht,
+        abatement_rate: abattement.get(c.provider_id) ?? 0,
+        total_ht: round2(Number(e.amount_ht) * (1 - (abattement.get(c.provider_id) ?? 0) / 100)),
         status: 'manager_approved',
         origin: 'contract',
         submitted_at: now,
