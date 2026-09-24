@@ -14,6 +14,7 @@ export async function deliver(params: {
   subject: string
   html: string
   template: string
+  attachments?: { name: string; content: string }[]
   entityType?: string
   entityId?: string
   providerId?: string | null
@@ -22,6 +23,7 @@ export async function deliver(params: {
     to: params.to,
     subject: params.subject,
     html: params.html,
+    attachments: params.attachments,
   })
 
   if (result.status === 'error') {

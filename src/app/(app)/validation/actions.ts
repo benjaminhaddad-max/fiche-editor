@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { guideNom, guidePdf } from '@/lib/guides/pdf'
 import { trouverOuCreerPrestataire } from '@/lib/personnes'
 import { templates } from '@/lib/email/templates'
 import { deliver, sendInvitation } from '@/lib/email/notify'
@@ -278,6 +279,7 @@ export async function ajouterPrestataire(
         to: { email, name: nom },
         ...templates.monthCalendar({ name: nom, public: 'prestataire', cycle }),
         template: 'month_calendar',
+        attachments: [{ name: guideNom('prestataire'), content: (await guidePdf('prestataire', cycle)).toString('base64') }],
         entityType: 'user',
         entityId: trouve.userId,
       })

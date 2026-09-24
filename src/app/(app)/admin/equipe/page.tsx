@@ -26,7 +26,8 @@ export default async function EquipePage({
   searchParams: Promise<{ onglet?: string; nouveau?: string }>
 }) {
   const { onglet, nouveau } = await searchParams
-  const me = await requireRole('admin')
+  const me = await requireRole('manager', 'admin')
+  const admin = me.role === 'admin'
   const db = createServiceClient()
 
   const [{ data: users }, { data: fiches }, { data: factures }] = await Promise.all([
@@ -57,7 +58,8 @@ export default async function EquipePage({
     equipe: rows.filter((r) => r.is_active && r.role !== 'prestataire'),
     desactives: rows.filter((r) => !r.is_active),
   }
-  const courant = onglet === 'fournisseurs' || (onglet && onglet in groupes) ? onglet : 'prestataires'
+  const ongletsOuverts = admin ? ['fournisseurs', ...Object.keys(groupes)] : ['prestataires', 'salaries', 'equipe']
+  const courant = onglet && ongletsOuverts.includes(onglet) ? onglet : 'prestataires'
   // Tous les comptes actifs, pour pouvoir relancer au-delà de l'onglet ouvert.
   const actifs = rows.filter((r) => r.is_active && r.id !== me.id).map((r) => ({ id: r.id, full_name: r.full_name }))
 
@@ -65,23 +67,35 @@ export default async function EquipePage({
     <>
       <PageHeader
         title="Équipe"
-        description="Toutes les personnes : prestataires, salariés, managers, fournisseurs sans compte. Cochez plusieurs lignes pour inviter en une fois."
+        description={
+          admin
+            ? 'Toutes les personnes : prestataires, salariés, managers, fournisseurs sans compte. Cochez plusieurs lignes pour inviter en une fois.'
+            : 'Tous les prestataires de la plateforme, quel que soit leur pôle ou leur manager.'
+        }
         actions={
-          <Link href={`/admin/equipe?onglet=${courant}&nouveau`} className="ds-header-action">
-            Ajouter une personne
-          </Link>
+          admin ? (
+            <Link href={`/admin/equipe?onglet=${courant}&nouveau`} className="ds-header-action">
+              Ajouter une personne
+            </Link>
+          ) : undefined
         }
         currentTab={courant!}
         tabs={[
           { key: 'prestataires', label: 'Prestataires', href: '/admin/equipe', count: groupes.prestataires.length },
           { key: 'salaries', label: 'Vacataires et alternants', href: '/admin/equipe?onglet=salaries', count: groupes.salaries.length },
           { key: 'equipe', label: 'Managers et admins', href: '/admin/equipe?onglet=equipe', count: groupes.equipe.length },
-          { key: 'fournisseurs', label: 'Fournisseurs sans compte', href: '/admin/equipe?onglet=fournisseurs', count: sansCompte.length },
-          { key: 'desactives', label: 'Désactivés', href: '/admin/equipe?onglet=desactives' },
+          // Les fournisseurs sans compte et les comptes fermés relèvent de
+          // l'administration : un manager n'a rien à y faire.
+          ...(admin
+            ? [
+                { key: 'fournisseurs', label: 'Fournisseurs sans compte', href: '/admin/equipe?onglet=fournisseurs', count: sansCompte.length },
+                { key: 'desactives', label: 'Désactivés', href: '/admin/equipe?onglet=desactives' },
+              ]
+            : []),
         ]}
       />
 
-      {nouveau !== undefined && (
+      {admin && nouveau !== undefined && (
         <div className="mb-6">
           <NewUserForm action={createUserAccount} />
         </div>
@@ -111,7 +125,7 @@ export default async function EquipePage({
       ) : groupes[courant as keyof typeof groupes].length === 0 ? (
         <EmptyState title="Personne ici" />
       ) : (
-        <UsersTable users={groupes[courant as keyof typeof groupes]} meId={me.id} plateforme={actifs} />
+        <UsersTable users={groupes[courant as keyof typeof groupes]} meId={me.id} plateforme={admin ? actifs : []} admin={admin} />
       )}
     </>
   )

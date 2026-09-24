@@ -261,7 +261,7 @@ export async function setUserPhone(formData: FormData): Promise<void> {
  * dernière fiche.
  */
 export async function changerEtiquette(fd: FormData): Promise<void> {
-  await requireRole('admin')
+  await requireRole('manager', 'admin')
   const providerId = String(fd.get('provider_id') ?? '')
   const etiquette = String(fd.get('tag') ?? '').trim().slice(0, 40)
   const retirer = fd.get('retirer') === '1'

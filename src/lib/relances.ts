@@ -1,5 +1,6 @@
 import type { BillingCycle } from '@/lib/cycle'
 import { deliver, sendInvitation } from '@/lib/email/notify'
+import { guideNom, guidePdf } from '@/lib/guides/pdf'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
 
@@ -85,14 +86,12 @@ export async function relancerDeclarations(
         out.echecs.push(u.email)
         continue
       }
+      const pour = fiche.employment_type === 'independant' ? 'prestataire' : 'salarie'
       await deliver({
         to: { email: u.email, name: u.full_name },
-        ...templates.monthCalendar({
-          name: u.full_name,
-          public: fiche.employment_type === 'independant' ? 'prestataire' : 'salarie',
-          cycle,
-        }),
+        ...templates.monthCalendar({ name: u.full_name, public: pour, cycle }),
         template: 'month_calendar',
+        attachments: [{ name: guideNom(pour), content: (await guidePdf(pour, cycle)).toString('base64') }],
         entityType: 'user',
         entityId: u.id,
       })
@@ -140,6 +139,7 @@ export async function relancerDeclarations(
           to: { email: m.email as string, name: m.full_name as string },
           ...templates.monthCalendar({ name: m.full_name as string, public: 'manager', cycle }),
           template: 'month_calendar',
+          attachments: [{ name: guideNom('manager'), content: (await guidePdf('manager', cycle)).toString('base64') }],
           entityType: 'user',
           entityId: m.id as string,
         })

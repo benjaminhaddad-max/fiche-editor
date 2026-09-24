@@ -1,6 +1,7 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { guideNom, guidePdf } from '@/lib/guides/pdf'
 import { isSalaried, type Employment } from '@/lib/types'
 import { templates } from '@/lib/email/templates'
 import { deliver } from '@/lib/email/notify'
@@ -242,6 +243,7 @@ export async function envoyerInvitationsEtRappels(
       to: { email: u.email, name: u.full_name },
       ...templates.monthCalendar({ name: u.full_name, public: destinataire, cycle }),
       template: 'month_calendar',
+      attachments: [{ name: guideNom(destinataire), content: (await guidePdf(destinataire, cycle)).toString('base64') }],
       entityType: 'user',
       entityId: u.id,
     })

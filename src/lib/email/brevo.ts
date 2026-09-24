@@ -18,6 +18,8 @@ export interface SendEmailInput {
   subject: string
   html: string
   replyTo?: EmailRecipient
+  /** Pieces jointes, encodees en base64 par l'appelant. */
+  attachments?: { name: string; content: string }[]
 }
 
 export interface SendEmailResult {
@@ -57,6 +59,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         replyTo: input.replyTo ?? sender(),
         subject: input.subject,
         htmlContent: input.html,
+        ...(input.attachments?.length
+          ? { attachment: input.attachments.map((a) => ({ name: a.name, content: a.content })) }
+          : {}),
       }),
     })
 

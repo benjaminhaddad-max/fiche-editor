@@ -90,7 +90,13 @@ function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
           },
         ],
       },
-      { label: 'Dossiers', items: [{ href: '/admin/contrats', label: 'Contrats', icon: ScrollText, prefixes: ['/admin/contrats'] }] },
+      {
+        label: 'Dossiers',
+        items: [
+          { href: '/admin/contrats', label: 'Contrats', icon: ScrollText, prefixes: ['/admin/contrats'] },
+          { href: '/admin/equipe', label: 'Équipe', icon: Users, prefixes: ['/admin/equipe'] },
+        ],
+      },
       echanges,
     ]
   }

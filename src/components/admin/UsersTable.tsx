@@ -32,11 +32,14 @@ export function UsersTable({
   users,
   meId,
   plateforme = [],
+  admin = true,
 }: {
   users: EquipeRow[]
   meId: string
   /** Tous les comptes actifs, pour pouvoir relancer au-delà de l'onglet. */
   plateforme?: { id: string; full_name: string }[]
+  /** Un manager consulte la liste : il n'ouvre ni ne ferme de compte. */
+  admin?: boolean
 }) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
   const [envoi, envoyer] = useActionState<EnvoiResultat | null, FormData>(envoyerInvitationsEtRappels, null)
@@ -184,21 +187,23 @@ export function UsersTable({
           <table className="w-full text-sm">
             <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
               <tr>
-                <th className="w-10 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={tousCoches}
-                    onChange={() =>
-                      setSelection(tousCoches ? new Set() : new Set(invitables.map((u) => u.id)))
-                    }
-                    title="Tout sélectionner"
-                    className="h-4 w-4 cursor-pointer accent-navy"
-                  />
-                </th>
+                {admin && (
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={tousCoches}
+                      onChange={() =>
+                        setSelection(tousCoches ? new Set() : new Set(invitables.map((u) => u.id)))
+                      }
+                      title="Tout sélectionner"
+                      className="h-4 w-4 cursor-pointer accent-navy"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 font-medium">Nom</th>
                 <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Rôle</th>
-                <th className="px-4 py-3 text-right font-medium">Accès</th>
+                {admin && <th className="px-4 py-3 text-right font-medium">Accès</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-line/60">
@@ -209,16 +214,18 @@ export function UsersTable({
                     key={u.id}
                     className={selection.has(u.id) ? 'bg-gold/10/60' : 'hover:bg-cream-muted'}
                   >
-                    <td className="px-4 py-3">
-                      {!moi && u.is_active && (
-                        <input
-                          type="checkbox"
-                          checked={selection.has(u.id)}
-                          onChange={() => bascule(u.id)}
-                          className="h-4 w-4 cursor-pointer accent-navy"
-                        />
-                      )}
-                    </td>
+                    {admin && (
+                      <td className="px-4 py-3">
+                        {!moi && u.is_active && (
+                          <input
+                            type="checkbox"
+                            checked={selection.has(u.id)}
+                            onChange={() => bascule(u.id)}
+                            className="h-4 w-4 cursor-pointer accent-navy"
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium text-navy">
                       {u.full_name}
                       {!u.is_active && (
@@ -228,7 +235,7 @@ export function UsersTable({
                     </td>
                     <td className="px-4 py-3 text-navy/70">
                       {u.email}
-                      {u.role === 'prestataire' ? (
+                      {u.role === 'prestataire' || !admin ? (
                         u.phone && <span className="block text-xs text-muted">{u.phone}</span>
                       ) : (
                         <form action={setUserPhone} className="mt-1 flex items-center gap-1">
@@ -257,12 +264,13 @@ export function UsersTable({
                         </Link>
                       )}
                     </td>
+                    {admin && (
                     <td className="px-4 py-3">
                       {moi ? (
                         <p className="text-right text-xs text-stone">vous</p>
                       ) : (
                         <div className="flex items-center justify-end gap-1">
-                          {u.is_active && (
+                          {admin && u.is_active && (
                             <button
                               type="button"
                               onClick={() => setSelection(new Set([u.id]))}
@@ -272,26 +280,29 @@ export function UsersTable({
                               Relancer
                             </button>
                           )}
-                          {u.is_active && u.role !== 'admin' && (
+                          {admin && u.is_active && u.role !== 'admin' && (
                             <ImpersonateButton userId={u.id} />
                           )}
-                          <form action={toggleUserActive}>
-                            <input type="hidden" name="user_id" value={u.id} />
-                            <input type="hidden" name="is_active" value={String(u.is_active)} />
-                            <button
-                              type="submit"
-                              className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium ${
-                                u.is_active
-                                  ? 'text-navy/70 hover:bg-cream-deep'
-                                  : 'bg-red-50 text-red-700 hover:bg-red-100'
-                              }`}
-                            >
-                              {u.is_active ? 'Désactiver' : 'Réactiver'}
-                            </button>
-                          </form>
+                          {admin && (
+                            <form action={toggleUserActive}>
+                              <input type="hidden" name="user_id" value={u.id} />
+                              <input type="hidden" name="is_active" value={String(u.is_active)} />
+                              <button
+                                type="submit"
+                                className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium ${
+                                  u.is_active
+                                    ? 'text-navy/70 hover:bg-cream-deep'
+                                    : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                }`}
+                              >
+                                {u.is_active ? 'Désactiver' : 'Réactiver'}
+                              </button>
+                            </form>
+                          )}
                         </div>
                       )}
                     </td>
+                    )}
                   </tr>
                 )
               })}
