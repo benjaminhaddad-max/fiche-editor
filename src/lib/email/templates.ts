@@ -417,6 +417,25 @@ export const templates = {
     ),
   }),
 
+  managerInvoiceReminder: (p: { name: string; label: string; deadline: string; adresse: string | null }) => ({
+    subject: `Factures diverses de ${p.label} : à faire remonter avant le ${formatDateLong(p.deadline)}`,
+    html: layout(
+      'Une facture à faire remonter ?',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">Si vous avez une facture qui ne correspond à aucune prestation déclarée —
+          un fournisseur, une commande ponctuelle, un intervenant extérieur — faites-la remonter
+          <strong>avant le ${formatDateLong(p.deadline)}</strong> : c'est la date à laquelle toutes les
+          factures du mois doivent être reçues pour partir au paiement.</p>
+       <p style="margin:0 0 12px;">Deux façons, au choix :</p>
+       <ul style="margin:0 0 12px; padding-left:18px;">
+         <li style="margin-bottom:6px;">la déposer vous-même dans votre espace, onglet Rémunérations puis Factures ;</li>
+         ${p.adresse ? `<li>ou l'envoyer simplement par email à <strong>${p.adresse}</strong>, depuis votre adresse professionnelle.</li>` : ''}
+       </ul>
+       <p style="margin:0;">Dans les deux cas elle est lue automatiquement et classée : vous n'avez rien à saisir.</p>`,
+      { label: 'Déposer une facture', href: `${APP_URL}/remunerations?vue=factures` }
+    ),
+  }),
+
   reviewReminder: (p: { name: string; count: number; total: number; reviewEnd: string; label: string }) => ({
     subject: `Vérification de ${p.label} : ${p.count} prestation${p.count > 1 ? 's' : ''} à valider avant le ${formatDate(p.reviewEnd)}`,
     html: layout(

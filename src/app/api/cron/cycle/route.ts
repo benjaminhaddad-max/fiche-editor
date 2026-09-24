@@ -7,6 +7,7 @@ import { cycleForDate, previousCycle, todayParis, type BillingCycle } from '@/li
 import { deliver, notifyStatementReminder } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { addDays, round2 } from '@/lib/format'
+import { relancerDeclarations } from '@/lib/relances'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
@@ -60,8 +61,13 @@ export async function GET(request: Request) {
   if (today === precedent.statementDate) {
     fait.bordereaux = await uneFois(db, precedent.month, 'bordereaux', () => envoyerBordereaux(precedent))
   }
-  if (today === addDays(courant.declarationDeadline, -2)) {
-    fait.rappelDeclaration = await uneFois(db, courant.month, 'rappel_declaration', () => rappelerDeclaration(db, courant))
+  // Trois jours avant la clôture : chacun reçoit sa date. Les prestataires
+  // celle des déclarations, les managers celle où les factures doivent être
+  // reçues — ce ne sont pas les mêmes échéances.
+  if (today === addDays(courant.declarationDeadline, -3)) {
+    fait.rappelDeclaration = await uneFois(db, courant.month, 'rappel_declaration', () =>
+      relancerDeclarations(courant, null)
+    )
   }
   if (today === addDays(courant.declarationDeadline, -2)) {
     fait.elementsPaie = await uneFois(db, courant.month, 'elements_paie', () => demanderElements(db, courant, false))
@@ -127,22 +133,6 @@ async function envoyerCalendrier(db: Db, cycle: BillingCycle) {
       to: { email: u.email, name: u.full_name },
       ...templates.monthCalendar({ name: u.full_name, public: pub, cycle }),
       template: 'month_calendar',
-      entityType: 'user',
-      entityId: u.id,
-    })
-    n++
-  }
-  return { envoyes: n }
-}
-
-async function rappelerDeclaration(db: Db, cycle: BillingCycle) {
-  let n = 0
-  for (const u of await destinataires(db)) {
-    if (u.role !== 'prestataire') continue
-    await deliver({
-      to: { email: u.email, name: u.full_name },
-      ...templates.declarationReminder({ name: u.full_name, deadline: cycle.declarationDeadline, label: cycle.label }),
-      template: 'declaration_reminder',
       entityType: 'user',
       entityId: u.id,
     })

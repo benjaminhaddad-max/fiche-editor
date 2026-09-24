@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/Page'
 import type { TabItem } from '@/components/ui/Tabs'
+import { RelanceBouton } from '@/components/admin/RelanceBouton'
 import { VueBulletins, VueMois } from '@/components/remunerations/VueMois'
 import { VueElements } from '@/components/remunerations/VueElements'
 import { VueFactures } from '@/components/remunerations/VueFactures'
@@ -74,6 +75,11 @@ export default async function RemunerationsPage({
         </div>
       )}
 
+      {courant === 'mois' && user.role === 'admin' && (
+        <div className="mb-6">
+          <RelanceBouton declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} />
+        </div>
+      )}
       {courant === 'mois' && <VueMois cycle={cycle} />}
       {courant === 'factures' && <VueFactures onglet={onglet} />}
       {courant === 'elements' && <VueElements cycle={cycle} />}

@@ -7,6 +7,8 @@ import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { rafraichirPaiements, syncInvoiceToPennylane } from '@/lib/invoice/pennylane'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
+import { cycleForDate, todayParis } from '@/lib/cycle'
+import { relancerDeclarations } from '@/lib/relances'
 import { createServiceClient } from '@/lib/supabase/service'
 
 const ids = (fd: FormData) => fd.getAll('invoice_id').map(String).filter(Boolean)
@@ -235,4 +237,36 @@ export async function rattacherExpediteur(fd: FormData): Promise<void> {
     payload: { manager_id: managerId, expediteur: facture.inbound_from },
   })
   revalidatePath('/remunerations')
+}
+
+export interface RelanceResultat {
+  message?: string
+  error?: string
+}
+
+/**
+ * Envoie la relance du mois, tout de suite, sans attendre le travail
+ * automatique. Chacun reçoit le message qui le concerne : un lien d'entrée
+ * pour qui n'est jamais venu, la date limite pour qui doit encore déclarer,
+ * la date de réception des factures pour les managers.
+ */
+export async function relancerMaintenant(): Promise<RelanceResultat> {
+  const user = await requireRole('admin')
+  const cycle = cycleForDate(todayParis())
+
+  try {
+    const r = await relancerDeclarations(cycle, user.id)
+    const morceaux = [
+      r.rappeles && `${r.rappeles} rappel(s) de déclaration`,
+      r.invites && `${r.invites} invitation(s) envoyée(s)`,
+      r.managers && `${r.managers} manager(s) prévenu(s) pour les factures`,
+      r.ignores && `${r.ignores} personne(s) ayant déjà déclaré, laissées tranquilles`,
+    ].filter(Boolean)
+    return {
+      message: morceaux.length ? `Relance partie : ${morceaux.join(', ')}.` : 'Personne à relancer.',
+      error: r.echecs.length ? `Non remis : ${r.echecs.join(', ')}` : undefined,
+    }
+  } catch (err) {
+    return { error: `Relance impossible : ${(err as Error).message}` }
+  }
 }
