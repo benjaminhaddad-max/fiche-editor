@@ -252,3 +252,32 @@ export async function setUserPhone(formData: FormData): Promise<void> {
   await logAudit(null, { actorId: admin.id, entityType: 'user', entityId: id, action: 'telephone' })
   revalidatePath('/admin/equipe')
 }
+
+/**
+ * Pose ou retire une étiquette sur une fiche.
+ *
+ * Les étiquettes se créent en écrivant : pas de table de référence à tenir
+ * à jour, et celle qui ne sert plus disparaît quand on la retire de la
+ * dernière fiche.
+ */
+export async function changerEtiquette(fd: FormData): Promise<void> {
+  await requireRole('admin')
+  const providerId = String(fd.get('provider_id') ?? '')
+  const etiquette = String(fd.get('tag') ?? '').trim().slice(0, 40)
+  const retirer = fd.get('retirer') === '1'
+  if (!providerId || !etiquette) return
+
+  const db = createServiceClient()
+  const { data: fiche } = await db.from('inv_providers').select('id, tags').eq('id', providerId).maybeSingle()
+  if (!fiche) return
+
+  const actuelles: string[] = fiche.tags ?? []
+  const tags = retirer
+    ? actuelles.filter((t) => t.toLowerCase() !== etiquette.toLowerCase())
+    : actuelles.some((t) => t.toLowerCase() === etiquette.toLowerCase())
+      ? actuelles
+      : [...actuelles, etiquette]
+
+  await db.from('inv_providers').update({ tags }).eq('id', providerId)
+  revalidatePath('/admin/equipe')
+}

@@ -17,6 +17,7 @@ interface Fiche {
   phone: string | null
   contact_email: string | null
   siret: string | null
+  tags: string[]
 }
 
 export default async function EquipePage({
@@ -30,7 +31,7 @@ export default async function EquipePage({
 
   const [{ data: users }, { data: fiches }, { data: factures }] = await Promise.all([
     db.from('inv_users').select('*').order('full_name'),
-    db.from('inv_providers').select('id, user_id, legal_name, employment_type, onboarding_complete, phone, contact_email, siret'),
+    db.from('inv_providers').select('id, user_id, legal_name, employment_type, onboarding_complete, phone, contact_email, siret, tags'),
     db.from('inv_invoices').select('provider_id, total_ttc'),
   ])
 
@@ -43,6 +44,7 @@ export default async function EquipePage({
       providerId: f?.id ?? null,
       employment: f?.employment_type ?? null,
       onboarding: f?.onboarding_complete,
+      tags: f?.tags ?? [],
     }
   })
   const sansCompte = ((fiches ?? []) as Fiche[]).filter((f) => !f.user_id)

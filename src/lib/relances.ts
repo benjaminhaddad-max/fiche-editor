@@ -18,10 +18,12 @@ export interface Relance {
 /**
  * Relance tous les prestataires actifs, chacun selon où il en est.
  *
- * Quelqu'un qui n'est jamais entré n'a que faire d'un rappel de date : il
- * lui faut d'abord un lien pour créer son mot de passe. Quelqu'un qui a
- * déjà déclaré ce mois-ci n'a besoin de rien. Les autres reçoivent la date
- * limite. Un seul message par personne, celui qui la concerne.
+ * Quelqu'un qui n'est jamais entré reçoit deux messages : le lien pour
+ * créer son mot de passe, puis le calendrier du mois — l'un sans l'autre
+ * ne sert à rien, il entrerait sans savoir ce qu'on attend de lui. Les
+ * autres reçoivent la date limite, sauf ceux qui ont déjà tout déclaré.
+ * Les managers, eux, reçoivent la date de réception des factures, et le
+ * calendrier aussi s'ils découvrent la plateforme.
  */
 export async function relancerDeclarations(
   cycle: BillingCycle,
@@ -33,7 +35,7 @@ export async function relancerDeclarations(
   const [{ data: gens }, { data: invitations }, { data: missions }] = await Promise.all([
     db
       .from('inv_users')
-      .select('id, email, full_name, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete)')
+      .select('id, email, full_name, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type)')
       .eq('role', 'prestataire')
       .eq('is_active', true),
     db.from('inv_invitations').select('user_id, used_at'),
@@ -51,7 +53,10 @@ export async function relancerDeclarations(
     id: string
     email: string
     full_name: string
-    provider: { id: string; onboarding_complete: boolean }[] | { id: string; onboarding_complete: boolean } | null
+    provider:
+      | { id: string; onboarding_complete: boolean; employment_type: string }[]
+      | { id: string; onboarding_complete: boolean; employment_type: string }
+      | null
   }[]) {
     const fiche = Array.isArray(u.provider) ? u.provider[0] : u.provider
     if (!fiche) continue
@@ -59,8 +64,22 @@ export async function relancerDeclarations(
     // Jamais entré : ni lien consommé, ni fiche complétée.
     if (!venus.has(u.id) && !fiche.onboarding_complete) {
       const ok = await sendInvitation(u.id, auteurId ?? undefined)
-      if (ok) out.invites++
-      else out.echecs.push(u.email)
+      if (!ok) {
+        out.echecs.push(u.email)
+        continue
+      }
+      await deliver({
+        to: { email: u.email, name: u.full_name },
+        ...templates.monthCalendar({
+          name: u.full_name,
+          public: fiche.employment_type === 'independant' ? 'prestataire' : 'salarie',
+          cycle,
+        }),
+        template: 'month_calendar',
+        entityType: 'user',
+        entityId: u.id,
+      })
+      out.invites++
       continue
     }
 
@@ -94,6 +113,20 @@ export async function relancerDeclarations(
     .eq('is_active', true)
 
   for (const m of encadrants ?? []) {
+    if (!venus.has(m.id as string)) {
+      const ok = await sendInvitation(m.id as string, auteurId ?? undefined)
+      if (!ok) out.echecs.push(m.email as string)
+      else {
+        await deliver({
+          to: { email: m.email as string, name: m.full_name as string },
+          ...templates.monthCalendar({ name: m.full_name as string, public: 'manager', cycle }),
+          template: 'month_calendar',
+          entityType: 'user',
+          entityId: m.id as string,
+        })
+        out.invites++
+      }
+    }
     await deliver({
       to: { email: m.email as string, name: m.full_name as string },
       ...templates.managerInvoiceReminder({

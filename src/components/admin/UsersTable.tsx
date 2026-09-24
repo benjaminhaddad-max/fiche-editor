@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Mail } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Mail, Plus, Search, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -9,7 +9,7 @@ import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
 import { inviteUsers } from '@/app/(app)/admin/utilisateurs/actions'
 import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
-import { setUserPhone, toggleUserActive } from '@/app/(app)/admin/actions'
+import { changerEtiquette, setUserPhone, toggleUserActive } from '@/app/(app)/admin/actions'
 import Link from 'next/link'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import type { Employment } from '@/lib/types'
@@ -25,14 +25,37 @@ export type EquipeRow = AppUser & {
   providerId?: string | null
   employment?: Employment | null
   onboarding?: boolean
+  tags?: string[]
 }
 
 export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
+  const [recherche, setRecherche] = useState('')
+  const [etiquette, setEtiquette] = useState('')
+
+  // Toutes les étiquettes en usage, pour proposer de filtrer dessus.
+  const etiquettes = useMemo(() => {
+    const c = new Map<string, number>()
+    for (const u of users) for (const t of u.tags ?? []) c.set(t, (c.get(t) ?? 0) + 1)
+    return [...c.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr'))
+  }, [users])
+
+  const visibles = useMemo(() => {
+    const q = recherche.trim().toLowerCase()
+    return users.filter(
+      (u) =>
+        (!etiquette || (u.tags ?? []).includes(etiquette)) &&
+        (!q ||
+          u.full_name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.phone ?? '').toLowerCase().includes(q) ||
+          (u.tags ?? []).some((t) => t.toLowerCase().includes(q)))
+    )
+  }, [users, recherche, etiquette])
 
   // On n'invite que des comptes actifs : un compte désactivé ne doit pas
   // recevoir de lien de connexion.
-  const invitables = users.filter((u) => u.is_active && u.id !== meId)
+  const invitables = visibles.filter((u) => u.is_active && u.id !== meId)
   const tousCoches = invitables.length > 0 && invitables.every((u) => selection.has(u.id))
 
   function bascule(id: string) {
@@ -46,6 +69,59 @@ export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }
 
   return (
     <>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[16rem] flex-1">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone" />
+          <input
+            type="search"
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher un nom, un email, un téléphone, une étiquette…"
+            className="field pl-9"
+          />
+          {recherche && (
+            <button
+              type="button"
+              onClick={() => setRecherche('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-stone hover:text-navy"
+              aria-label="Effacer la recherche"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-muted">
+          {visibles.length} / {users.length}
+        </p>
+      </div>
+
+      {etiquettes.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setEtiquette('')}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              etiquette === '' ? 'border-navy bg-navy text-cream' : 'border-line bg-white text-navy/70 hover:border-gold/40'
+            }`}
+          >
+            Toutes
+          </button>
+          {etiquettes.map(([t, n]) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setEtiquette(etiquette === t ? '' : t)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                etiquette === t ? 'border-navy bg-navy text-cream' : 'border-line bg-white text-navy/70 hover:border-gold/40'
+              }`}
+            >
+              {t}
+              <span className={`ml-1.5 font-normal ${etiquette === t ? 'text-cream/60' : 'text-muted'}`}>{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {selection.size > 0 && (
         <form
           action={inviteUsers}
@@ -97,7 +173,7 @@ export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }
               </tr>
             </thead>
             <tbody className="divide-y divide-line/60">
-              {users.map((u) => {
+              {visibles.map((u) => {
                 const moi = u.id === meId
                 return (
                   <tr
@@ -119,6 +195,7 @@ export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }
                       {!u.is_active && (
                         <span className="ml-2 text-xs font-normal text-red-600">désactivé</span>
                       )}
+                      {u.providerId && <Etiquettes providerId={u.providerId} tags={u.tags ?? []} connues={etiquettes.map(([t]) => t)} />}
                     </td>
                     <td className="px-4 py-3 text-navy/70">
                       {u.email}
@@ -196,5 +273,71 @@ export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }
         </div>
       </Card>
     </>
+  )
+}
+
+/**
+ * Les étiquettes d'une fiche : on en pose une en écrivant, on la retire
+ * d'un clic. Les étiquettes déjà en usage sont proposées pour éviter
+ * qu'une faute de frappe en crée une deuxième.
+ */
+function Etiquettes({
+  providerId,
+  tags,
+  connues,
+}: {
+  providerId: string
+  tags: string[]
+  connues: string[]
+}) {
+  const [ouvert, setOuvert] = useState(false)
+
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-1">
+      {tags.map((t) => (
+        <form key={t} action={changerEtiquette} className="inline-flex">
+          <input type="hidden" name="provider_id" value={providerId} />
+          <input type="hidden" name="tag" value={t} />
+          <input type="hidden" name="retirer" value="1" />
+          <button
+            type="submit"
+            title={`Retirer « ${t} »`}
+            className="group inline-flex cursor-pointer items-center gap-1 rounded-full bg-cream-deep px-2 py-0.5 text-[11px] font-medium text-navy/75 hover:bg-red-50 hover:text-red-700"
+          >
+            {t}
+            <X size={10} className="opacity-0 transition-opacity group-hover:opacity-100" />
+          </button>
+        </form>
+      ))}
+
+      {ouvert ? (
+        <form action={changerEtiquette} className="inline-flex items-center gap-1">
+          <input type="hidden" name="provider_id" value={providerId} />
+          <input
+            name="tag"
+            list="ds-etiquettes"
+            autoFocus
+            maxLength={40}
+            placeholder="étiquette"
+            className="w-28 rounded border border-line px-1.5 py-0.5 text-[11px] focus:border-gold focus:outline-none"
+            onBlur={(e) => !e.target.value && setOuvert(false)}
+          />
+          <datalist id="ds-etiquettes">
+            {connues.map((t) => (
+              <option key={t} value={t} />
+            ))}
+          </datalist>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          title="Ajouter une étiquette"
+          className="inline-flex cursor-pointer items-center rounded-full border border-dashed border-line px-1.5 py-0.5 text-[11px] text-muted hover:border-gold hover:text-navy"
+        >
+          <Plus size={10} />
+        </button>
+      )}
+    </span>
   )
 }
