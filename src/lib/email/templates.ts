@@ -393,12 +393,31 @@ export const templates = {
               ligne(`jusqu’au ${formatDateLong(c.invoiceDeadline)}`, 'générez ou déposez votre facture'),
               ligne(formatDateLong(c.paymentDate), 'paiement'),
             ]
+    // Pourquoi on lui écrit, avant les dates : un calendrier sans raison ne
+    // se lit pas. Chacun a la sienne, et elle n'est pas la même.
+    const pourquoi =
+      p.public === 'manager'
+        ? `<p style="margin:0 0 12px;">Voici ce qu’on attend de vous ce mois-ci :</p>
+           <ul style="margin:0 0 14px;padding-left:18px;">
+             <li style="margin-bottom:6px;">vérifier les prestations des personnes qui vous ont désigné comme manager —
+                 vous êtes prévenu par email dès qu’une déclaration vous revient ;</li>
+             <li style="margin-bottom:6px;">déclarer vous-même pour l’un d’eux, ou lui envoyer un bon de mission, s’il ne l’a pas fait ;</li>
+             <li>faire remonter une facture qui ne suit aucune prestation : en la déposant dans
+                 Rémunérations puis Factures, ou en l’envoyant par email à la boîte de dépôt.</li>
+           </ul>`
+        : p.public === 'salarie'
+          ? `<p style="margin:0 0 12px;">Vous êtes sous contrat : <strong>vous n’avez aucune facture à faire</strong>.
+                Nous avons besoin de vos déclarations pour les vérifier, puis établir votre bulletin de paie.</p>`
+          : `<p style="margin:0 0 12px;">Vous facturez : nous avons besoin de vos déclarations pour les vérifier,
+                puis vous éditez votre facture depuis votre espace — elle est pré-remplie, vous n’avez rien à ressaisir.</p>`
+
     return {
       subject: `Calendrier de ${c.label} — Diploma Invoice`,
       html: layout(
         `Le calendrier de ${c.label}`,
         `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
-         <p style="margin:0 0 12px;">Voici les dates à retenir ce mois-ci :</p>
+         ${pourquoi}
+         <p style="margin:0 0 12px;">Les dates à retenir :</p>
          <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">${lignes.join('')}</table>`,
         { label: 'Ouvrir Diploma Invoice', href: APP_URL }
       ),

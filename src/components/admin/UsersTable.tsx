@@ -1,13 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useActionState, useMemo, useState } from 'react'
 import { Mail, Plus, Search, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
-import { inviteUsers } from '@/app/(app)/admin/utilisateurs/actions'
+import { envoyerInvitationsEtRappels, type EnvoiResultat } from '@/app/(app)/admin/utilisateurs/actions'
 import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
 import { changerEtiquette, setUserPhone, toggleUserActive } from '@/app/(app)/admin/actions'
 import Link from 'next/link'
@@ -28,8 +28,18 @@ export type EquipeRow = AppUser & {
   tags?: string[]
 }
 
-export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }) {
+export function UsersTable({
+  users,
+  meId,
+  plateforme = [],
+}: {
+  users: EquipeRow[]
+  meId: string
+  /** Tous les comptes actifs, pour pouvoir relancer au-delà de l'onglet. */
+  plateforme?: { id: string; full_name: string }[]
+}) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
+  const [envoi, envoyer] = useActionState<EnvoiResultat | null, FormData>(envoyerInvitationsEtRappels, null)
   const [recherche, setRecherche] = useState('')
   const [etiquette, setEtiquette] = useState('')
 
@@ -122,17 +132,31 @@ export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }
         </div>
       )}
 
+      {plateforme.length > 0 && selection.size < plateforme.length && (
+        <p className="mb-3 text-xs text-muted">
+          <button
+            type="button"
+            onClick={() => setSelection(new Set(plateforme.map((p) => p.id)))}
+            className="cursor-pointer font-medium text-gold-dark hover:underline"
+          >
+            Sélectionner les {plateforme.length} comptes actifs de la plateforme
+          </button>{' '}
+          — prestataires, salariés et managers, tous onglets confondus.
+        </p>
+      )}
+
       {selection.size > 0 && (
         <form
-          action={inviteUsers}
+          action={envoyer}
           className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/40 bg-gold/10 px-5 py-3"
         >
           {[...selection].map((id) => (
             <input key={id} type="hidden" name="user_id" value={id} />
           ))}
-          <span className="text-sm text-navy">
+          <span className="max-w-2xl text-sm text-navy">
             <strong>{selection.size}</strong> compte{selection.size > 1 ? 's' : ''} sélectionné
-            {selection.size > 1 ? 's' : ''} — chacun recevra un lien pour choisir son mot de passe.
+            {selection.size > 1 ? 's' : ''}. Chacun recevra le message de son statut ; ceux qui ne se sont jamais
+            connectés recevront en plus leur lien d’accès.
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -144,11 +168,16 @@ export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }
             </button>
             <SubmitButton size="sm" pendingLabel="Envoi…">
               <Mail size={14} />
-              Envoyer les invitations
+              Envoyer invitations et rappels
             </SubmitButton>
           </div>
         </form>
       )}
+
+      {envoi?.message && (
+        <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{envoi.message}</p>
+      )}
+      {envoi?.error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{envoi.error}</p>}
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
@@ -234,16 +263,14 @@ export function UsersTable({ users, meId }: { users: EquipeRow[]; meId: string }
                       ) : (
                         <div className="flex items-center justify-end gap-1">
                           {u.is_active && (
-                            <form action={inviteUsers}>
-                              <input type="hidden" name="user_id" value={u.id} />
-                              <button
-                                type="submit"
-                                title="Envoyer un lien pour créer son mot de passe"
-                                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-navy/70 hover:bg-cream-deep"
-                              >
-                                Inviter
-                              </button>
-                            </form>
+                            <button
+                              type="button"
+                              onClick={() => setSelection(new Set([u.id]))}
+                              title="Le sélectionner pour lui envoyer son accès et le rappel du mois"
+                              className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-navy/70 hover:bg-cream-deep"
+                            >
+                              Relancer
+                            </button>
                           )}
                           {u.is_active && u.role !== 'admin' && (
                             <ImpersonateButton userId={u.id} />

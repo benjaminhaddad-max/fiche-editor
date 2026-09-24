@@ -58,6 +58,8 @@ export default async function EquipePage({
     desactives: rows.filter((r) => !r.is_active),
   }
   const courant = onglet === 'fournisseurs' || (onglet && onglet in groupes) ? onglet : 'prestataires'
+  // Tous les comptes actifs, pour pouvoir relancer au-delà de l'onglet ouvert.
+  const actifs = rows.filter((r) => r.is_active && r.id !== me.id).map((r) => ({ id: r.id, full_name: r.full_name }))
 
   return (
     <>
@@ -109,7 +111,7 @@ export default async function EquipePage({
       ) : groupes[courant as keyof typeof groupes].length === 0 ? (
         <EmptyState title="Personne ici" />
       ) : (
-        <UsersTable users={groupes[courant as keyof typeof groupes]} meId={me.id} />
+        <UsersTable users={groupes[courant as keyof typeof groupes]} meId={me.id} plateforme={actifs} />
       )}
     </>
   )
