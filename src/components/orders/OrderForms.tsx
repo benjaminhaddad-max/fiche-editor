@@ -80,11 +80,12 @@ export function NewOrderForm({
         <Input id="end_date" name="end_date" type="date" label="Fin prévue" hint="Vous recevrez un rappel ce jour-là pour la clôturer." required />
         <Select id="pricing_type" name="pricing_type" label="Tarification" value={type} onChange={(e) => setType(e.target.value as PricingType)}>
           <option value="forfait_mission">Forfait</option>
+          <option value="forfait_journalier">À la journée</option>
           <option value="forfait_horaire">À l’heure</option>
         </Select>
         <div className="grid grid-cols-2 gap-3">
-          <Input id="quantity" name="quantity" type="number" step="0.25" min="0.25" label={type === 'forfait_horaire' ? 'Heures' : 'Quantité'} value={qte} onChange={(e) => setQte(e.target.value)} required />
-          <Input id="unit_amount_ht" name="unit_amount_ht" type="number" step="0.01" min="0" label={type === 'forfait_horaire' ? '€ HT / heure' : '€ HT / unité'} value={pu} onChange={(e) => setPu(e.target.value)} required />
+          <Input id="quantity" name="quantity" type="number" step="0.25" min="0.25" label={type === 'forfait_horaire' ? 'Heures' : type === 'forfait_journalier' ? 'Journées' : 'Quantité'} value={qte} onChange={(e) => setQte(e.target.value)} required />
+          <Input id="unit_amount_ht" name="unit_amount_ht" type="number" step="0.01" min="0" label={type === 'forfait_horaire' ? '€ HT / heure' : type === 'forfait_journalier' ? '€ HT / journée' : '€ HT / unité'} value={pu} onChange={(e) => setPu(e.target.value)} required />
         </div>
         <div className="sm:col-span-2">
           <Textarea id="conditions" name="conditions" label="Conditions" rows={3} placeholder="Horaires, lieu, livrables, ce qui est attendu…" />

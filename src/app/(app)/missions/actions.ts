@@ -24,7 +24,7 @@ const MissionSchema = z
       .max(500, 'Le détail ne doit pas dépasser 500 caractères.'),
     start_date: z.iso.date('Date de début invalide.'),
     end_date: z.union([z.iso.date(), z.literal('')]).optional(),
-    pricing_type: z.enum(['forfait_mission', 'forfait_horaire']),
+    pricing_type: z.enum(['forfait_mission', 'forfait_horaire', 'forfait_journalier']),
     quantity: z.coerce
       .number<number>()
       .positive('La quantité doit être supérieure à 0.')

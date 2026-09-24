@@ -29,7 +29,7 @@ const Ligne = z.object({
   formation: z.string().trim().max(120).optional(),
   /** Rattrapage d'un mois clos : la date reste vraie, le paiement suit le cycle en cours. */
   regularisation: z.coerce.boolean().optional(),
-  pricing_type: z.enum(['forfait_mission', 'forfait_horaire']),
+  pricing_type: z.enum(['forfait_mission', 'forfait_horaire', 'forfait_journalier']),
   quantity: z.coerce.number<number>().positive('Quantité supérieure à 0.').max(10000),
   unit_amount_ht: z.coerce.number<number>().nonnegative('Montant invalide.').max(1000000),
 })

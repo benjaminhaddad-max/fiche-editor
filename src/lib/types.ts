@@ -1,5 +1,5 @@
 export type Role = 'prestataire' | 'manager' | 'admin'
-export type PricingType = 'forfait_mission' | 'forfait_horaire'
+export type PricingType = 'forfait_mission' | 'forfait_horaire' | 'forfait_journalier'
 export type MissionStatus =
   | 'draft'
   | 'submitted'

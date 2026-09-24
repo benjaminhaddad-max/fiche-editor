@@ -49,12 +49,14 @@ export const INVOICE_STATUS_STYLE: Record<InvoiceStatus, string> = {
 export const PRICING_LABEL: Record<PricingType, string> = {
   forfait_mission: 'Forfait à la mission',
   forfait_horaire: 'Forfait horaire',
+  forfait_journalier: 'Forfait à la journée',
 }
 
 /** Unite affichee a cote de la quantite. */
 export const PRICING_UNIT: Record<PricingType, string> = {
   forfait_mission: 'mission(s)',
   forfait_horaire: 'heure(s)',
+  forfait_journalier: 'journée(s)',
 }
 
 export const ROLE_LABEL: Record<Role, string> = {

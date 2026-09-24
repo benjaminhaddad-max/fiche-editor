@@ -18,7 +18,7 @@ interface Props {
   defaultManagerId?: string | null
 }
 
-const PRICING_TYPES: PricingType[] = ['forfait_mission', 'forfait_horaire']
+const PRICING_TYPES: PricingType[] = ['forfait_mission', 'forfait_journalier', 'forfait_horaire']
 
 export function MissionForm({
   action,

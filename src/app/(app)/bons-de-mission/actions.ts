@@ -87,7 +87,7 @@ const BonSchema = z
     conditions: z.string().trim().max(2000).optional(),
     start_date: z.iso.date('Date de début invalide.'),
     end_date: z.iso.date('Date de fin invalide.'),
-    pricing_type: z.enum(['forfait_mission', 'forfait_horaire']),
+    pricing_type: z.enum(['forfait_mission', 'forfait_horaire', 'forfait_journalier']),
     quantity: z.coerce.number<number>().positive('Quantité supérieure à 0.'),
     unit_amount_ht: z.coerce.number<number>().nonnegative('Tarif invalide.'),
   })

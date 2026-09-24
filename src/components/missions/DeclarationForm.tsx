@@ -55,6 +55,13 @@ interface Props {
 /** Suggestions de formation : le champ reste libre, on ne fait qu'aider. */
 const FORMATIONS = ['PASS', 'LAS', 'LSPS', 'PAES', 'Terminale Santé', 'Prépa concours']
 
+/** Ce qu'on compte, et comment on l'écrit à côté des champs. */
+const UNITE: Record<PricingType, { quantite: string; pluriel: string; prix: string }> = {
+  forfait_mission: { quantite: 'Quantité', pluriel: 'missions', prix: '€ / mission' },
+  forfait_journalier: { quantite: 'Journées', pluriel: 'journées', prix: '€ / journée' },
+  forfait_horaire: { quantite: 'Heures', pluriel: 'heures', prix: '€ / heure' },
+}
+
 let compteur = 0
 
 export function DeclarationForm(props: Props) {
@@ -319,8 +326,9 @@ export function DeclarationForm(props: Props) {
                           onChange={(e) => maj(l.cle, { pricing_type: e.target.value as PricingType })}
                           aria-label="Tarification"
                         >
-                          <option value="forfait_mission">Forfait</option>
-                          <option value="forfait_horaire">Horaire</option>
+                          <option value="forfait_mission">À la mission</option>
+                          <option value="forfait_journalier">À la journée</option>
+                          <option value="forfait_horaire">À l’heure</option>
                         </select>
                       )}
                     </td>
@@ -333,10 +341,10 @@ export function DeclarationForm(props: Props) {
                         value={l.quantity}
                         disabled={l.kind === 'bonus'}
                         onChange={(e) => maj(l.cle, { quantity: e.target.value })}
-                        aria-label={l.pricing_type === 'forfait_horaire' ? 'Heures' : 'Quantité'}
+                        aria-label={UNITE[l.pricing_type].quantite}
                       />
                       <p className="mt-0.5 text-[11px] text-muted">
-                        {l.kind === 'bonus' ? '' : l.pricing_type === 'forfait_horaire' ? 'heures' : 'missions'}
+                        {l.kind === 'bonus' ? '' : UNITE[l.pricing_type].pluriel}
                       </p>
                     </td>
                     <td className="px-3 py-2.5">
@@ -350,7 +358,7 @@ export function DeclarationForm(props: Props) {
                         aria-label="Prix unitaire HT"
                       />
                       <p className="mt-0.5 text-[11px] text-muted">
-                        {l.kind === 'bonus' ? '€' : l.pricing_type === 'forfait_horaire' ? '€ / heure' : '€ / mission'}
+                        {l.kind === 'bonus' ? '€' : UNITE[l.pricing_type].prix}
                       </p>
                       {salarie && (
                         <label className="mt-1 flex items-center gap-1.5 text-[11px] text-navy/70">
