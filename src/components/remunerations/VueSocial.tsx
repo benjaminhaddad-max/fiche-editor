@@ -86,6 +86,7 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                         </span>
                         <span className="block text-xs text-muted">
                           {formatDate(l.date)} · {l.categorie} · {l.manager}
+                          {l.abattement > 0 && ` · ${money(round2(l.quantity * l.unit))} convenus, abattement ${l.abattement} %`}
                         </span>
                       </span>
                     </label>

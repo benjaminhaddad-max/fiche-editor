@@ -94,7 +94,7 @@ export async function declarer(
 
   const { data: provider } = await db
     .from('inv_providers')
-    .select('id, legal_name, employment_type')
+    .select('id, legal_name, employment_type, pay_abatement')
     .eq('id', providerId)
     .maybeSingle()
   if (!provider) return { error: 'Prestataire introuvable.' }
@@ -150,6 +150,12 @@ export async function declarer(
   const status =
     user.role === 'admin' ? 'approved' : user.role === 'manager' ? 'manager_approved' : brouillon ? 'draft' : 'submitted'
 
+  // Le montant écrit est celui convenu avec le manager ; ce qui sera versé
+  // en tient compte de l'abattement du contrat. On fige le taux sur la
+  // ligne : une prestation passée ne doit pas bouger si le taux change.
+  const abattement = Number(provider.pay_abatement ?? 0)
+  const verse = (brut: number) => round2(brut * (1 - abattement / 100))
+
   const declarationId = randomUUID()
   const rows = lignes.map((l) => ({
     provider_id: providerId,
@@ -168,7 +174,8 @@ export async function declarer(
     pricing_type: l.kind === 'bonus' ? 'forfait_mission' : l.pricing_type,
     quantity: l.kind === 'bonus' ? 1 : l.quantity,
     unit_amount_ht: l.kind === 'bonus' ? round2(l.quantity * l.unit_amount_ht) : l.unit_amount_ht,
-    total_ht: round2(l.quantity * l.unit_amount_ht),
+    abatement_rate: abattement,
+    total_ht: verse(l.quantity * l.unit_amount_ht),
     status,
     origin: user.role === 'prestataire' ? 'provider' : 'manager',
     declaration_id: declarationId,

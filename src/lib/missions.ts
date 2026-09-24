@@ -5,7 +5,7 @@ import { getContractContext } from '@/lib/contract-context'
 
 export const MISSION_WITH_RELATIONS = `
   id, detail, formation, regularisation, manager_id, start_date, end_date, pricing_type, quantity, unit_amount_ht,
-  total_ht, status, submitted_at, manager_approved_at, admin_approved_at,
+  total_ht, abatement_rate, status, submitted_at, manager_approved_at, admin_approved_at,
   rejected_at, rejection_reason,
   category:inv_categories(name, provider_label),
   provider:inv_providers(legal_name),
@@ -18,6 +18,7 @@ interface RawMission {
   formation: string | null
   regularisation: boolean
   manager_id: string | null
+  abatement_rate: number
   start_date: string
   end_date: string | null
   pricing_type: ReviewMission['pricing_type']
@@ -36,6 +37,7 @@ export function toReviewMission(row: RawMission): ReviewMission {
     formation: row.formation,
     regularisation: row.regularisation,
     manager_id: row.manager_id,
+    abatement_rate: Number(row.abatement_rate ?? 0),
     start_date: row.start_date,
     end_date: row.end_date,
     pricing_type: row.pricing_type,

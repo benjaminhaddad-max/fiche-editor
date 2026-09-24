@@ -13,6 +13,8 @@ export interface LignePaie {
   total: number
   /** Brut ou net : la paie doit savoir ce qu'elle lit. */
   base: 'brut' | 'net'
+  /** Pourcentage retiré du montant convenu, du fait du contrat. */
+  abattement: number
   categorie: string
   manager: string
   status: string
@@ -27,7 +29,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
   let q = db
     .from('inv_missions')
     .select(
-      `id, kind, detail, start_date, quantity, unit_amount_ht, total_ht, status, pay_basis, payroll_batch_id,
+      `id, kind, detail, start_date, quantity, unit_amount_ht, total_ht, abatement_rate, status, pay_basis, payroll_batch_id,
        provider:inv_providers!inner(legal_name, employment_type),
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
@@ -49,6 +51,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
     total_ht: number
     status: string
     pay_basis: 'brut' | 'net' | null
+    abatement_rate: number
     provider: { legal_name: string; employment_type: Employment }
     category: { name: string } | null
     manager: { full_name: string } | null
@@ -64,6 +67,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
       unit: Number(m.unit_amount_ht),
       total: Number(m.total_ht),
       base: (m.pay_basis === 'net' ? 'net' : 'brut') as 'brut' | 'net',
+      abattement: Number(m.abatement_rate ?? 0),
       categorie: m.category?.name ?? '—',
       manager: m.manager?.full_name ?? '—',
       status: m.status,

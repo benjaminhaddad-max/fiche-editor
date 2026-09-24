@@ -189,7 +189,7 @@ export async function corrigerMission(formData: FormData): Promise<void> {
   const db = createServiceClient()
   const { data: m } = await db
     .from('inv_missions')
-    .select('id, manager_id, status, start_date, detail, quantity, unit_amount_ht, total_ht, invoice_id')
+    .select('id, manager_id, status, start_date, detail, quantity, unit_amount_ht, total_ht, abatement_rate, invoice_id')
     .eq('id', id)
     .maybeSingle()
   if (!m || m.invoice_id) return
@@ -210,7 +210,9 @@ export async function corrigerMission(formData: FormData): Promise<void> {
     if (cible) managerId = cible.id
   }
 
-  const total = round2(quantity * unit)
+  // On recalcule avec le taux figé sur la ligne : corriger un montant ne
+  // doit pas faire réapparaître l'abattement, ni le faire disparaître.
+  const total = round2(quantity * unit * (1 - Number(m.abatement_rate ?? 0) / 100))
   await db
     .from('inv_missions')
     .update({ detail, quantity, unit_amount_ht: unit, total_ht: total, manager_id: managerId })

@@ -17,6 +17,7 @@ export interface ReviewMission {
   formation: string | null
   regularisation: boolean
   manager_id: string | null
+  abatement_rate: number
   start_date: string
   end_date: string | null
   pricing_type: PricingType
@@ -187,6 +188,13 @@ export function ValidationTable({
                     {m.category_name} · {PRICING_LABEL[m.pricing_type]} ·{' '}
                     {Number(m.quantity)} {PRICING_UNIT[m.pricing_type]} ×{' '}
                     {money(m.unit_amount_ht)}
+                    {m.abatement_rate > 0 && (
+                      <>
+                        {' = '}
+                        <span className="line-through">{money(m.quantity * m.unit_amount_ht)}</span>
+                        {` − ${m.abatement_rate} % (contrat)`}
+                      </>
+                    )}
                   </p>
 
                   {m.contract && <ContractBreakdown c={m.contract} />}
