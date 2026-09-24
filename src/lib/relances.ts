@@ -74,7 +74,7 @@ export async function relancerDeclarations(
       )
       .eq('role', 'prestataire')
       .eq('is_active', true),
-    db.from('inv_invitations').select('user_id, used_at'),
+    db.from('inv_invitations').select('user_id, exchanges'),
     db
       .from('inv_missions')
       .select('provider_id')
@@ -82,7 +82,11 @@ export async function relancerDeclarations(
       .lte('start_date', cycle.periodEnd),
   ])
 
-  const venus = new Set((invitations ?? []).filter((i) => i.used_at).map((i) => i.user_id as string))
+  // Un lien annulé par un lien plus récent porte lui aussi un used_at :
+  // seul un échange de jeton prouve que la personne est vraiment entrée.
+  const venus = new Set(
+    (invitations ?? []).filter((i) => Number(i.exchanges ?? 0) > 0).map((i) => i.user_id as string)
+  )
   const aDeclare = new Set((missions ?? []).map((m) => m.provider_id as string))
 
   const aRelancerFiche: { id: string; email: string; nom: string; manque: string[] }[] = []

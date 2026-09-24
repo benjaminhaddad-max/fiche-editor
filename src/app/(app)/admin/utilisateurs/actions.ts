@@ -209,9 +209,13 @@ export async function envoyerInvitationsEtRappels(
       .from('inv_users')
       .select('id, email, full_name, role, is_active, provider:inv_providers!inv_providers_user_id_fkey(employment_type)')
       .in('id', ids),
-    service.from('inv_invitations').select('user_id, used_at'),
+    service.from('inv_invitations').select('user_id, exchanges'),
   ])
-  const venus = new Set((invitations ?? []).filter((i) => i.used_at).map((i) => i.user_id as string))
+  // used_at est aussi posé quand un nouveau lien annule l'ancien : seul un
+  // échange de jeton dit que la personne est réellement entrée.
+  const venus = new Set(
+    (invitations ?? []).filter((i) => Number(i.exchanges ?? 0) > 0).map((i) => i.user_id as string)
+  )
 
   let invites = 0
   let rappeles = 0

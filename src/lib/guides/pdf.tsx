@@ -1,6 +1,6 @@
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer'
 import type { BillingCycle } from '@/lib/cycle'
-import { formatDateLong } from '@/lib/format'
+import { formatDate, formatDateLong } from '@/lib/format'
 
 /**
  * Les deux modes d'emploi joints aux emails du mois.
@@ -100,7 +100,7 @@ function GuideIndependant({ c }: { c: BillingCycle }) {
         <Text style={s.section}>Les dates de {c.label}</Text>
         <View style={s.filet} />
         <Date quand={`jusqu’au ${formatDateLong(c.declarationDeadline)}`} quoi="vous déclarez vos prestations" />
-        <Date quand={`du ${formatDateLong(c.reviewStart)} au ${formatDateLong(c.reviewEnd)}`} quoi="vos managers vérifient" />
+        <Date quand={`du ${formatDate(c.reviewStart)} au ${formatDate(c.reviewEnd)}`} quoi="vos managers vérifient" />
         <Date quand={formatDateLong(c.statementDate)} quoi="vous recevez votre bordereau" />
         <Date quand={`jusqu’au ${formatDateLong(c.invoiceDeadline)}`} quoi="vous générez ou déposez votre facture" />
         <Date quand={formatDateLong(c.paymentDate)} quoi="paiement par virement" />
@@ -167,7 +167,7 @@ function GuideSalarie({ c }: { c: BillingCycle }) {
         <Text style={s.section}>Les dates de {c.label}</Text>
         <View style={s.filet} />
         <Date quand={`jusqu’au ${formatDateLong(c.declarationDeadline)}`} quoi="vous déclarez vos prestations et vos bonus" />
-        <Date quand={`du ${formatDateLong(c.reviewStart)} au ${formatDateLong(c.reviewEnd)}`} quoi="vérification par votre manager" />
+        <Date quand={`du ${formatDate(c.reviewStart)} au ${formatDate(c.reviewEnd)}`} quoi="vérification par votre manager" />
         <Date quand={formatDateLong(c.statementDate)} quoi="transmission au service paie" />
 
         <View style={s.encart}>
@@ -218,7 +218,7 @@ function GuideManager({ c, depot }: { c: BillingCycle; depot: string | null }) {
         <Text style={s.section}>Les dates de {c.label}</Text>
         <View style={s.filet} />
         <Date quand={`jusqu’au ${formatDateLong(c.declarationDeadline)}`} quoi="vos prestataires déclarent" />
-        <Date quand={`du ${formatDateLong(c.reviewStart)} au ${formatDateLong(c.reviewEnd)}`} quoi="à vous de vérifier, corriger, compléter" />
+        <Date quand={`du ${formatDate(c.reviewStart)} au ${formatDate(c.reviewEnd)}`} quoi="à vous de vérifier, corriger, compléter" />
         <Date quand={formatDateLong(c.statementDate)} quoi="les bordereaux partent" />
         <Date quand={`jusqu’au ${formatDateLong(c.invoiceDeadline)}`} quoi="toutes les factures doivent être reçues" />
         <Date quand={formatDateLong(c.paymentDate)} quoi="paiement" />
