@@ -132,6 +132,10 @@ export async function enregistrerFactureDiverse(input: {
   submittedBy: string | null
   channel: 'upload' | 'email'
   emailMessageId?: string | null
+  /** Adresse qui a envoyé le message, quand la facture vient de la boîte. */
+  inboundFrom?: string | null
+  /** Comment le manager a été retrouvé. Vide = facture encore à rattacher. */
+  inboundMatch?: 'adresse' | 'ia' | 'manuel' | null
   categoryId?: string | null
 }): Promise<FactureDiverseResultat> {
   const db = createServiceClient()
@@ -218,7 +222,10 @@ export async function enregistrerFactureDiverse(input: {
     .insert({
       provider_id: fiche.id,
       number: numero,
-      status: 'validated',
+      // Sans manager identifié, la facture reste « transmise » : elle
+      // apparaît dans la pile à valider avec l'adresse de l'expéditeur,
+      // et n'entre en compta qu'une fois rattachée.
+      status: input.submittedBy ? 'validated' : 'sent',
       kind: 'misc',
       issue_date: date,
       due_date: lu.echeance && /^\d{4}-\d{2}-\d{2}$/.test(lu.echeance) ? lu.echeance : addDays(date, 30),
@@ -247,13 +254,15 @@ export async function enregistrerFactureDiverse(input: {
       uploaded_at: now,
       issued_at: now,
       sent_at: now,
-      validated_at: now,
+      validated_at: input.submittedBy ? now : null,
       validated_by: input.submittedBy,
       submitted_by: input.submittedBy,
       category_id: categorie?.id ?? null,
       description: lu.objet,
       channel: input.channel,
       email_message_id: input.emailMessageId ?? null,
+      inbound_from: input.inboundFrom ?? null,
+      inbound_match: input.inboundMatch ?? null,
       ai_check: {
         checked_at: now,
         expected_ht: null,

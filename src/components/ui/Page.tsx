@@ -24,9 +24,11 @@ export function PageHeader({
   return (
     <div className="ds-panel-header-slot -mx-8 -mt-8 mb-7">
       <div className="ds-panel-header">
-        <div className="ds-panel-header__body flex flex-wrap items-start justify-between gap-4 px-8 pb-6 pt-7">
+        <div className="ds-panel-header__body flex flex-wrap items-start justify-between gap-4 px-8 pb-6 pt-9">
           <div className="min-w-0">
-            <h1 className="font-display text-[28px] font-semibold leading-tight tracking-tight text-cream">
+            {/* Fraunces monte haut : un interligne serré dans un bloc qui
+                rogne ce qui dépasse coupait le haut des capitales. */}
+            <h1 className="font-display text-[28px] font-semibold leading-[1.35] tracking-tight text-cream">
               {title}
             </h1>
             {description && <p className="mt-1.5 max-w-3xl text-sm text-cream/65">{description}</p>}

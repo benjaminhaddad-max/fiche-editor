@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { RefreshCw } from 'lucide-react'
+import { ARattacher } from '@/components/admin/ARattacher'
 import { InvoiceTable, type AdminInvoiceRow } from '@/components/admin/InvoiceTable'
 import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
 import { Card, EmptyState, StatTile } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
 import { money } from '@/lib/format'
+import { getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
 
@@ -21,6 +23,8 @@ interface Row {
   pennylane_error: string | null
   pdf_source: string
   channel: string | null
+  inbound_from: string | null
+  inbound_match: string | null
   ai_check: AiCheck | null
   provider: { legal_name: string; user_id: string | null } | null
   apporteur: { full_name: string } | null
@@ -37,17 +41,18 @@ const ONGLETS = {
 export async function VueFactures({ onglet }: { onglet?: string }) {
   const supabase = await createServerSupabase()
 
-  const [{ data }, { data: cats }] = await Promise.all([
+  const [{ data }, { data: cats }, managers] = await Promise.all([
     supabase
       .from('inv_invoices')
       .select(
         `id, number, status, kind, issue_date, subtotal_ht, total_ttc, pennylane_status, pennylane_error,
-         pdf_source, channel, ai_check,
+         pdf_source, channel, inbound_from, inbound_match, ai_check,
          provider:inv_providers(legal_name, user_id),
          apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name)`
       )
       .order('issue_date', { ascending: false }),
     supabase.from('inv_categories').select('id, name').eq('is_active', true).order('sort_order'),
+    getManagers(),
   ])
 
   const rows: AdminInvoiceRow[] = ((data ?? []) as unknown as Row[]).map((r) => ({
@@ -66,6 +71,19 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
   const validees = par(['validated'])
   const aEnvoyer = validees.filter((r) => r.pennylane_status !== 'synced')
   const inbound = process.env.DEPOT_FACTURES_EMAIL ?? null
+
+  // Arrivées par email sans qu'on sache de qui : elles attendent un manager.
+  const brutes = (data ?? []) as unknown as Row[]
+  const aRattacher = brutes
+    .filter((r) => r.channel === 'email' && !r.inbound_match && r.status === 'sent')
+    .map((r) => ({
+      id: r.id,
+      number: r.number,
+      issue_date: r.issue_date,
+      total_ttc: Number(r.total_ttc),
+      inbound_from: r.inbound_from,
+      fournisseur: r.provider?.legal_name ?? '—',
+    }))
 
   const liste = courant === 'diverses' ? rows.filter((r) => r.kind === 'misc') : par(ONGLETS[courant].statuts)
   const gestes =
@@ -123,6 +141,8 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
           </Link>
         ))}
       </div>
+
+      <ARattacher factures={aRattacher} managers={managers} />
 
       {courant === 'diverses' && (
         <Card className="mb-6 p-5">

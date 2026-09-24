@@ -188,3 +188,51 @@ export async function actualiserPaiements(): Promise<void> {
   })
   rafraichir()
 }
+
+/**
+ * Rattache à un manager une facture arrivée d'une adresse inconnue.
+ *
+ * Tant que personne n'est désigné, la facture reste dans la pile à valider
+ * et n'entre pas en compta : c'est ce geste qui l'y fait entrer.
+ */
+export async function rattacherExpediteur(fd: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const id = String(fd.get('invoice_id') ?? '')
+  const managerId = String(fd.get('manager_id') ?? '')
+  if (!id || !managerId) return
+
+  const db = createServiceClient()
+  const { data: encadrant } = await db
+    .from('inv_users')
+    .select('id')
+    .eq('id', managerId)
+    .in('role', ['manager', 'admin'])
+    .eq('is_active', true)
+    .maybeSingle()
+  if (!encadrant) return
+
+  const now = new Date().toISOString()
+  const { data: facture } = await db
+    .from('inv_invoices')
+    .update({
+      submitted_by: managerId,
+      validated_by: user.id,
+      validated_at: now,
+      status: 'validated',
+      inbound_match: 'manuel',
+    })
+    .eq('id', id)
+    .is('submitted_by', null)
+    .select('id, number, inbound_from')
+    .maybeSingle()
+  if (!facture) return
+
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'invoice',
+    entityId: id,
+    action: 'facture_rattachee',
+    payload: { manager_id: managerId, expediteur: facture.inbound_from },
+  })
+  revalidatePath('/remunerations')
+}

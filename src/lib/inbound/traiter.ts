@@ -1,3 +1,4 @@
+import { identifierExpediteur } from '@/lib/inbound/expediteur'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
@@ -19,10 +20,14 @@ const MAX_PDF = 15 * 1024 * 1024
 /**
  * Ce qui arrive dans la boîte de dépôt.
  *
- * Seuls les managers et administrateurs actifs sont écoutés : un message venu
- * d'ailleurs est ignoré, sans réponse. Chaque PDF est d'abord identifié :
- * une facture rejoint les factures validées, un bulletin de paie l'espace de
- * la personne concernée. L'expéditeur reçoit un accusé, ou la raison du refus.
+ * L'expéditeur est d'abord rapproché de l'équipe : son adresse, ou à défaut
+ * un rapprochement par l'IA sur le nom. Reconnu, il reçoit un accusé et sa
+ * facture est classée. Inconnu, la facture arrive quand même — mais elle
+ * reste dans la pile à valider, avec l'adresse qui l'a envoyée, pour être
+ * rattachée à la main. Rien ne disparaît en silence.
+ *
+ * Chaque PDF est identifié au passage : une facture rejoint les factures,
+ * un bulletin de paie l'espace de la personne concernée.
  */
 export async function traiterCourriel(c: Courriel): Promise<Issue> {
   const db = createServiceClient()
@@ -32,20 +37,22 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
     .select('id, email, full_name, role')
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
-  const auteur = (equipe ?? []).find((u) => adresses.includes(u.email.toLowerCase()))
-  if (!auteur) {
-    console.warn('[depotfactures] expéditeur ignoré :', adresses.join(', '))
-    return 'ignore'
-  }
+  const { auteur, via, raison } = await identifierExpediteur(adresses, c.sujet, equipe ?? [])
+  const expediteur = adresses[0] ?? null
+  if (!auteur) console.warn('[depotfactures] expéditeur à rattacher :', adresses.join(', '), raison ?? '')
 
-  const refuser = (raison: string) =>
-    deliver({
+  // On ne répond qu'à quelqu'un qu'on a reconnu : écrire à une adresse
+  // inconnue reviendrait à confirmer que la boîte existe.
+  const refuser = async (motif: string) => {
+    if (!auteur) return
+    await deliver({
       to: { email: auteur.email, name: auteur.full_name },
-      ...templates.inboundRefused({ reason: raison }),
+      ...templates.inboundRefused({ reason: motif }),
       template: 'inbound_refused',
       entityType: 'user',
       entityId: auteur.id,
     })
+  }
 
   const pdfs = c.pieces.filter((p) => p.nom.toLowerCase().endsWith('.pdf'))
   if (pdfs.length === 0) {
@@ -67,6 +74,10 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
     }
 
     if (type === 'bulletin') {
+      if (!auteur) {
+        console.warn('[depotfactures] bulletin d’un expéditeur inconnu, ignoré :', expediteur)
+        continue
+      }
       const b = await enregistrerBulletin({
         pdf: piece.contenu,
         filename: piece.nom,
@@ -90,14 +101,17 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
     const r = await enregistrerFactureDiverse({
       pdf: piece.contenu,
       filename: piece.nom,
-      submittedBy: auteur.id,
+      submittedBy: auteur?.id ?? null,
       channel: 'email',
       emailMessageId: c.messageId,
+      inboundFrom: expediteur,
+      inboundMatch: via,
     })
     if (!r.ok) {
       await refuser(`« ${piece.nom} » : ${r.error}`)
       continue
     }
+    if (!auteur) continue
     await deliver({
       to: { email: auteur.email, name: auteur.full_name },
       ...templates.miscInvoiceFiled({
