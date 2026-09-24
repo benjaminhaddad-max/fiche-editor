@@ -18,9 +18,13 @@ export interface DeclarationResult {
 
 const Ligne = z.object({
   category_id: z.uuid('Choisissez le type de prestation.'),
+  /** Le manager qui a confié CETTE mission. À défaut, celui de l'en-tête. */
+  manager_id: z.union([z.uuid(), z.literal('')]).optional(),
   detail: z.string().trim().min(3, 'Décrivez la prestation.').max(500),
   date: z.iso.date('Date invalide.'),
   kind: z.enum(['prestation', 'bonus']).default('prestation'),
+  /** Salarié : le montant est-il en brut ou en net ? Vide pour un indépendant. */
+  pay_basis: z.union([z.enum(['brut', 'net']), z.literal('')]).optional(),
   pricing_type: z.enum(['forfait_mission', 'forfait_horaire']),
   quantity: z.coerce.number<number>().positive('Quantité supérieure à 0.').max(10000),
   unit_amount_ht: z.coerce.number<number>().nonnegative('Montant invalide.').max(1000000),
@@ -28,6 +32,7 @@ const Ligne = z.object({
 
 const Entete = z.object({
   provider_id: z.uuid().optional(),
+  /** Manager par défaut : celui des lignes qui n'en nomment pas d'autre. */
   manager_id: z.uuid('Indiquez le manager concerné.'),
   intent: z.enum(['submit', 'draft']).default('submit'),
 })
@@ -42,6 +47,10 @@ const Entete = z.object({
  *   prestataire   lignes « en attente manager », jusqu'à L−3 du mois
  *   manager       lignes déjà validées par lui, jusqu'à L
  *   admin         lignes validées, sans limite de date
+ *
+ * Chaque ligne porte son manager : quelqu'un qui enregistre des cours pour
+ * l'une et fait du commercial pour l'autre déclare tout d'un coup, et chaque
+ * ligne part en vérification chez la bonne personne.
  */
 export async function declarer(
   _prev: DeclarationResult,
@@ -89,6 +98,16 @@ export async function declarer(
   // Un manager déclare en son nom ; seul l'administrateur choisit librement.
   const managerId = user.role === 'manager' ? user.id : entete.data.manager_id
 
+  // Les identifiants viennent du navigateur : on ne rattache une prestation
+  // qu'à quelqu'un qui encadre vraiment, et qui est encore en poste.
+  const { data: encadrants } = await db
+    .from('inv_users')
+    .select('id')
+    .in('role', ['manager', 'admin'])
+    .eq('is_active', true)
+  const encadre = new Set((encadrants ?? []).map((e) => e.id as string))
+  if (!encadre.has(managerId)) return { error: 'Ce manager n’est plus en poste, choisissez-en un autre.' }
+
   // ---- Lignes
   const lignes: z.infer<typeof Ligne>[] = []
   const lineErrors: Record<number, string> = {}
@@ -96,6 +115,10 @@ export async function declarer(
     const r = Ligne.safeParse(b)
     if (!r.success) {
       lineErrors[i] = r.error.issues[0].message
+      return
+    }
+    if (r.data.manager_id && !encadre.has(r.data.manager_id)) {
+      lineErrors[i] = 'Ce manager n’est plus en poste.'
       return
     }
     if (r.data.kind === 'bonus' && provider.employment_type === 'independant') {
@@ -126,12 +149,14 @@ export async function declarer(
   const declarationId = randomUUID()
   const rows = lignes.map((l) => ({
     provider_id: providerId,
-    manager_id: managerId,
+    manager_id: user.role === 'manager' ? user.id : l.manager_id || managerId,
     category_id: l.category_id,
     detail: l.detail,
     start_date: l.date,
     end_date: l.date,
     kind: l.kind,
+    // Un indépendant facture : la question brut/net ne se pose pas pour lui.
+    pay_basis: provider.employment_type === 'independant' ? null : l.pay_basis || 'brut',
     pricing_type: l.kind === 'bonus' ? 'forfait_mission' : l.pricing_type,
     quantity: l.kind === 'bonus' ? 1 : l.quantity,
     unit_amount_ht: l.kind === 'bonus' ? round2(l.quantity * l.unit_amount_ht) : l.unit_amount_ht,

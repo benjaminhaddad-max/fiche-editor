@@ -11,8 +11,10 @@ export interface LigneRemuneration {
   facture: number
   /** Déjà réglé sur ces factures. */
   paye: number
-  /** Éléments variables transmis à la paie (salariés). */
+  /** Éléments variables transmis à la paie (salariés), exprimés en brut. */
   variables: number
+  /** Ce qui a été convenu en net — un forfait de CDD, par exemple. */
+  variablesNet: number
   /** Coût employeur lu sur le bulletin, quand il est arrivé. */
   cout: number | null
   net: number | null
@@ -36,7 +38,7 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
       .lte('issue_date', cycle.paymentDate),
     db
       .from('inv_missions')
-      .select('provider_id, total_ht, status')
+      .select('provider_id, total_ht, status, pay_basis')
       .gte('start_date', cycle.periodStart)
       .lte('start_date', cycle.periodEnd)
       .in('status', ['approved', 'invoiced', 'manager_approved']),
@@ -58,6 +60,7 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
       facture: 0,
       paye: 0,
       variables: 0,
+      variablesNet: 0,
       cout: null,
       net: null,
       bulletin: false,
@@ -74,7 +77,10 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
   for (const m of missions ?? []) {
     const l = lignes.get(m.provider_id)
     if (!l || l.statut === 'independant') continue
-    l.variables += Number(m.total_ht)
+    // Le net et le brut ne s'additionnent pas : on les tient séparés jusqu'au
+    // bout, et c'est la paie qui fait la conversion.
+    if (m.pay_basis === 'net') l.variablesNet += Number(m.total_ht)
+    else l.variables += Number(m.total_ht)
   }
   for (const b of bulletins ?? []) {
     const l = lignes.get(b.provider_id)
@@ -86,7 +92,13 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
   }
 
   return [...lignes.values()]
-    .map((l) => ({ ...l, facture: round2(l.facture), paye: round2(l.paye), variables: round2(l.variables) }))
-    .filter((l) => l.facture || l.variables || l.bulletin || l.statut !== 'independant')
+    .map((l) => ({
+      ...l,
+      facture: round2(l.facture),
+      paye: round2(l.paye),
+      variables: round2(l.variables),
+      variablesNet: round2(l.variablesNet),
+    }))
+    .filter((l) => l.facture || l.variables || l.variablesNet || l.bulletin || l.statut !== 'independant')
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
 }

@@ -26,7 +26,16 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
   return (
     <>
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatTile label="Prêt à envoyer" value={money(round2(pretes.reduce((s, l) => s + l.total, 0)))} sub={`${pretes.length} ligne(s)`} accent="emerald" />
+        <StatTile
+          label="Prêt à envoyer (brut)"
+          value={money(round2(pretes.filter((l) => l.base === 'brut').reduce((s, l) => s + l.total, 0)))}
+          sub={
+            pretes.some((l) => l.base === 'net')
+              ? `+ ${money(round2(pretes.filter((l) => l.base === 'net').reduce((s, l) => s + l.total, 0)))} en net · ${pretes.length} ligne(s)`
+              : `${pretes.length} ligne(s)`
+          }
+          accent="emerald"
+        />
         <StatTile label="Encore en validation" value={String(enCours.length)} accent={enCours.length ? 'amber' : 'slate'} />
         <StatTile
           label="Déjà envoyé ce mois"
@@ -49,7 +58,14 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                 <p className="text-sm font-semibold text-navy">
                   {personne} <span className="ml-2 font-normal text-muted">{EMPLOYMENT_LABEL[ls[0].statut]}</span>
                 </p>
-                <p className="text-sm font-semibold text-navy">{money(round2(ls.reduce((s, l) => s + l.total, 0)))}</p>
+                <p className="text-right text-sm font-semibold text-navy">
+                  {money(round2(ls.filter((l) => l.base === 'brut').reduce((s, l) => s + l.total, 0)))} brut
+                  {ls.some((l) => l.base === 'net') && (
+                    <span className="mt-0.5 block text-xs font-medium text-gold-dark">
+                      + {money(round2(ls.filter((l) => l.base === 'net').reduce((s, l) => s + l.total, 0)))} convenus en net
+                    </span>
+                  )}
+                </p>
               </div>
               <ul className="divide-y divide-line/60">
                 {ls.map((l) => (
@@ -75,7 +91,10 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                     </label>
                     <span className="flex shrink-0 items-center gap-3">
                       {l.status !== 'approved' && <MissionStatusBadge status={l.status as MissionStatus} />}
-                      <span className="w-24 text-right font-medium text-navy">{money(l.total)}</span>
+                      <span className="w-28 text-right font-medium text-navy">
+                        {money(l.total)}
+                        <span className="ml-1 text-[11px] font-normal text-muted">{l.base}</span>
+                      </span>
                     </span>
                   </li>
                 ))}

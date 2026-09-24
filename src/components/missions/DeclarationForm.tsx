@@ -19,6 +19,8 @@ export interface DeclCategory {
 interface Ligne {
   cle: number
   category_id: string
+  manager_id: string
+  pay_basis: 'brut' | 'net'
   detail: string
   date: string
   kind: 'prestation' | 'bonus'
@@ -53,6 +55,7 @@ export function DeclarationForm(props: Props) {
   const { action, mode, categories, managers, providers, today } = props
   const [state, formAction] = useActionState<DeclarationResult, FormData>(action, {})
   const [providerId, setProviderId] = useState('')
+  const [managerParDefaut, setManagerParDefaut] = useState(props.defaultManagerId ?? '')
   const employment: Employment =
     mode === 'prestataire'
       ? (props.employment ?? 'independant')
@@ -66,6 +69,8 @@ export function DeclarationForm(props: Props) {
   const nouvelle = (): Ligne => ({
     cle: ++compteur,
     category_id: categorieParDefaut,
+    manager_id: '',
+    pay_basis: 'brut',
     detail: '',
     date: today,
     kind: 'prestation',
@@ -99,8 +104,10 @@ export function DeclarationForm(props: Props) {
   }, [categories])
 
   const serialisees = JSON.stringify(
-    lignes.map(({ category_id, detail, date, kind, pricing_type, quantity, unit_amount_ht }) => ({
+    lignes.map(({ category_id, manager_id, pay_basis, detail, date, kind, pricing_type, quantity, unit_amount_ht }) => ({
       category_id,
+      manager_id,
+      pay_basis,
       detail,
       date,
       kind,
@@ -142,8 +149,9 @@ export function DeclarationForm(props: Props) {
             <Select
               id="manager_id"
               name="manager_id"
-              label={mode === 'prestataire' ? 'Manager qui vous a confié ces missions' : 'Manager rattaché'}
-              defaultValue={props.defaultManagerId ?? ''}
+              label={mode === 'prestataire' ? 'Manager par défaut' : 'Manager rattaché'}
+              value={managerParDefaut}
+              onChange={(e) => setManagerParDefaut(e.target.value)}
               required
             >
               <option value="" disabled>
@@ -167,10 +175,11 @@ export function DeclarationForm(props: Props) {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] table-fixed text-sm">
+          <table className="w-full min-w-[1180px] table-fixed text-sm">
             <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="w-[200px] px-3 py-2.5 font-medium">Type</th>
+                {mode !== 'manager' && <th className="w-[180px] px-3 py-2.5 font-medium">Confiée par</th>}
                 <th className="px-3 py-2.5 font-medium">Désignation</th>
                 <th className="w-[150px] px-3 py-2.5 font-medium">Date</th>
                 <th className="w-[115px] px-3 py-2.5 font-medium">Tarif</th>
@@ -223,6 +232,23 @@ export function DeclarationForm(props: Props) {
                         </label>
                       )}
                     </td>
+                    {mode !== 'manager' && (
+                      <td className="px-3 py-2.5">
+                        <select
+                          className="field w-full"
+                          value={l.manager_id}
+                          onChange={(e) => maj(l.cle, { manager_id: e.target.value })}
+                          aria-label="Manager qui a confié cette mission"
+                        >
+                          <option value="">Manager par défaut</option>
+                          {managers.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.full_name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                     <td className="px-3 py-2.5">
                       <input
                         className="field w-full"
@@ -286,6 +312,17 @@ export function DeclarationForm(props: Props) {
                       <p className="mt-0.5 text-[11px] text-muted">
                         {l.kind === 'bonus' ? '€' : l.pricing_type === 'forfait_horaire' ? '€ / heure' : '€ / mission'}
                       </p>
+                      {salarie && (
+                        <label className="mt-1 flex items-center gap-1.5 text-[11px] text-navy/70">
+                          <input
+                            type="checkbox"
+                            checked={l.pay_basis === 'net'}
+                            onChange={(e) => maj(l.cle, { pay_basis: e.target.checked ? 'net' : 'brut' })}
+                            className="accent-navy"
+                          />
+                          Montant net
+                        </label>
+                      )}
                       {tarif && l.kind !== 'bonus' && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {tarif.paliers.map((pal) => (
@@ -332,7 +369,15 @@ export function DeclarationForm(props: Props) {
           <button
             type="button"
             onClick={() =>
-              setLignes((ls) => [...ls, { ...nouvelle(), category_id: ls.at(-1)?.category_id ?? categorieParDefaut, date: ls.at(-1)?.date ?? today }])
+              setLignes((ls) => [
+                ...ls,
+                {
+                  ...nouvelle(),
+                  category_id: ls.at(-1)?.category_id ?? categorieParDefaut,
+                  manager_id: ls.at(-1)?.manager_id ?? '',
+                  date: ls.at(-1)?.date ?? today,
+                },
+              ])
             }
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-navy hover:bg-cream"
           >

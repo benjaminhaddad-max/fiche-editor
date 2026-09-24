@@ -16,7 +16,12 @@ export async function VueMois({ cycle }: { cycle: BillingCycle }) {
     <>
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatTile label="Facturé (indépendants)" value={money(total((l) => l.facture))} accent="brand" />
-        <StatTile label="Variables transmis à la paie" value={money(total((l) => l.variables))} accent="amber" />
+        <StatTile
+          label="Variables transmis à la paie"
+          value={money(total((l) => l.variables))}
+          sub={total((l) => l.variablesNet) ? `+ ${money(total((l) => l.variablesNet))} convenus en net` : undefined}
+          accent="amber"
+        />
         <StatTile
           label="Coût employeur connu"
           value={money(total((l) => l.cout ?? 0))}
@@ -35,8 +40,9 @@ export async function VueMois({ cycle }: { cycle: BillingCycle }) {
                   <th className="px-4 py-3 font-medium">Personne</th>
                   <th className="px-4 py-3 font-medium">Statut</th>
                   <th className="px-4 py-3 text-right font-medium">Facturé</th>
-                  <th className="px-4 py-3 text-right font-medium">Variables</th>
-                  <th className="px-4 py-3 text-right font-medium">Net</th>
+                  <th className="px-4 py-3 text-right font-medium">Variables brut</th>
+                  <th className="px-4 py-3 text-right font-medium">Convenu net</th>
+                  <th className="px-4 py-3 text-right font-medium">Net versé</th>
                   <th className="px-4 py-3 text-right font-medium">Coût employeur</th>
                   <th className="px-4 py-3 font-medium">Bulletin</th>
                 </tr>
@@ -52,6 +58,7 @@ export async function VueMois({ cycle }: { cycle: BillingCycle }) {
                     <td className="px-4 py-3 text-xs text-muted">{EMPLOYMENT_LABEL[l.statut]}</td>
                     <td className="px-4 py-3 text-right text-navy/80">{l.facture ? money(l.facture) : '—'}</td>
                     <td className="px-4 py-3 text-right text-navy/80">{l.variables ? money(l.variables) : '—'}</td>
+                    <td className="px-4 py-3 text-right text-navy/80">{l.variablesNet ? money(l.variablesNet) : '—'}</td>
                     <td className="px-4 py-3 text-right text-navy/80">{l.net === null ? '—' : money(l.net)}</td>
                     <td className="px-4 py-3 text-right font-semibold text-navy">{l.cout === null ? '—' : money(l.cout)}</td>
                     <td className="px-4 py-3">

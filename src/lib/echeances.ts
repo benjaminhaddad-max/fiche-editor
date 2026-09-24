@@ -17,6 +17,7 @@ interface Due {
     academic_year: string | null
     headcount: number | null
     status: string
+    pay_basis: 'brut' | 'net' | null
   } | null
 }
 
@@ -33,7 +34,7 @@ export async function ouvrirEcheances(aujourdhui: string): Promise<{ ouvertes: n
     .from('inv_contract_instalments')
     .select(
       `id, label, due_date, amount_ht,
-       contract:inv_coaching_contracts(id, provider_id, manager_id, category_id, contract_type, title, program, academic_year, headcount, status)`
+       contract:inv_coaching_contracts(id, provider_id, manager_id, category_id, contract_type, title, program, academic_year, headcount, status, pay_basis)`
     )
     .lte('due_date', aujourdhui)
     .is('mission_id', null)
@@ -66,6 +67,7 @@ export async function ouvrirEcheances(aujourdhui: string): Promise<{ ouvertes: n
         detail,
         start_date: e.due_date,
         end_date: e.due_date,
+        pay_basis: c.pay_basis ?? null,
         pricing_type: 'forfait_mission',
         quantity: 1,
         unit_amount_ht: e.amount_ht,
