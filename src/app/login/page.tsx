@@ -37,7 +37,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-cream px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Logo className="justify-center" />
+          <Logo size="lg" className="mx-auto" />
           <p className="mt-3 text-sm text-muted">
             Prestations et facturation — Diploma Santé
           </p>

@@ -1,40 +1,20 @@
 import { clsx } from 'clsx'
 
 /**
- * Symbole de Diploma Santé : le livre ouvert et le caducée.
+ * Marque Diploma Invoice.
  *
- * Les tracés viennent du SVG officiel, ils ne sont pas redessinés. Le
- * symbole hérite de `currentColor` : une seule définition sert en navy sur
- * fond clair comme en crème sur fond navy.
+ * Le fichier n'est pas dessiné ici : il est fabriqué à partir du logo de
+ * Diploma Lab (`logo-diploma-lab-header` dans EXOTEACHBIS). Le symbole et le
+ * mot « Diploma » en sont les pixels d'origine, découpés tels quels ; seul
+ * « Invoice » est composé, à la même hauteur de capitale, à la même graisse
+ * et au même interlettrage que la ligne du dessus. Les deux plateformes
+ * portent donc littéralement la même marque.
+ *
+ * Deux versions, à fond transparent : crème pour les fonds foncés, navy pour
+ * les fonds clairs. Le rapport hauteur/largeur est celui du fichier.
  */
-export function LogoMark({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg
-      viewBox="75.7 121.9 118.3 121.5"
-      fill="currentColor"
-      role="img"
-      aria-label="Diploma Santé"
-      className={className}
-      style={style}
-    >
-      <path d="M134.68,176.4l6.88,4.56.94-10.21s-.08-.05-.12-.07l-7.15-4.74-.56,10.46Z" />
-      <path d="M190.71,200.74c.06-.31.1-.63.1-.95l.15-67.27-1.13-.19c-5.08-.85-12.64-1.86-18.69-2.18-.15-.03-.3-.04-.43-.04-5.18-.1-11.34.04-17.77,1.92-.22.03-.45.08-.66.17-4.75,1.8-8.54,4.55-11.3,8.18-2.16-4.25-5.58-7.69-10.15-10.24-.07-.04-.13-.08-.22-.12l-.08-.05c-.15-.08-.3-.15-.46-.2-6.14-2.79-12.26-3.78-17.41-4.38-.24-.03-.47-.04-.71-.03-6.05.32-13.61,1.33-18.69,2.18l-1.13.19.15,67.27c0,.32.04.64.1.95l1.31,6.36,1.75-.29c4.9-.82,12.16-1.79,17.87-2.1,4.36.09,9.42.42,14.13,2.55,4.79,2.67,8.02,6.65,9.35,11.52l1.83,6.71,1.83-6.71c1.33-4.87,4.56-8.85,9.35-11.52,4.71-2.13,9.77-2.46,14.13-2.55,5.71.31,12.97,1.28,17.87,2.1l1.75.29,1.31-6.36ZM123.61,199.99c-4.71-2.05-9.63-2.42-13.92-2.51-.04,0-.09,0-.13,0-5.13.27-11.56,1.09-16.4,1.85l-.14-63.4c4.75-.74,11.05-1.56,16.32-1.85,4.75.56,10.3,1.47,15.68,3.9,4.42,2.47,7.5,5.87,9.16,10.11l-.61,11.42-6.53-4.33-2.44,45.61c-.32-.28-.65-.55-.99-.81ZM187.65,199.33c-4.84-.76-11.27-1.58-16.4-1.85-.04,0-.09,0-.13,0-4.29.09-9.21.46-13.92,2.51-2.48,1.85-4.44,4.04-5.86,6.53l-2.6-48.62-6.68,4.43.6-11.19c1.66-4.24,4.74-7.64,9.16-10.11,5.38-2.43,10.93-3.34,15.68-3.9,5.27.29,11.57,1.11,16.32,1.85l-.14,63.4Z" />
-      <path d="M138.91,200.35c.26.17.53.31.81.43l.93-10.1-6.51-4.32-.57,10.62c.87.65,1.7,1.35,2.47,2.1.6.45,1.22.88,1.86,1.28Z" />
-      <path d="M158.61,157.69c-1.01-.67-2.21-.9-3.39-.65-1.17.25-2.17.93-2.82,1.94-.65,1-.87,2.2-.62,3.37.25,1.17.94,2.17,1.95,2.82,1.5.97,2.4,2.6,2.4,4.38s-.9,3.41-2.4,4.38l-8.55,5.5c-2.82,1.81-4.5,4.88-4.5,8.22s1.68,6.41,4.5,8.22l4.14,2.66c1.5.97,2.4,2.6,2.4,4.38s-.9,3.41-2.4,4.38c-1.01.65-1.7,1.65-1.95,2.82-.25,1.17-.03,2.37.62,3.37.65,1,1.65,1.69,2.82,1.94,1.17.25,2.37.02,3.39-.65,3.79-2.44,6.06-6.57,6.06-11.05s-2.26-8.61-6.06-11.05l-4.14-2.66c-1.5-.97-2.4-2.6-2.4-4.38s.9-3.41,2.4-4.38l8.55-5.5c3.79-2.44,6.06-6.57,6.06-11.05s-2.26-8.61-6.06-11.05Z" />
-    </svg>
-  )
-}
+const RATIO = 720 / 243
 
-/**
- * Marque Diploma Invoice, calquée sur le lettrage de Diploma Lab : le symbole
- * en haut à gauche, à la hauteur d'une ligne, puis le nom empilé sur deux
- * lignes en Poppins — la police libre la plus proche du lettrage officiel.
- *
- * Les proportions sont relevées sur le logo Lab (logo-diploma-lab-header) :
- * le symbole fait 0,8 cadratin, l'interligne 0,86, et le bloc de texte occupe
- * toute la largeur restante. C'est ce rapport-là qui fait la ressemblance,
- * pas la couleur — elle est déjà commune aux deux plateformes.
- */
 export function Logo({
   className,
   tone = 'navy',
@@ -45,22 +25,19 @@ export function Logo({
   tone?: 'navy' | 'light'
   size?: 'sm' | 'md' | 'rail' | 'lg'
 }) {
-  const em = { sm: 19, md: 30, rail: 34, lg: 46 }[size]
-  const teinte = tone === 'light' ? 'text-cream' : 'text-navy'
+  const hauteur = { sm: 32, md: 48, rail: 60, lg: 92 }[size]
+  const fichier = tone === 'light' ? '/logo-diploma-invoice.webp' : '/logo-diploma-invoice-navy.webp'
 
   return (
-    <span className={clsx('flex items-start gap-[0.26em]', className)} style={{ fontSize: em }}>
-      <LogoMark
-        className={clsx('mt-[0.06em] shrink-0', teinte)}
-        style={{ height: '0.8em', width: 'auto' }}
-      />
-      <span
-        className={clsx('font-brand font-medium leading-[0.86] tracking-[-0.015em]', teinte)}
-        style={{ fontSize: em }}
-      >
-        <span className="block">Diploma</span>
-        <span className="block">Invoice</span>
-      </span>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={fichier}
+      alt="Diploma Invoice"
+      width={Math.round(hauteur * RATIO)}
+      height={hauteur}
+      draggable={false}
+      className={clsx('block w-auto select-none', className)}
+      style={{ height: hauteur }}
+    />
   )
 }
