@@ -424,6 +424,22 @@ export const templates = {
     }
   },
 
+  ficheIncomplete: (p: { name: string; manque: string[]; invoiceDeadline: string; paymentDate: string }) => ({
+    subject: `Sans votre SIRET et votre IBAN, votre facture ne peut pas être émise`,
+    html: layout(
+      'Il manque quelques informations',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">Votre fiche est incomplète. Il manque
+          <strong>${p.manque.length === 1 ? p.manque[0] : `${p.manque.slice(0, -1).join(', ')} et ${p.manque.at(-1)}`}</strong>.</p>
+       <p style="margin:0 0 12px;">Sans ces informations, votre facture ne peut pas être éditée le
+          <strong>${formatDateLong(p.invoiceDeadline)}</strong>, et le virement du
+          ${formatDateLong(p.paymentDate)} ne partira pas. Vos prestations restent enregistrées :
+          elles seront payées au cycle suivant, une fois votre fiche complétée.</p>
+       <p style="margin:0;">Cela prend deux minutes, et c'est à faire une seule fois.</p>`,
+      { label: 'Compléter ma fiche', href: `${APP_URL}/profil` }
+    ),
+  }),
+
   declarationReminder: (p: { name: string; deadline: string; label: string }) => ({
     subject: `Dernier jour pour déclarer vos prestations de ${p.label} : ${formatDateLong(p.deadline)}`,
     html: layout(

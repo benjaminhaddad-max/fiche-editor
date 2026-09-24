@@ -262,6 +262,7 @@ export async function relancerMaintenant(): Promise<RelanceResultat> {
       r.rappeles && `${r.rappeles} rappel(s) de déclaration`,
       r.invites && `${r.invites} invitation(s) envoyée(s)`,
       r.managers && `${r.managers} manager(s) prévenu(s) pour les factures`,
+      r.fiches && `${r.fiches} fiche(s) incomplète(s) relancée(s)`,
       r.ignores && `${r.ignores} personne(s) ayant déjà déclaré, laissées tranquilles`,
     ].filter(Boolean)
     return {

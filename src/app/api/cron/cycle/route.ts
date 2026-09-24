@@ -7,6 +7,7 @@ import { cycleForDate, previousCycle, todayParis, type BillingCycle } from '@/li
 import { deliver, notifyStatementReminder } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { addDays, round2 } from '@/lib/format'
+import { regulariserEffectifs } from '@/lib/effectifs'
 import { relancerDeclarations } from '@/lib/relances'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
@@ -52,6 +53,10 @@ export async function GET(request: Request) {
   fait.paiements = { verifiees: paiements.verifiees, payees: paiements.payees.length, erreurs: paiements.erreurs.length }
 
   // Avant les bordereaux : une échéance du dernier jour du mois doit y figurer.
+  // À la dernière échéance d'un semestre, on recompte les élèves : ceux
+  // arrivés en cours de route donnent lieu à une régularisation, versée
+  // avec le solde du semestre.
+  fait.effectifs = await regulariserEffectifs(today, { appliquer: true })
   fait.echeances = await ouvrirEcheances(today)
   fait.forfaits = await ouvrirForfaitsMensuels(today)
 

@@ -2,7 +2,22 @@ import type { BillingCycle } from '@/lib/cycle'
 import { deliver, sendInvitation } from '@/lib/email/notify'
 import { guideNom, guidePdf } from '@/lib/guides/pdf'
 import { templates } from '@/lib/email/templates'
+import { champsManquants } from '@/lib/profil'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { Employment } from '@/lib/types'
+
+interface FicheRelance {
+  id: string
+  onboarding_complete: boolean
+  employment_type: Employment
+  legal_name: string
+  siret: string | null
+  iban: string | null
+  address_line1: string | null
+  postal_code: string | null
+  city: string | null
+  phone: string | null
+}
 
 export interface Relance {
   /** Ceux qui ont déjà un accès : on leur rappelle de déclarer. */
@@ -13,6 +28,8 @@ export interface Relance {
   ignores: number
   /** Managers prévenus pour leurs factures diverses. */
   managers: number
+  /** Relancés parce que leur fiche empêche d'émettre leur facture. */
+  fiches: number
   echecs: string[]
 }
 
@@ -33,7 +50,7 @@ export async function relancerDeclarations(
   pourManager?: string
 ): Promise<Relance> {
   const db = createServiceClient()
-  const out: Relance = { rappeles: 0, invites: 0, ignores: 0, managers: 0, echecs: [] }
+  const out: Relance = { rappeles: 0, invites: 0, ignores: 0, managers: 0, fiches: 0, echecs: [] }
 
   // Un manager ne relance que les siens : ceux qui lui sont rattachés par
   // défaut, et ceux dont il a déjà validé une prestation.
@@ -52,7 +69,9 @@ export async function relancerDeclarations(
   const [{ data: gens }, { data: invitations }, { data: missions }] = await Promise.all([
     db
       .from('inv_users')
-      .select('id, email, full_name, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type)')
+      .select(
+        'id, email, full_name, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type, legal_name, siret, iban, address_line1, postal_code, city, phone)'
+      )
       .eq('role', 'prestataire')
       .eq('is_active', true),
     db.from('inv_invitations').select('user_id, used_at'),
@@ -66,13 +85,15 @@ export async function relancerDeclarations(
   const venus = new Set((invitations ?? []).filter((i) => i.used_at).map((i) => i.user_id as string))
   const aDeclare = new Set((missions ?? []).map((m) => m.provider_id as string))
 
+  const aRelancerFiche: { id: string; email: string; nom: string; manque: string[] }[] = []
+
   for (const u of (gens ?? []) as unknown as {
     id: string
     email: string
     full_name: string
     provider:
-      | { id: string; onboarding_complete: boolean; employment_type: string }[]
-      | { id: string; onboarding_complete: boolean; employment_type: string }
+      | FicheRelance[]
+      | FicheRelance
       | null
   }[]) {
     const fiche = Array.isArray(u.provider) ? u.provider[0] : u.provider
@@ -99,6 +120,11 @@ export async function relancerDeclarations(
       continue
     }
 
+    // Une fiche incomplète bloque le paiement : on le dit à part, et on le
+    // dit à tout le monde, y compris à qui a déjà déclaré.
+    const manque = champsManquants(fiche)
+    if (manque.length) aRelancerFiche.push({ id: u.id, email: u.email, nom: u.full_name, manque })
+
     if (aDeclare.has(fiche.id)) {
       out.ignores++
       continue
@@ -116,6 +142,24 @@ export async function relancerDeclarations(
       entityId: u.id,
     })
     out.rappeles++
+  }
+
+  // Ceux dont la fiche empêche d'émettre la facture : tant que le SIRET ou
+  // l'IBAN manque, déclarer ne sert à rien, le paiement ne partira pas.
+  for (const u of aRelancerFiche) {
+    await deliver({
+      to: { email: u.email, name: u.nom },
+      ...templates.ficheIncomplete({
+        name: u.nom,
+        manque: u.manque,
+        invoiceDeadline: cycle.invoiceDeadline,
+        paymentDate: cycle.paymentDate,
+      }),
+      template: 'fiche_incomplete',
+      entityType: 'user',
+      entityId: u.id,
+    })
+    out.fiches++
   }
 
   // Les managers n'ont rien à déclarer : on leur rappelle de faire remonter
