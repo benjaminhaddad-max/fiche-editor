@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { ibanValide, normaliserIban } from '@/lib/iban'
 import { z } from 'zod'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -280,4 +281,74 @@ export async function changerEtiquette(fd: FormData): Promise<void> {
 
   await db.from('inv_providers').update({ tags }).eq('id', providerId)
   revalidatePath('/admin/equipe')
+}
+
+const Facturation = z.object({
+  provider_id: z.uuid(),
+  legal_name: z.string().trim().min(2, 'Indiquez le nom ou la raison sociale.').max(160),
+  legal_form: z.string().trim().max(60).optional(),
+  // « en cours » est prévu par le contrat tant que l'auto-entreprise se crée.
+  siret: z
+    .string()
+    .trim()
+    .transform((v) => (/^en\s*cours$/i.test(v) ? 'en cours' : v.replace(/\s+/g, '')))
+    .refine(
+      (v) => v === '' || v === 'en cours' || /^\d{9}(\d{5})?$/.test(v),
+      'Indiquez 14 chiffres (ou 9 pour un SIREN), ou « en cours ».'
+    ),
+  vat_number: z.string().trim().max(20).optional(),
+  address_line1: z.string().trim().max(160).optional(),
+  address_line2: z.string().trim().max(160).optional(),
+  postal_code: z.string().trim().max(12).optional(),
+  city: z.string().trim().max(80).optional(),
+  phone: z.string().trim().max(30).optional(),
+  iban: z.string().trim().max(40).optional(),
+  bic: z.string().trim().max(15).optional(),
+})
+
+/**
+ * Corrige la fiche de facturation de quelqu'un, depuis l'administration.
+ *
+ * La personne remplit la sienne, mais il faut pouvoir la dépanner : une
+ * faute dans une adresse, un SIRET arrivé par message, une auto-entreprise
+ * encore en création qu'on note « en cours ».
+ *
+ * Les coordonnées bancaires restent à l'administration : changer un IBAN,
+ * c'est détourner un virement, et un manager n'a pas à pouvoir le faire.
+ */
+export async function corrigerFicheFacturation(
+  _prev: AdminResult,
+  formData: FormData
+): Promise<AdminResult> {
+  const user = await requireRole('manager', 'admin')
+  const parsed = Facturation.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error) }
+
+  const { provider_id, iban, bic, ...reste } = parsed.data
+  const patch: Record<string, unknown> = { ...reste }
+  if (user.role === 'admin') {
+    if (iban !== undefined) {
+      const propre = normaliserIban(iban)
+      if (propre && !ibanValide(propre)) {
+        return { fieldErrors: { iban: 'Cet IBAN ne passe pas le contrôle de clé.' } }
+      }
+      patch.iban = propre || null
+    }
+    if (bic !== undefined) patch.bic = bic || null
+  }
+
+  const db = createServiceClient()
+  const { error } = await db.from('inv_providers').update(patch).eq('id', provider_id)
+  if (error) return { error: `Enregistrement impossible : ${error.message}` }
+
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'provider',
+    entityId: provider_id,
+    action: 'fiche_corrigee',
+    payload: { champs: Object.keys(patch) },
+  })
+  revalidatePath(`/admin/prestataires/${provider_id}`)
+  revalidatePath('/admin/equipe')
+  return { success: 'Fiche mise à jour.' }
 }

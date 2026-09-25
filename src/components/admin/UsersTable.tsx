@@ -227,7 +227,17 @@ export function UsersTable({
                       </td>
                     )}
                     <td className="px-4 py-3 font-medium text-navy">
-                      {u.full_name}
+                      {u.providerId ? (
+                        <Link
+                          href={`/admin/prestataires/${u.providerId}`}
+                          className="hover:text-gold-dark hover:underline"
+                          title="Ouvrir sa fiche pour la corriger"
+                        >
+                          {u.full_name}
+                        </Link>
+                      ) : (
+                        u.full_name
+                      )}
                       {!u.is_active && (
                         <span className="ml-2 text-xs font-normal text-red-600">désactivé</span>
                       )}

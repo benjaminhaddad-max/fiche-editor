@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Card, PageHeader } from '@/components/ui/Page'
+import { FicheFacturationForm } from '@/components/admin/FicheFacturationForm'
 import { ProviderAdminForm } from '@/components/admin/ProviderAdminForm'
 import { requireRole } from '@/lib/auth'
 import { getManagers } from '@/lib/queries'
@@ -16,7 +17,8 @@ export default async function ProviderPage({
   params: Promise<{ providerId: string }>
 }) {
   const { providerId } = await params
-  await requireRole('admin')
+  const me = await requireRole('manager', 'admin')
+  const admin = me.role === 'admin'
   const supabase = await createServerSupabase()
 
   const { data } = await supabase
@@ -69,9 +71,15 @@ export default async function ProviderPage({
       />
 
       <Card className="mb-6 p-6">
-        <h2 className="mb-4 text-sm font-semibold text-navy">
-          Informations déclarées par le prestataire
-        </h2>
+        <h2 className="mb-1 text-sm font-semibold text-navy">Fiche de facturation</h2>
+        <p className="mb-4 text-xs text-muted">
+          Renseignée par la personne elle-même. Corrigez-la ici quand elle n’y arrive pas.
+        </p>
+        <FicheFacturationForm provider={provider} admin={admin} />
+      </Card>
+
+      <Card className="mb-6 p-6">
+        <h2 className="mb-4 text-sm font-semibold text-navy">Ce qui est enregistré aujourd’hui</h2>
         <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
           {identity.map(([label, value]) => (
             <div key={label} className="flex gap-3">
@@ -88,11 +96,9 @@ export default async function ProviderPage({
         </dl>
       </Card>
 
-      <ProviderAdminForm
-        action={updateProviderAdmin}
-        provider={provider}
-        managers={managers}
-      />
+      {/* Préfixe de facture, identifiant Pennylane, statut : c'est le
+          paramétrage comptable, il reste à l'administration. */}
+      {admin && <ProviderAdminForm action={updateProviderAdmin} provider={provider} managers={managers} />}
     </>
   )
 }

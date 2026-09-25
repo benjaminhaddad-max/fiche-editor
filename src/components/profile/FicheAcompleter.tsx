@@ -24,7 +24,27 @@ export async function FicheAcompleter({ userId }: { userId: string }) {
   if (!data) return null
 
   const manque = champsManquants(data as unknown as Provider)
-  if (manque.length === 0) return null
+
+  // Un SIRET « en cours » laisse passer la facture, mais il finira par
+  // devenir faux : on le rappelle tant qu'il n'a pas été remplacé.
+  if (manque.length === 0) {
+    if (data.siret?.trim().toLowerCase() !== 'en cours') return null
+    return (
+      <Link
+        href="/profil"
+        className="flex flex-wrap items-center justify-between gap-4 border-b border-gold/40 bg-gold/15 px-8 py-3.5 text-sm text-navy transition-colors hover:bg-gold/25"
+      >
+        <span>
+          <strong className="font-semibold">Votre SIRET est noté « en cours ».</strong> Dès que votre
+          auto-entreprise est immatriculée, remplacez-le : il doit figurer sur vos factures.
+        </span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-gold-dark">
+          Le renseigner
+          <ArrowRight size={15} />
+        </span>
+      </Link>
+    )
+  }
 
   // Sans SIRET ni IBAN, on ne peut pas émettre la facture : ce n'est plus un
   // rappel, c'est un blocage. Il se lit en rouge, avec la date butoir.
