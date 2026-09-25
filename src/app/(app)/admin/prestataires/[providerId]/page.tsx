@@ -75,7 +75,7 @@ export default async function ProviderPage({
         <p className="mb-4 text-xs text-muted">
           Renseignée par la personne elle-même. Corrigez-la ici quand elle n’y arrive pas.
         </p>
-        <FicheFacturationForm provider={provider} admin={admin} />
+        <FicheFacturationForm provider={provider} admin={admin} email={provider.user?.email ?? null} />
       </Card>
 
       <Card className="mb-6 p-6">

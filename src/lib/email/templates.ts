@@ -440,6 +440,20 @@ export const templates = {
     ),
   }),
 
+  emailChange: (p: { name: string; ancienne: string; nouvelle: string; par: string }) => ({
+    subject: 'L’adresse de votre compte Diploma Invoice a été modifiée',
+    html: layout(
+      'Votre adresse a changé',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">L’adresse de votre compte vient d’être remplacée par
+          <strong>${p.nouvelle}</strong>, à la demande de ${p.par}.</p>
+       <p style="margin:0 0 12px;">C’est désormais avec elle que vous vous connectez. Les liens d’accès
+          envoyés à ${p.ancienne} ne fonctionnent plus.</p>
+       <p style="margin:0;">Si vous n’êtes pas à l’origine de ce changement, prévenez immédiatement votre
+          interlocuteur chez Diploma Santé.</p>`
+    ),
+  }),
+
   declarationReminder: (p: { name: string; deadline: string; label: string }) => ({
     subject: `Dernier jour pour déclarer vos prestations de ${p.label} : ${formatDateLong(p.deadline)}`,
     html: layout(

@@ -3,7 +3,7 @@
 import { useActionState } from 'react'
 import { Input } from '@/components/ui/Field'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { corrigerFicheFacturation } from '@/app/(app)/admin/actions'
+import { changerEmail, corrigerFicheFacturation } from '@/app/(app)/admin/actions'
 import type { Provider } from '@/lib/types'
 
 interface Resultat {
@@ -20,12 +20,54 @@ interface Resultat {
  * encore en création. Les coordonnées bancaires ne sont modifiables que par
  * l'administration — changer un IBAN, c'est détourner un virement.
  */
-export function FicheFacturationForm({ provider, admin }: { provider: Provider; admin: boolean }) {
+export function FicheFacturationForm({
+  provider,
+  admin,
+  email,
+}: {
+  provider: Provider
+  admin: boolean
+  /** Adresse de connexion, quand la fiche a un compte. */
+  email?: string | null
+}) {
   const [state, action] = useActionState<Resultat, FormData>(corrigerFicheFacturation, {})
+  const [mail, changer] = useActionState<Resultat, FormData>(changerEmail, {})
   const err = (c: string) => state.fieldErrors?.[c]
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <>
+      {email && (
+        <form action={changer} className="mb-5 rounded-lg border border-line bg-cream-muted p-4">
+          <input type="hidden" name="provider_id" value={provider.id} />
+          <p className="mb-1 text-xs font-semibold text-navy">Adresse de connexion</p>
+          <p className="mb-3 text-xs text-muted">
+            C’est avec elle qu’on se connecte et qu’on reçoit tout. La changer annule les liens d’accès en cours
+            et prévient l’ancienne adresse.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[16rem] flex-1">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                label="Email"
+                defaultValue={email}
+                error={mail.fieldErrors?.email}
+                required
+              />
+            </div>
+            <SubmitButton variant="secondary" pendingLabel="Changement…">
+              Changer l’adresse
+            </SubmitButton>
+          </div>
+          {mail.error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{mail.error}</p>}
+          {mail.success && (
+            <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{mail.success}</p>
+          )}
+        </form>
+      )}
+
+      <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="provider_id" value={provider.id} />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -65,9 +107,10 @@ export function FicheFacturationForm({ provider, admin }: { provider: Provider; 
       {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
       {state.success && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{state.success}</p>}
 
-      <div className="flex justify-end">
-        <SubmitButton pendingLabel="Enregistrement…">Enregistrer</SubmitButton>
-      </div>
-    </form>
+        <div className="flex justify-end">
+          <SubmitButton pendingLabel="Enregistrement…">Enregistrer</SubmitButton>
+        </div>
+      </form>
+    </>
   )
 }

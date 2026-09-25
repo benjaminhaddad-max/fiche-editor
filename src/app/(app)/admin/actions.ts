@@ -1,6 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { templates } from '@/lib/email/templates'
+import { deliver } from '@/lib/email/notify'
 import { ibanValide, normaliserIban } from '@/lib/iban'
 import { z } from 'zod'
 import { requireRole } from '@/lib/auth'
@@ -351,4 +353,75 @@ export async function corrigerFicheFacturation(
   revalidatePath(`/admin/prestataires/${provider_id}`)
   revalidatePath('/admin/equipe')
   return { success: 'Fiche mise à jour.' }
+}
+
+/**
+ * Corrige l'adresse email de quelqu'un.
+ *
+ * Elle n'est pas sur la fiche de facturation : c'est l'identifiant de
+ * connexion. Une faute de frappe, et la personne ne reçoit jamais rien —
+ * il faut donc pouvoir la corriger. Mais changer une adresse, c'est changer
+ * qui peut entrer dans le compte : tout lien d'accès en cours est annulé,
+ * l'ancienne adresse est prévenue, et le geste est journalisé.
+ */
+export async function changerEmail(_prev: AdminResult, formData: FormData): Promise<AdminResult> {
+  const user = await requireRole('manager', 'admin')
+  const providerId = String(formData.get('provider_id') ?? '')
+  const nouvel = String(formData.get('email') ?? '').trim().toLowerCase()
+
+  if (!providerId) return { error: 'Fiche introuvable.' }
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(nouvel)) {
+    return { fieldErrors: { email: 'Cette adresse n’est pas valide.' } }
+  }
+
+  const db = createServiceClient()
+  const { data: fiche } = await db
+    .from('inv_providers')
+    .select('id, legal_name, user:inv_users!inv_providers_user_id_fkey(id, email, auth_id, full_name)')
+    .eq('id', providerId)
+    .maybeSingle()
+  const compte = Array.isArray(fiche?.user) ? fiche?.user[0] : fiche?.user
+  if (!compte) return { error: 'Cette fiche n’a pas de compte : il n’y a pas d’adresse à changer.' }
+  if (compte.email.toLowerCase() === nouvel) return { success: 'C’est déjà cette adresse.' }
+
+  const { data: pris } = await db.from('inv_users').select('id').ilike('email', nouvel).maybeSingle()
+  if (pris) return { fieldErrors: { email: 'Cette adresse est déjà utilisée par un autre compte.' } }
+
+  const { error: eAuth } = await db.auth.admin.updateUserById(compte.auth_id, {
+    email: nouvel,
+    email_confirm: true,
+  })
+  if (eAuth) return { error: `Changement impossible : ${eAuth.message}` }
+
+  const { error } = await db.from('inv_users').update({ email: nouvel }).eq('id', compte.id)
+  if (error) return { error: `Changement impossible : ${error.message}` }
+
+  // Un lien d'accès parti à l'ancienne adresse ne doit plus ouvrir ce compte.
+  await db
+    .from('inv_invitations')
+    .update({ used_at: new Date().toISOString() })
+    .eq('user_id', compte.id)
+    .is('used_at', null)
+
+  await deliver({
+    to: { email: compte.email, name: compte.full_name },
+    ...templates.emailChange({ name: compte.full_name, ancienne: compte.email, nouvelle: nouvel, par: user.full_name }),
+    template: 'email_change',
+    entityType: 'user',
+    entityId: compte.id,
+  })
+
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: compte.id,
+    action: 'email_change',
+    payload: { avant: compte.email, apres: nouvel },
+  })
+  revalidatePath(`/admin/prestataires/${providerId}`)
+  revalidatePath('/admin/equipe')
+
+  return {
+    success: `Adresse changée en ${nouvel}. L’ancienne a été prévenue, et les liens d’accès en cours sont annulés — renvoyez-lui son accès.`,
+  }
 }
