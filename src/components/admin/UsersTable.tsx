@@ -9,7 +9,7 @@ import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
 import { envoyerInvitationsEtRappels, type EnvoiResultat } from '@/app/(app)/admin/utilisateurs/actions'
 import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
-import { changerEtiquette, setUserPhone, toggleUserActive } from '@/app/(app)/admin/actions'
+import { changerEtiquette, retirerPrestataire, setUserPhone, toggleUserActive, type RetraitResultat } from '@/app/(app)/admin/actions'
 import Link from 'next/link'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import type { Employment } from '@/lib/types'
@@ -33,6 +33,7 @@ export function UsersTable({
   meId,
   plateforme = [],
   admin = true,
+  gere = [],
 }: {
   users: EquipeRow[]
   meId: string
@@ -40,9 +41,15 @@ export function UsersTable({
   plateforme?: { id: string; full_name: string }[]
   /** Un manager consulte la liste : il n'ouvre ni ne ferme de compte. */
   admin?: boolean
+  /** Comptes qu'un manager peut relancer ou retirer : les siens. */
+  gere?: string[]
 }) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
   const [envoi, envoyer] = useActionState<EnvoiResultat | null, FormData>(envoyerInvitationsEtRappels, null)
+  const [retrait, retirer] = useActionState<RetraitResultat | null, FormData>(retirerPrestataire, null)
+  const sien = useMemo(() => new Set(gere), [gere])
+  /** Sur qui cette personne a la main : tout pour l'administration. */
+  const agit = (id: string) => admin || sien.has(id)
   const [recherche, setRecherche] = useState('')
   const [etiquette, setEtiquette] = useState('')
 
@@ -68,7 +75,7 @@ export function UsersTable({
 
   // On n'invite que des comptes actifs : un compte désactivé ne doit pas
   // recevoir de lien de connexion.
-  const invitables = visibles.filter((u) => u.is_active && u.id !== meId)
+  const invitables = visibles.filter((u) => u.is_active && u.id !== meId && agit(u.id))
   const tousCoches = invitables.length > 0 && invitables.every((u) => selection.has(u.id))
 
   function bascule(id: string) {
@@ -135,7 +142,7 @@ export function UsersTable({
         </div>
       )}
 
-      {plateforme.length > 0 && selection.size < plateforme.length && (
+      {admin && plateforme.length > 0 && selection.size < plateforme.length && (
         <p className="mb-3 text-xs text-muted">
           <button
             type="button"
@@ -181,13 +188,17 @@ export function UsersTable({
         <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{envoi.message}</p>
       )}
       {envoi?.error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{envoi.error}</p>}
+      {retrait?.message && (
+        <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{retrait.message}</p>
+      )}
+      {retrait?.error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{retrait.error}</p>}
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
               <tr>
-                {admin && (
+                {(admin || gere.length > 0) && (
                   <th className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
@@ -203,7 +214,7 @@ export function UsersTable({
                 <th className="px-4 py-3 font-medium">Nom</th>
                 <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Rôle</th>
-                {admin && <th className="px-4 py-3 text-right font-medium">Accès</th>}
+                {(admin || gere.length > 0) && <th className="px-4 py-3 text-right font-medium">Accès</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-line/60">
@@ -214,9 +225,9 @@ export function UsersTable({
                     key={u.id}
                     className={selection.has(u.id) ? 'bg-gold/10/60' : 'hover:bg-cream-muted'}
                   >
-                    {admin && (
+                    {(admin || gere.length > 0) && (
                       <td className="px-4 py-3">
-                        {!moi && u.is_active && (
+                        {!moi && u.is_active && agit(u.id) && (
                           <input
                             type="checkbox"
                             checked={selection.has(u.id)}
@@ -274,7 +285,7 @@ export function UsersTable({
                         </Link>
                       )}
                     </td>
-                    {admin && (
+                    {(admin || gere.length > 0) && (
                     <td className="px-4 py-3">
                       {moi ? (
                         <p className="text-right text-xs text-stone">vous</p>
@@ -292,6 +303,18 @@ export function UsersTable({
                           )}
                           {admin && u.is_active && u.role !== 'admin' && (
                             <ImpersonateButton userId={u.id} />
+                          )}
+                          {!admin && agit(u.id) && u.providerId && (
+                            <form action={retirer}>
+                              <input type="hidden" name="provider_id" value={u.providerId} />
+                              <button
+                                type="submit"
+                                title="Retirer cette personne de la plateforme"
+                                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-navy/70 hover:bg-red-50 hover:text-red-700"
+                              >
+                                Retirer
+                              </button>
+                            </form>
                           )}
                           {admin && (
                             <form action={toggleUserActive}>

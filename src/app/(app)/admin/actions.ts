@@ -425,3 +425,96 @@ export async function changerEmail(_prev: AdminResult, formData: FormData): Prom
     success: `Adresse changée en ${nouvel}. L’ancienne a été prévenue, et les liens d’accès en cours sont annulés — renvoyez-lui son accès.`,
   }
 }
+
+export interface RetraitResultat {
+  message?: string
+  error?: string
+}
+
+/**
+ * Retire un prestataire de la plateforme.
+ *
+ * Deux cas, et c'est la donnée qui tranche, pas l'utilisateur. Une fiche
+ * créée par erreur — rien de déclaré, rien de facturé, aucun contrat — est
+ * supprimée pour de bon : la garder n'apprendrait rien à personne. Dès que
+ * quelque chose est rattaché, le compte est seulement fermé : on ne
+ * réécrit pas un historique de paiement.
+ *
+ * Un manager ne retire que les siens.
+ */
+export async function retirerPrestataire(
+  _prev: RetraitResultat | null,
+  formData: FormData
+): Promise<RetraitResultat> {
+  const user = await requireRole('manager', 'admin')
+  const providerId = String(formData.get('provider_id') ?? '')
+  if (!providerId) return { error: 'Fiche introuvable.' }
+
+  const db = createServiceClient()
+  const { data: fiche } = await db
+    .from('inv_providers')
+    .select('id, legal_name, default_manager_id, user_id')
+    .eq('id', providerId)
+    .maybeSingle()
+  if (!fiche) return { error: 'Fiche introuvable.' }
+
+  if (user.role === 'manager') {
+    const { count } = await db
+      .from('inv_missions')
+      .select('id', { count: 'exact', head: true })
+      .eq('provider_id', providerId)
+      .eq('manager_id', user.id)
+    if (fiche.default_manager_id !== user.id && !count) {
+      return { error: 'Cette personne n’est pas rattachée à vous.' }
+    }
+  }
+
+  const compte = async (table: string) =>
+    (await db.from(table).select('id', { count: 'exact', head: true }).eq('provider_id', providerId)).count ?? 0
+  const [missions, factures, contrats] = await Promise.all([
+    compte('inv_missions'),
+    compte('inv_invoices'),
+    compte('inv_coaching_contracts'),
+  ])
+  const attaches = missions + factures + contrats
+
+  if (attaches > 0) {
+    if (!fiche.user_id) return { error: 'Cette fiche porte un historique : elle ne peut pas être retirée.' }
+    await db.from('inv_users').update({ is_active: false }).eq('id', fiche.user_id)
+    await logAudit(null, {
+      actorId: user.id,
+      entityType: 'provider',
+      entityId: providerId,
+      action: 'prestataire_desactive',
+      payload: { missions, factures, contrats },
+    })
+    revalidatePath('/admin/equipe')
+    return {
+      message:
+        `${fiche.legal_name} n’a plus accès à la plateforme. Son historique est conservé — ` +
+        `${missions} prestation(s), ${factures} facture(s), ${contrats} contrat(s) — vous pouvez le rouvrir à tout moment.`,
+    }
+  }
+
+  // Rien de rattaché : la fiche n'a jamais servi, on l'efface.
+  const { data: compteUser } = fiche.user_id
+    ? await db.from('inv_users').select('id, auth_id').eq('id', fiche.user_id).maybeSingle()
+    : { data: null }
+
+  await db.from('inv_providers').delete().eq('id', providerId)
+  if (compteUser) {
+    await db.from('inv_invitations').delete().eq('user_id', compteUser.id)
+    await db.from('inv_users').delete().eq('id', compteUser.id)
+    if (compteUser.auth_id) await db.auth.admin.deleteUser(compteUser.auth_id).catch(() => {})
+  }
+
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'provider',
+    entityId: providerId,
+    action: 'prestataire_supprime',
+    payload: { nom: fiche.legal_name },
+  })
+  revalidatePath('/admin/equipe')
+  return { message: `${fiche.legal_name} a été supprimé : sa fiche n’avait servi à rien.` }
+}

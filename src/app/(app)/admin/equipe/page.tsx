@@ -66,6 +66,22 @@ export default async function EquipePage({
   // Tous les comptes actifs, pour pouvoir relancer au-delà de l'onglet ouvert.
   const actifs = rows.filter((r) => r.is_active && r.id !== me.id).map((r) => ({ id: r.id, full_name: r.full_name }))
 
+  // Un manager agit sur ses prestataires : ceux qui lui sont rattachés, et
+  // ceux dont il a déjà validé une prestation.
+  let gere: string[] = []
+  if (!admin) {
+    const [{ data: parDefaut }, { data: parMission }] = await Promise.all([
+      db.from('inv_providers').select('user_id').eq('default_manager_id', me.id),
+      db.from('inv_missions').select('provider:inv_providers!inner(user_id)').eq('manager_id', me.id),
+    ])
+    const siens = new Set<string>()
+    for (const f of parDefaut ?? []) if (f.user_id) siens.add(f.user_id as string)
+    for (const m of (parMission ?? []) as unknown as { provider: { user_id: string | null } | null }[]) {
+      if (m.provider?.user_id) siens.add(m.provider.user_id)
+    }
+    gere = [...siens]
+  }
+
   return (
     <>
       <PageHeader
@@ -73,7 +89,7 @@ export default async function EquipePage({
         description={
           admin
             ? 'Toutes les personnes : prestataires, salariés, managers, fournisseurs sans compte. Cochez plusieurs lignes pour inviter en une fois.'
-            : 'Tous les prestataires de la plateforme, quel que soit leur pôle ou leur manager.'
+            : 'Tous les prestataires de la plateforme. Cochez les vôtres pour leur envoyer leur accès et le rappel du mois.'
         }
         actions={
           admin ? (
@@ -132,7 +148,7 @@ export default async function EquipePage({
       ) : groupes[courant as keyof typeof groupes].length === 0 ? (
         <EmptyState title="Personne ici" />
       ) : (
-        <UsersTable users={groupes[courant as keyof typeof groupes]} meId={me.id} plateforme={admin ? actifs : []} admin={admin} />
+        <UsersTable users={groupes[courant as keyof typeof groupes]} meId={me.id} plateforme={admin ? actifs : []} admin={admin} gere={gere} />
       )}
     </>
   )

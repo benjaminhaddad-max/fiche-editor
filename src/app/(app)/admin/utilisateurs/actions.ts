@@ -43,8 +43,8 @@ export interface SessionSwitch {
  * recharger : c'est ce que fait déjà la page d'invitation, sans histoire.
  */
 export async function prepareImpersonation(userId: string): Promise<SessionSwitch> {
-  const admin = await requireRole('admin')
-  if (!userId || userId === admin.id) return { error: 'Compte invalide.' }
+  const auteur = await requireRole('admin')
+  if (!userId || userId === auteur.id) return { error: 'Compte invalide.' }
 
   const service = createServiceClient()
   const { data: cible } = await service
@@ -70,8 +70,8 @@ export async function prepareImpersonation(userId: string): Promise<SessionSwitc
   store.set(
     IMPERSONATION_COOKIE,
     encodeImpersonation({
-      adminId: admin.id,
-      adminName: admin.full_name,
+      adminId: auteur.id,
+      adminName: auteur.full_name,
       targetId: cible.id,
       exp: Math.floor(Date.now() / 1000) + IMPERSONATION_SECONDS,
     }),
@@ -85,7 +85,7 @@ export async function prepareImpersonation(userId: string): Promise<SessionSwitc
   )
 
   await logAudit(service, {
-    actorId: admin.id,
+    actorId: auteur.id,
     entityType: 'user',
     entityId: cible.id,
     action: 'impersonate',
@@ -197,11 +197,33 @@ export async function envoyerInvitationsEtRappels(
   _prev: EnvoiResultat | null,
   formData: FormData
 ): Promise<EnvoiResultat> {
-  const admin = await requireRole('admin')
-  const ids = [...new Set(formData.getAll('user_id').map(String).filter(Boolean))]
+  const auteur = await requireRole('manager', 'admin')
+  let ids = [...new Set(formData.getAll('user_id').map(String).filter(Boolean))]
   if (ids.length === 0) return { error: 'Aucun compte sélectionné.' }
 
   const service = createServiceClient()
+
+  // Un manager n'écrit qu'aux siens : ceux qui lui sont rattachés, et ceux
+  // dont il a déjà validé une prestation.
+  let ecartes = 0
+  if (auteur.role === 'manager') {
+    const [{ data: parDefaut }, { data: parMission }] = await Promise.all([
+      service.from('inv_providers').select('user_id').eq('default_manager_id', auteur.id),
+      service
+        .from('inv_missions')
+        .select('provider:inv_providers!inner(user_id)')
+        .eq('manager_id', auteur.id),
+    ])
+    const siens = new Set<string>()
+    for (const f of parDefaut ?? []) if (f.user_id) siens.add(f.user_id as string)
+    for (const m of (parMission ?? []) as unknown as { provider: { user_id: string | null } | null }[]) {
+      if (m.provider?.user_id) siens.add(m.provider.user_id)
+    }
+    const avant = ids.length
+    ids = ids.filter((i) => siens.has(i))
+    ecartes = avant - ids.length
+    if (ids.length === 0) return { error: 'Aucune de ces personnes ne vous est rattachée.' }
+  }
   const cycle = cycleForDate(todayParis())
 
   const [{ data: gens }, { data: invitations }] = await Promise.all([
@@ -234,7 +256,7 @@ export async function envoyerInvitationsEtRappels(
     if (!u.is_active) continue
 
     if (!venus.has(u.id)) {
-      const envoye = await sendInvitation(u.id, admin.id)
+      const envoye = await sendInvitation(u.id, auteur.id)
       if (envoye) invites++
       else echecs.push(u.email)
     }
@@ -255,9 +277,9 @@ export async function envoyerInvitationsEtRappels(
   }
 
   await logAudit(service, {
-    actorId: admin.id,
+    actorId: auteur.id,
     entityType: 'user',
-    entityId: admin.id,
+    entityId: auteur.id,
     action: 'envoi_invitations_rappels',
     payload: { selection: ids.length, invites, rappeles, echecs: echecs.length },
   })
@@ -266,6 +288,7 @@ export async function envoyerInvitationsEtRappels(
   const morceaux = [
     invites && `${invites} invitation(s)`,
     rappeles && `${rappeles} rappel(s) du mois`,
+    ecartes && `${ecartes} personne(s) écartée(s), non rattachée(s) à vous`,
   ].filter(Boolean)
   return {
     message: morceaux.length ? `Envoyé : ${morceaux.join(' et ')}.` : 'Rien à envoyer.',
