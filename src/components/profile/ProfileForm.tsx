@@ -5,7 +5,7 @@ import { Input, Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import type { ProfileResult } from '@/app/(app)/profil/actions'
-import type { InvoiceSource, Provider, VatRegime } from '@/lib/types'
+import { isSalaried, type InvoiceSource, type Provider, type VatRegime } from '@/lib/types'
 
 export function ProfileForm({
   action,
@@ -17,6 +17,11 @@ export function ProfileForm({
   email: string
 }) {
   const [state, formAction] = useActionState<ProfileResult, FormData>(action, {})
+
+  // Un salarié n'émet aucune facture : lui demander un SIRET, un régime de
+  // TVA ou un IBAN de facturation n'a pas de sens, et le laisse croire qu'il
+  // lui manque quelque chose. Son virement de paie passe par le social.
+  const salarie = isSalaried(provider.employment_type)
 
   // Champs contrôlés, volontairement. React 19 réinitialise un formulaire
   // non contrôlé dès qu'une action serveur se termine : sur une erreur de
@@ -48,7 +53,9 @@ export function ProfileForm({
       <Card className="p-6">
         <h2 className="mb-1 text-sm font-semibold text-navy">Identité</h2>
         <p className="mb-5 text-xs text-muted">
-          Ces informations apparaissent en tant qu’émetteur sur vos factures.
+          {salarie
+            ? 'Vous êtes sous contrat : vous n’émettez aucune facture. Ces informations servent à votre dossier.'
+            : 'Ces informations apparaissent en tant qu’émetteur sur vos factures.'}
         </p>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -61,25 +68,29 @@ export function ProfileForm({
             error={e.legal_name}
             required
           />
-          <Input
-            id="legal_form"
-            name="legal_form"
-            label="Forme juridique"
-            placeholder="Auto-entrepreneur, SASU…"
-            value={champs.legal_form}
-            onChange={maj('legal_form')}
-            error={e.legal_form}
-          />
-          <Input
-            id="siret"
-            name="siret"
-            label="SIRET"
-            placeholder="12345678900019"
-            value={champs.siret}
-            onChange={maj('siret')}
-            error={e.siret}
-            hint="Auto-entreprise encore en création ? Écrivez « en cours », vous le compléterez plus tard."
-          />
+          {!salarie && (
+            <>
+              <Input
+                id="legal_form"
+                name="legal_form"
+                label="Forme juridique"
+                placeholder="Auto-entrepreneur, SASU…"
+                value={champs.legal_form}
+                onChange={maj('legal_form')}
+                error={e.legal_form}
+              />
+              <Input
+                id="siret"
+                name="siret"
+                label="SIRET"
+                placeholder="12345678900019"
+                value={champs.siret}
+                onChange={maj('siret')}
+                error={e.siret}
+                hint="Auto-entreprise encore en création ? Écrivez « en cours », vous le compléterez plus tard."
+              />
+            </>
+          )}
           <Input id="email" label="Email" value={email} disabled readOnly />
         </div>
       </Card>
@@ -147,109 +158,123 @@ export function ProfileForm({
         </div>
       </Card>
 
-      <Card className="p-6">
-        <h2 className="mb-5 text-sm font-semibold text-navy">TVA et règlement</h2>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Select
-            id="vat_regime"
-            name="vat_regime"
-            label="Régime de TVA"
-            value={vatRegime}
-            onChange={(ev) => setVatRegime(ev.target.value as VatRegime)}
-            hint={
-              vatRegime === 'franchise'
-                ? 'Mention « TVA non applicable, art. 293 B du CGI ». Montant HT = montant à payer.'
-                : 'TVA à 20 % ajoutée automatiquement sur vos factures.'
-            }
-          >
-            <option value="franchise">Franchise en base (auto-entrepreneur)</option>
-            <option value="normal">Assujetti — TVA 20 %</option>
-          </Select>
-          {vatRegime === 'normal' ? (
-            <Input
-              id="vat_number"
-              name="vat_number"
-              label="Numéro de TVA intracommunautaire"
-              placeholder="FR00123456789"
-              value={champs.vat_number}
-            onChange={maj('vat_number')}
-              error={e.vat_number}
-              required
-            />
-          ) : (
-            <div className="flex items-end pb-1">
-              <p className="text-xs text-muted">
-                En franchise en base, vous n’avez pas de numéro de TVA
-                intracommunautaire : il n’y a rien à renseigner ici.
-              </p>
-            </div>
-          )}
-          <Input
-            id="iban"
-            name="iban"
-            label="IBAN"
-            placeholder="FR76 ..."
-            value={champs.iban}
-            onChange={maj('iban')}
-            error={e.iban}
-          />
-          <Input
-            id="bic"
-            name="bic"
-            label="BIC"
-            value={champs.bic}
-            onChange={maj('bic')}
-            error={e.bic}
-          />
-        </div>
-      </Card>
+      {/* Le serveur attend toujours ces deux réglages : on renvoie ceux
+          déjà enregistrés plutôt que de les demander à quelqu’un qui ne
+          facture pas. */}
+      {salarie && (
+        <>
+          <input type="hidden" name="vat_regime" value={vatRegime} />
+          <input type="hidden" name="invoice_mode" value={invoiceMode} />
+        </>
+      )}
 
-      <Card className="p-6">
-        <h2 className="mb-1 text-sm font-semibold text-navy">Vos factures</h2>
-        <p className="mb-5 text-xs text-muted">
-          Dans les deux cas, les montants sont ceux validés par Diploma Santé : ils ne
-          sont jamais ressaisis.
-        </p>
-
-        <div className="flex flex-col gap-3">
-          {(
-            [
-              {
-                value: 'generated' as const,
-                title: 'La plateforme génère ma facture',
-                desc: 'Numérotation, mentions légales et coordonnées bancaires remplies automatiquement à partir des informations ci-dessus. Vous n’avez qu’à l’envoyer.',
-              },
-              {
-                value: 'uploaded' as const,
-                title: 'Je dépose ma propre facture',
-                desc: 'Vous éditez votre facture avec votre outil habituel et déposez le PDF. La plateforme vérifie qu’elle correspond aux prestations validées.',
-              },
-            ]
-          ).map((opt) => (
-            <label
-              key={opt.value}
-              className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors ${
-                invoiceMode === opt.value
-                  ? 'border-gold bg-gold/10'
-                  : 'border-line hover:bg-cream-muted'
-              }`}
+      {!salarie && (
+        <>
+        <Card className="p-6">
+          <h2 className="mb-5 text-sm font-semibold text-navy">TVA et règlement</h2>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Select
+              id="vat_regime"
+              name="vat_regime"
+              label="Régime de TVA"
+              value={vatRegime}
+              onChange={(ev) => setVatRegime(ev.target.value as VatRegime)}
+              hint={
+                vatRegime === 'franchise'
+                  ? 'Mention « TVA non applicable, art. 293 B du CGI ». Montant HT = montant à payer.'
+                  : 'TVA à 20 % ajoutée automatiquement sur vos factures.'
+              }
             >
-              <input
-                type="radio"
-                name="invoice_mode"
-                value={opt.value}
-                checked={invoiceMode === opt.value}
-                onChange={() => setInvoiceMode(opt.value)}
-                className="mt-0.5 accent-navy"
+              <option value="franchise">Franchise en base (auto-entrepreneur)</option>
+              <option value="normal">Assujetti — TVA 20 %</option>
+            </Select>
+            {vatRegime === 'normal' ? (
+              <Input
+                id="vat_number"
+                name="vat_number"
+                label="Numéro de TVA intracommunautaire"
+                placeholder="FR00123456789"
+                value={champs.vat_number}
+              onChange={maj('vat_number')}
+                error={e.vat_number}
+                required
               />
-              <span>
-                <span className="block text-sm font-medium text-navy">{opt.title}</span>
-                <span className="mt-0.5 block text-xs text-navy/70">{opt.desc}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </Card>
+            ) : (
+              <div className="flex items-end pb-1">
+                <p className="text-xs text-muted">
+                  En franchise en base, vous n’avez pas de numéro de TVA
+                  intracommunautaire : il n’y a rien à renseigner ici.
+                </p>
+              </div>
+            )}
+            <Input
+              id="iban"
+              name="iban"
+              label="IBAN"
+              placeholder="FR76 ..."
+              value={champs.iban}
+              onChange={maj('iban')}
+              error={e.iban}
+            />
+            <Input
+              id="bic"
+              name="bic"
+              label="BIC"
+              value={champs.bic}
+              onChange={maj('bic')}
+              error={e.bic}
+            />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="mb-1 text-sm font-semibold text-navy">Vos factures</h2>
+          <p className="mb-5 text-xs text-muted">
+            Dans les deux cas, les montants sont ceux validés par Diploma Santé : ils ne
+            sont jamais ressaisis.
+          </p>
+
+          <div className="flex flex-col gap-3">
+            {(
+              [
+                {
+                  value: 'generated' as const,
+                  title: 'La plateforme génère ma facture',
+                  desc: 'Numérotation, mentions légales et coordonnées bancaires remplies automatiquement à partir des informations ci-dessus. Vous n’avez qu’à l’envoyer.',
+                },
+                {
+                  value: 'uploaded' as const,
+                  title: 'Je dépose ma propre facture',
+                  desc: 'Vous éditez votre facture avec votre outil habituel et déposez le PDF. La plateforme vérifie qu’elle correspond aux prestations validées.',
+                },
+              ]
+            ).map((opt) => (
+              <label
+                key={opt.value}
+                className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors ${
+                  invoiceMode === opt.value
+                    ? 'border-gold bg-gold/10'
+                    : 'border-line hover:bg-cream-muted'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="invoice_mode"
+                  value={opt.value}
+                  checked={invoiceMode === opt.value}
+                  onChange={() => setInvoiceMode(opt.value)}
+                  className="mt-0.5 accent-navy"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-navy">{opt.title}</span>
+                  <span className="mt-0.5 block text-xs text-navy/70">{opt.desc}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </Card>
+        </>
+      )}
 
       {nbErreurs > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
