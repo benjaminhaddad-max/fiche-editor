@@ -11,29 +11,57 @@ import { Button } from '@/components/ui/Button'
  * dans la boîte de réception, et c'est celui-là qu'on rouvre. Plutôt que de
  * renvoyer la personne vers un interlocuteur, on lui rend la main ici.
  */
+type Etat = 'envoye' | 'inconnu' | 'ferme' | 'attendez' | 'echec'
+
 export function RenewAccess({ defaultEmail = '' }: { defaultEmail?: string }) {
   const [email, setEmail] = useState(defaultEmail)
   const [envoi, setEnvoi] = useState(false)
-  const [envoye, setEnvoye] = useState(false)
+  const [etat, setEtat] = useState<Etat | null>(null)
 
   async function demander(e: React.FormEvent) {
     e.preventDefault()
     setEnvoi(true)
-    await fetch('/api/invitation', {
+    setEtat(null)
+    const r = await fetch('/api/invitation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'renew', email }),
-    }).catch(() => {})
+    })
+      .then((x) => x.json() as Promise<{ etat?: Etat }>)
+      .catch(() => ({ etat: 'echec' as Etat }))
     setEnvoi(false)
-    setEnvoye(true)
+    setEtat(r.etat ?? 'echec')
   }
 
-  if (envoye) {
+  if (etat === 'envoye') {
     return (
-      <p className="rounded-lg border border-line bg-cream px-3 py-3 text-sm text-navy">
-        Si <strong>{email}</strong> correspond à un compte, un nouveau lien vient d’y être
-        envoyé. Ouvrez le message le plus récent — les précédents ne fonctionnent plus.
+      <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+        Un nouveau lien vient de partir vers <strong>{email}</strong>. Ouvrez le message le plus récent — les
+        précédents ne fonctionnent plus. Pensez à regarder vos indésirables.
       </p>
+    )
+  }
+
+  if (etat) {
+    const messages: Record<Exclude<Etat, 'envoye'>, string> = {
+      inconnu: `Aucun compte n’est enregistré avec l’adresse ${email}. Vérifiez la saisie, ou essayez l’adresse à laquelle vous aviez reçu l’invitation.`,
+      ferme: 'Ce compte a été désactivé. Écrivez à votre interlocuteur chez Diploma Santé.',
+      attendez: 'Un lien vient déjà de partir il y a moins de deux minutes. Regardez votre boîte, il arrive.',
+      echec: 'L’envoi a échoué. Réessayez dans un instant.',
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+          {messages[etat]}
+        </p>
+        <button
+          type="button"
+          onClick={() => setEtat(null)}
+          className="cursor-pointer text-sm font-medium text-gold-dark hover:underline"
+        >
+          Essayer une autre adresse
+        </button>
+      </div>
     )
   }
 

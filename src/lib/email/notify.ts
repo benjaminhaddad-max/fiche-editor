@@ -102,9 +102,20 @@ export async function sendInvitation(
  *   - deux demandes rapprochées ne déclenchent qu'un seul envoi, sinon la
  *     boîte de réception se remplit de liens qui s'annulent l'un l'autre.
  */
-export async function renewAccess(email: string): Promise<void> {
+export type RenouvellementEtat = 'envoye' | 'inconnu' | 'ferme' | 'attendez' | 'echec'
+
+/**
+ * Renvoie un lien d'accès, et dit franchement ce qui s'est passé.
+ *
+ * On répondait autrefois « si cette adresse correspond à un compte, un lien
+ * vient de partir », quelle que soit l'issue. Sur une plateforme ouverte au
+ * public, cette prudence a du sens ; ici tout le monde se connaît, et elle
+ * ne servait qu'à faire attendre un message qui ne partirait jamais à
+ * quelqu'un qui s'était trompé d'adresse.
+ */
+export async function renewAccess(email: string): Promise<RenouvellementEtat> {
   const propre = email.trim().toLowerCase()
-  if (!propre) return
+  if (!propre) return 'inconnu'
 
   const supabase = createServiceClient()
   const { data: user } = await supabase
@@ -113,7 +124,8 @@ export async function renewAccess(email: string): Promise<void> {
     .ilike('email', propre)
     .maybeSingle()
 
-  if (!user?.is_active) return
+  if (!user) return 'inconnu'
+  if (!user.is_active) return 'ferme'
 
   const { data: recent } = await supabase
     .from('inv_invitations')
@@ -122,9 +134,9 @@ export async function renewAccess(email: string): Promise<void> {
     .gte('created_at', new Date(Date.now() - 120_000).toISOString())
     .limit(1)
 
-  if (recent?.length) return
+  if (recent?.length) return 'attendez'
 
-  await sendInvitation(user.id, undefined, { renewed: true })
+  return (await sendInvitation(user.id, undefined, { renewed: true })) ? 'envoye' : 'echec'
 }
 
 /** Prevenir le prestataire qu'une prestation lui revient a corriger. */

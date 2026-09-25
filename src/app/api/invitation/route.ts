@@ -17,9 +17,8 @@ export async function POST(request: Request) {
   }
 
   if (action === 'renew') {
-    // La réponse est volontairement identique que l'adresse existe ou non.
-    await renewAccess(email ?? '')
-    return NextResponse.json({ ok: true })
+    const etat = await renewAccess(email ?? '')
+    return NextResponse.json({ ok: etat === 'envoye', etat })
   }
 
   if (!token) return NextResponse.json({ error: 'Lien invalide.' }, { status: 400 })
