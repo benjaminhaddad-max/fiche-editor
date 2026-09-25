@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { cycleForDate, todayParis } from '@/lib/cycle'
+import { OutilsManager } from '@/components/validation/OutilsManager'
 import { NewUserForm } from '@/components/admin/NewUserForm'
 import { UsersTable, type EquipeRow } from '@/components/admin/UsersTable'
 import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
@@ -28,6 +30,7 @@ export default async function EquipePage({
   const { onglet, nouveau } = await searchParams
   const me = await requireRole('manager', 'admin')
   const admin = me.role === 'admin'
+  const cycle = cycleForDate(todayParis())
   const db = createServiceClient()
 
   const [{ data: users }, { data: fiches }, { data: factures }] = await Promise.all([
@@ -94,6 +97,10 @@ export default async function EquipePage({
             : []),
         ]}
       />
+
+      {!admin && (
+        <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin={false} />
+      )}
 
       {admin && nouveau !== undefined && (
         <div className="mb-6">

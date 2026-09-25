@@ -33,9 +33,10 @@ export function OutilsManager({
       <div className="rounded-xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-navy">Ajouter un prestataire</p>
+            <p className="text-sm font-semibold text-navy">Ajouter quelqu’un et lui envoyer ses accès</p>
             <p className="mt-1 text-xs text-muted">
-              Un nom, une adresse. Le SIRET et l’IBAN, c’est lui qui les remplira.
+              Un nom, une adresse, et il reçoit son lien de connexion et le mode d’emploi. Le SIRET et l’IBAN,
+              c’est lui qui les remplira.
             </p>
           </div>
           {!ouvert && (
@@ -93,7 +94,7 @@ export function OutilsManager({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-navy">
-              Relancer {admin ? 'tout le monde' : 'mes prestataires'}
+              Envoyer les accès et le rappel de déclarer {admin ? 'à tout le monde' : 'à mes prestataires'}
             </p>
             <p className="mt-1 text-xs text-muted">
               Déclarations attendues avant le {formatDateLong(declaration)}. Ceux qui ne se sont jamais connectés
@@ -103,7 +104,7 @@ export function OutilsManager({
           </div>
           <SubmitButton size="sm" pendingLabel="Envoi…">
             <Send size={14} />
-            Relancer
+            Envoyer les mails
           </SubmitButton>
         </div>
 
