@@ -22,7 +22,7 @@ export function ModeleContractForm({
   const m = MODELES.find((x) => x.cle === cle)!
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={action} encType="multipart/form-data" className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Select id="profile" name="profile" label="Modèle de contrat" value={cle} onChange={(e) => setCle(e.target.value)}>
           {MODELES.map((x) => (
@@ -157,6 +157,25 @@ export function ModeleContractForm({
             rows={3}
             placeholder="Ce qui a été convenu en plus : périmètre, objectifs, horaires…"
           />
+        </div>
+
+        {/* Le papier est parfois déjà signé — on le range tout de suite
+            plutôt que de faire revenir sur la fiche ensuite. */}
+        <div className="sm:col-span-2">
+          <label className="field-label" htmlFor="file">
+            Contrat déjà signé (facultatif)
+          </label>
+          <input
+            id="file"
+            name="file"
+            type="file"
+            accept="application/pdf,.pdf"
+            className="field file:mr-3 file:rounded file:border-0 file:bg-cream-deep file:px-3 file:py-1 file:text-sm file:text-navy"
+          />
+          <p className="field-hint">
+            Si vous avez déjà le PDF signé, joignez-le : il sera classé avec le contrat. Sinon laissez vide et
+            envoyez-le à signer en ligne.
+          </p>
         </div>
       </div>
 

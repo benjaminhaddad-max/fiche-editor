@@ -137,14 +137,27 @@ async function rangerDocument(contractId: string, providerId: string, fichier: F
   return null
 }
 
-/** Dépose ou remplace le contrat signé. */
+/**
+ * Dépose ou remplace le contrat signé.
+ *
+ * Un manager le fait pour les contrats dont il est responsable : c'est lui
+ * qui a le papier signé en main, l'administration n'a pas à servir de
+ * boîte aux lettres.
+ */
 export async function deposerDocumentContrat(_prev: ContractResult, fd: FormData): Promise<ContractResult> {
-  const user = await requireRole('admin')
+  const user = await requireRole('manager', 'admin')
   const id = String(fd.get('contract_id') ?? '')
   const fichier = fd.get('file')
   if (!id || !(fichier instanceof File) || fichier.size === 0) return { error: 'Choisissez le PDF du contrat.' }
-  const { data: c } = await createServiceClient().from('inv_coaching_contracts').select('provider_id').eq('id', id).maybeSingle()
+  const { data: c } = await createServiceClient()
+    .from('inv_coaching_contracts')
+    .select('provider_id, manager_id')
+    .eq('id', id)
+    .maybeSingle()
   if (!c) return { error: 'Contrat introuvable.' }
+  if (user.role === 'manager' && c.manager_id !== user.id) {
+    return { error: 'Ce contrat est suivi par un autre manager.' }
+  }
   const erreur = await rangerDocument(id, c.provider_id, fichier)
   if (erreur) return { error: erreur }
   await logAudit(null, { actorId: user.id, entityType: 'provider', entityId: id, action: 'contrat_document' })
@@ -284,12 +297,21 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
     payload: { profil: m.cle, compte_cree: cree },
   })
 
+  // Le contrat signé peut déjà être là : un papier rapporté, un scan reçu.
+  // On le range tout de suite plutôt que de faire revenir sur la fiche.
+  const depose = fd.get('file')
+  let noteDepot = ''
+  if (depose instanceof File && depose.size > 0) {
+    const erreur = await rangerDocument(contrat.id, fiche.id, depose)
+    noteDepot = erreur ? ` Attention : ${erreur}` : ' Le contrat signé est joint.'
+  }
+
   if (v.envoyer === 'non' || !m.signable) {
     await rangerPdf(providerId, contrat.id, corps, null)
     revalidatePath('/admin/contrats', 'layout')
     return {
       success: m.signable
-        ? 'Contrat enregistré. Vous pourrez l’envoyer à signer quand vous voudrez.'
+        ? `Contrat enregistré.${noteDepot || ' Vous pourrez l’envoyer à signer quand vous voudrez.'}`
         : 'Annexe enregistrée. Le contrat de travail (CERFA) se signe en dehors de la plateforme : déposez-le ici une fois signé.',
     }
   }
