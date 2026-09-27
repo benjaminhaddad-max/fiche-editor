@@ -9,6 +9,7 @@ import { templates } from '@/lib/email/templates'
 import { addDays, round2 } from '@/lib/format'
 import { regulariserEffectifs } from '@/lib/effectifs'
 import { relancerDeclarations } from '@/lib/relances'
+import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
@@ -28,7 +29,8 @@ type Db = ReturnType<typeof createServiceClient>
  *   L−2               début de la vérification : rappel aux managers
  *   le 2              relance des factures manquantes (email + SMS)
  *   dernier jour      forfaits mensuels des contrats → prestations
- *   chaque jour       état de paiement relu dans Pennylane
+ *   chaque jour       adresses vérifiées auprès de Brevo : qui ne reçoit rien
+ *                     état de paiement relu dans Pennylane
  *                     échéances de contrat arrivées à terme → prestations
  *                     rappel au manager des bons de mission arrivés à échéance
  *
@@ -51,6 +53,18 @@ export async function GET(request: Request) {
   // Ce qui a été payé dans Pennylane doit cesser d'apparaître comme dû ici.
   const paiements = await rafraichirPaiements()
   fait.paiements = { verifiees: paiements.verifiees, payees: paiements.payees.length, erreurs: paiements.erreurs.length }
+
+  // Avant toute relance : à qui nos messages n'arrivent-ils pas ? Brevo
+  // accepte un envoi puis le bloque quand l'adresse a déjà rebondi, et le
+  // journal garde « envoyé ». Relire ce verdict chaque jour évite de
+  // relancer dans le vide une boîte qui n'existe pas.
+  const adresses = await verifierAdresses()
+  fait.adresses = {
+    verifiees: adresses.verifiees,
+    injoignables: adresses.injoignables.map((i) => `${i.email} (${i.raison})`),
+    retablies: adresses.retablies,
+    ...(adresses.ignore ? { ignore: adresses.ignore } : {}),
+  }
 
   // Avant les bordereaux : une échéance du dernier jour du mois doit y figurer.
   // À la dernière échéance d'un semestre, on recompte les élèves : ceux

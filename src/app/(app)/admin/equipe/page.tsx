@@ -49,6 +49,7 @@ export default async function EquipePage({
       employment: f?.employment_type ?? null,
       onboarding: f?.onboarding_complete,
       tags: f?.tags ?? [],
+      unreachable: (u as { email_unreachable_reason?: string | null }).email_unreachable_reason ?? null,
     }
   })
   const sansCompte = ((fiches ?? []) as Fiche[]).filter((f) => !f.user_id)

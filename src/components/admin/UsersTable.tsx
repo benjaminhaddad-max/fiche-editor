@@ -26,6 +26,8 @@ export type EquipeRow = AppUser & {
   employment?: Employment | null
   onboarding?: boolean
   tags?: string[]
+  /** Brevo bloque tous les envois à cette adresse : rien ne lui arrive. */
+  unreachable?: string | null
 }
 
 export function UsersTable({
@@ -69,7 +71,8 @@ export function UsersTable({
           u.full_name.toLowerCase().includes(q) ||
           u.email.toLowerCase().includes(q) ||
           (u.phone ?? '').toLowerCase().includes(q) ||
-          (u.tags ?? []).some((t) => t.toLowerCase().includes(q)))
+          (u.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
+          ('injoignable'.includes(q) && Boolean(u.unreachable)))
     )
   }, [users, recherche, etiquette])
 
@@ -256,6 +259,14 @@ export function UsersTable({
                     </td>
                     <td className="px-4 py-3 text-navy/70">
                       {u.email}
+                      {u.unreachable && (
+                        <span
+                          className="mt-1 block text-xs font-medium text-red-600"
+                          title="Aucun de nos messages n’est jamais arrivé. Il faut corriger l’adresse : la relancer ne sert à rien."
+                        >
+                          ⚠ n’arrive pas — {u.unreachable}
+                        </span>
+                      )}
                       {u.role === 'prestataire' || !admin ? (
                         u.phone && <span className="block text-xs text-muted">{u.phone}</span>
                       ) : (

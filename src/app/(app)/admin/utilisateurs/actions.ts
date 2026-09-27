@@ -229,7 +229,9 @@ export async function envoyerInvitationsEtRappels(
   const [{ data: gens }, { data: invitations }] = await Promise.all([
     service
       .from('inv_users')
-      .select('id, email, full_name, role, is_active, provider:inv_providers!inv_providers_user_id_fkey(employment_type)')
+      .select(
+        'id, email, full_name, role, is_active, email_unreachable_reason, provider:inv_providers!inv_providers_user_id_fkey(employment_type)'
+      )
       .in('id', ids),
     service.from('inv_invitations').select('user_id, exchanges'),
   ])
@@ -242,6 +244,7 @@ export async function envoyerInvitationsEtRappels(
   let invites = 0
   let rappeles = 0
   const echecs: string[] = []
+  const injoignables: string[] = []
 
   // En série plutôt qu'en parallèle : Brevo limite le débit, et une rafale
   // d'envois simultanés se ferait refuser en partie.
@@ -251,9 +254,19 @@ export async function envoyerInvitationsEtRappels(
     full_name: string
     role: string
     is_active: boolean
+    email_unreachable_reason: string | null
     provider: { employment_type: Employment }[] | { employment_type: Employment } | null
   }[]) {
     if (!u.is_active) continue
+
+    // On sait que rien n'arrive à cette adresse : Brevo bloque ses envois et
+    // n'en a jamais livré un seul. Réécrire ajouterait une ligne « envoyé »
+    // au journal sans que personne ne reçoive rien. C'est l'adresse qu'il
+    // faut corriger, pas le rappel qu'il faut renvoyer.
+    if (u.email_unreachable_reason) {
+      injoignables.push(`${u.full_name} (${u.email}) — ${u.email_unreachable_reason}`)
+      continue
+    }
 
     if (!venus.has(u.id)) {
       const envoye = await sendInvitation(u.id, auteur.id)
@@ -281,7 +294,13 @@ export async function envoyerInvitationsEtRappels(
     entityType: 'user',
     entityId: auteur.id,
     action: 'envoi_invitations_rappels',
-    payload: { selection: ids.length, invites, rappeles, echecs: echecs.length },
+    payload: {
+      selection: ids.length,
+      invites,
+      rappeles,
+      echecs: echecs.length,
+      injoignables: injoignables.length,
+    },
   })
   revalidatePath('/admin/equipe')
 
@@ -290,8 +309,14 @@ export async function envoyerInvitationsEtRappels(
     rappeles && `${rappeles} rappel(s) du mois`,
     ecartes && `${ecartes} personne(s) écartée(s), non rattachée(s) à vous`,
   ].filter(Boolean)
+  const soucis = [
+    echecs.length ? `Non remis : ${echecs.join(', ')}` : '',
+    injoignables.length
+      ? `Adresse à corriger, aucun message ne leur arrive : ${injoignables.join(' · ')}`
+      : '',
+  ].filter(Boolean)
   return {
     message: morceaux.length ? `Envoyé : ${morceaux.join(' et ')}.` : 'Rien à envoyer.',
-    error: echecs.length ? `Non remis : ${echecs.join(', ')}` : undefined,
+    error: soucis.length ? soucis.join(' — ') : undefined,
   }
 }

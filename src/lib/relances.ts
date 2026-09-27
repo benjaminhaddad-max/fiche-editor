@@ -30,6 +30,8 @@ export interface Relance {
   managers: number
   /** Relancés parce que leur fiche empêche d'émettre leur facture. */
   fiches: number
+  /** Adresses dont on sait qu'elles n'arrivent pas : les relancer ne sert à rien. */
+  injoignables: string[]
   echecs: string[]
 }
 
@@ -50,7 +52,7 @@ export async function relancerDeclarations(
   pourManager?: string
 ): Promise<Relance> {
   const db = createServiceClient()
-  const out: Relance = { rappeles: 0, invites: 0, ignores: 0, managers: 0, fiches: 0, echecs: [] }
+  const out: Relance = { rappeles: 0, invites: 0, ignores: 0, managers: 0, fiches: 0, injoignables: [], echecs: [] }
 
   // Un manager ne relance que les siens : ceux qui lui sont rattachés par
   // défaut, et ceux dont il a déjà validé une prestation.
@@ -70,7 +72,7 @@ export async function relancerDeclarations(
     db
       .from('inv_users')
       .select(
-        'id, email, full_name, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type, legal_name, siret, iban, address_line1, postal_code, city, phone)'
+        'id, email, full_name, email_unreachable_reason, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type, legal_name, siret, iban, address_line1, postal_code, city, phone)'
       )
       .eq('role', 'prestataire')
       .eq('is_active', true),
@@ -95,6 +97,7 @@ export async function relancerDeclarations(
     id: string
     email: string
     full_name: string
+    email_unreachable_reason: string | null
     provider:
       | FicheRelance[]
       | FicheRelance
@@ -103,6 +106,14 @@ export async function relancerDeclarations(
     const fiche = Array.isArray(u.provider) ? u.provider[0] : u.provider
     if (!fiche) continue
     if (siens && !siens.has(fiche.id)) continue
+
+    // Adresse dont on a la preuve qu'elle ne reçoit rien : lui réécrire
+    // produirait une ligne « envoyé » de plus et toujours aucun message. On
+    // la met de côté, pour qu'elle soit corrigée au lieu d'être relancée.
+    if (u.email_unreachable_reason) {
+      out.injoignables.push(`${u.full_name} (${u.email}) — ${u.email_unreachable_reason}`)
+      continue
+    }
 
     // Jamais entré : ni lien consommé, ni fiche complétée.
     if (!venus.has(u.id) && !fiche.onboarding_complete) {
@@ -174,11 +185,15 @@ export async function relancerDeclarations(
     ? { data: [] }
     : await db
         .from('inv_users')
-        .select('id, email, full_name')
+        .select('id, email, full_name, email_unreachable_reason')
         .in('role', ['manager', 'admin'])
         .eq('is_active', true)
 
   for (const m of encadrants ?? []) {
+    if (m.email_unreachable_reason) {
+      out.injoignables.push(`${m.full_name} (${m.email}) — ${m.email_unreachable_reason}`)
+      continue
+    }
     if (!venus.has(m.id as string)) {
       const ok = await sendInvitation(m.id as string, auteurId ?? undefined)
       if (!ok) out.echecs.push(m.email as string)

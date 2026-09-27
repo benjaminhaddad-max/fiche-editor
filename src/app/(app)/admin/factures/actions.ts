@@ -265,9 +265,18 @@ export async function relancerMaintenant(): Promise<RelanceResultat> {
       r.fiches && `${r.fiches} fiche(s) incomplète(s) relancée(s)`,
       r.ignores && `${r.ignores} personne(s) ayant déjà déclaré, laissées tranquilles`,
     ].filter(Boolean)
+    // Une adresse morte se signale à part : ce n'est pas un échec d'envoi,
+    // c'est une adresse à corriger. La relancer produirait une ligne
+    // « envoyé » de plus et toujours aucun message reçu.
+    const soucis = [
+      r.echecs.length ? `Non remis : ${r.echecs.join(', ')}` : '',
+      r.injoignables.length
+        ? `Adresse à corriger, aucun message ne leur arrive : ${r.injoignables.join(' · ')}`
+        : '',
+    ].filter(Boolean)
     return {
       message: morceaux.length ? `Relance partie : ${morceaux.join(', ')}.` : 'Personne à relancer.',
-      error: r.echecs.length ? `Non remis : ${r.echecs.join(', ')}` : undefined,
+      error: soucis.length ? soucis.join(' — ') : undefined,
     }
   } catch (err) {
     return { error: `Relance impossible : ${(err as Error).message}` }
