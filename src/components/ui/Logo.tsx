@@ -1,19 +1,22 @@
 import { clsx } from 'clsx'
+import { brand } from '@/lib/brand'
 
 /**
- * Marque Diploma Invoice.
+ * La marque du déploiement.
  *
- * Le fichier n'est pas dessiné ici : il est fabriqué à partir du logo de
- * Diploma Lab (`logo-diploma-lab-header` dans EXOTEACHBIS). Le symbole et le
- * mot « Diploma » en sont les pixels d'origine, découpés tels quels ; seul
- * « Invoice » est composé, à la même hauteur de capitale, à la même graisse
- * et au même interlettrage que la ligne du dessus. Les deux plateformes
- * portent donc littéralement la même marque.
+ * Aucun des deux fichiers n'est dessiné ici : ils sont fabriqués par
+ * scripts/marque, à partir du logo officiel de l'école. Le mot de la marque
+ * en garde les pixels d'origine — coche verte comprise pour Linova — et seul
+ * « Invoice » est composé, à la graisse et à la largeur de la ligne du
+ * dessus. Les plateformes portent donc littéralement la marque de l'école.
  *
- * Deux versions, à fond transparent : crème pour les fonds foncés, navy pour
- * les fonds clairs. Le rapport hauteur/largeur est celui du fichier.
+ * Deux versions par marque, à fond transparent : claire pour les fonds
+ * foncés, foncée pour les fonds clairs.
  */
-const RATIO = 720 / 243
+const RATIO: Record<string, number> = {
+  diploma: 720 / 243,
+  linova: 2214 / 1117,
+}
 
 export function Logo({
   className,
@@ -26,14 +29,16 @@ export function Logo({
   size?: 'sm' | 'md' | 'rail' | 'lg'
 }) {
   const hauteur = { sm: 32, md: 48, rail: 60, lg: 92 }[size]
-  const fichier = tone === 'light' ? '/logo-diploma-invoice.webp' : '/logo-diploma-invoice-navy.webp'
+  const marque = brand()
+  const fichier = tone === 'light' ? marque.logos.cream : marque.logos.navy
+  const ratio = RATIO[marque.id] ?? RATIO.diploma
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={fichier}
-      alt="Diploma Invoice"
-      width={Math.round(hauteur * RATIO)}
+      alt={marque.appTitle}
+      width={Math.round(hauteur * ratio)}
       height={hauteur}
       draggable={false}
       className={clsx('block w-auto select-none', className)}

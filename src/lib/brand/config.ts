@@ -73,19 +73,21 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     description:
       'Déclarez vos prestations, suivez vos factures et vos paiements.',
     siteUrl: 'https://facturation.linova-education.fr',
-    // À reprendre dès que la charte Linova est arrêtée : couleur, logos et
-    // coordonnées de facturation sont provisoires et doivent être justes
-    // avant qu'une facture ne parte au nom de cette société.
-    themeColor: '#0e1e35',
+    // Relevés sur linova-education.fr : le navy de leur feuille de style, et
+    // le vert de la coche du logo.
+    themeColor: '#182d3c',
     logos: { cream: '/logo-linova-invoice.webp', navy: '/logo-linova-invoice-navy.webp' },
+    // Relevé au registre des entreprises (SIREN 943 551 341, créée le
+    // 9 avril 2025). Ces lignes s'impriment sur les factures des
+    // prestataires : elles ne se devinent pas, elles se vérifient.
     company: {
-      name: process.env.NEXT_PUBLIC_COMPANY_NAME ?? 'Linova Education',
-      legalForm: process.env.NEXT_PUBLIC_COMPANY_LEGAL_FORM ?? '',
-      address: process.env.NEXT_PUBLIC_COMPANY_ADDRESS ?? '',
-      postalCode: process.env.NEXT_PUBLIC_COMPANY_POSTAL_CODE ?? '',
-      city: process.env.NEXT_PUBLIC_COMPANY_CITY ?? '',
-      siret: process.env.NEXT_PUBLIC_COMPANY_SIRET ?? '',
-      vatNumber: process.env.NEXT_PUBLIC_COMPANY_VAT ?? '',
+      name: 'Linova Formation',
+      legalForm: 'SAS',
+      address: '85 avenue Ledru-Rollin',
+      postalCode: '75012',
+      city: 'Paris',
+      siret: '94355134100010',
+      vatNumber: 'FR35943551341',
     },
     email: {
       senderName: 'Facturation Linova',
