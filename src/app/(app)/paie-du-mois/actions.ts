@@ -8,6 +8,7 @@ import { deliver } from '@/lib/email/notify'
 import { sendSms } from '@/lib/email/sms'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
+import { brand } from '@/lib/brand'
 
 /**
  * Relance les salariés qui n'ont pas encore renseigné leurs éléments.
@@ -49,7 +50,7 @@ export async function relancerElements(fd: FormData): Promise<void> {
     })
     await sendSms(
       f.phone,
-      `Diploma Santé : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${app}/elements-paie`
+      `${brand().company.name} : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${app}/elements-paie`
     )
     await db.from('inv_payroll_inputs').upsert(
       { provider_id: f.id, period: mois, reminded_at: new Date().toISOString() },

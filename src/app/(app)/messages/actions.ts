@@ -10,6 +10,7 @@ import { sendSms } from '@/lib/email/sms'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { AppUser } from '@/lib/types'
+import { brand } from '@/lib/brand'
 
 export interface MessageResult {
   error?: string
@@ -58,7 +59,7 @@ async function prevenir(
     })
     const sms = await sendSms(
       m.phone,
-      `Diploma Invoice — ${auteur.full_name} vous a écrit (${fil.subject}) : « ${corps.slice(0, 120)}${corps.length > 120 ? '…' : ''} » Répondre : ${process.env.NEXT_PUBLIC_APP_URL ?? ''}${href}`
+      `${brand().appTitle} — ${auteur.full_name} vous a écrit (${fil.subject}) : « ${corps.slice(0, 120)}${corps.length > 120 ? '…' : ''} » Répondre : ${process.env.NEXT_PUBLIC_APP_URL ?? ''}${href}`
     )
     await db.from('inv_email_log').insert({
       to_email: m.phone ?? '(sans numéro)',

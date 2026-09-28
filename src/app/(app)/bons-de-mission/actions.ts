@@ -14,7 +14,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createInvitation } from '@/lib/invitation'
 import { sendSms, normalizePhone } from '@/lib/email/sms'
 import type { PricingType } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { brand, getBrandId } from '@/lib/brand'
 
 export interface OrderResult {
   error?: string
@@ -182,7 +182,7 @@ export async function creerBon(_prev: OrderResult, formData: FormData): Promise<
     })
     const sms = await sendSms(
       nouveau.phone,
-      `Diploma Santé : ${user.full_name} vous propose une mission (${v.title}, ${money(total)} HT). Créez votre compte et répondez ici : ${lien}`
+      `${brand().company.name} : ${user.full_name} vous propose une mission (${v.title}, ${money(total)} HT). Créez votre compte et répondez ici : ${lien}`
     )
     await db.from('inv_email_log').insert({
       to_email: nouveau.phone ?? '(sans numéro)',

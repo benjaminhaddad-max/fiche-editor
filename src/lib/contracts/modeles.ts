@@ -2,6 +2,7 @@ import { grilleEnTexte } from '@/lib/contracts/commissions'
 import { BAREMES_ENREGISTREMENT, bareme } from '@/lib/contracts/enregistrement'
 import { COMPANY } from '@/lib/types'
 import type { Employment, Pole } from '@/lib/types'
+import { brand } from '@/lib/brand'
 
 /**
  * Modèles de contrat proposés aux managers.
@@ -101,7 +102,7 @@ const INDEPENDANCE: Article = {
 const FACTURATION: Article = {
   titre: 'Facturation et paiement',
   texte:
-    'Les prestations sont récapitulées chaque mois sur la plateforme Diploma Invoice. Le premier jour du mois ' +
+    `Les prestations sont récapitulées chaque mois sur la plateforme ${brand().appTitle}. Le premier jour du mois ` +
     'suivant, le prestataire reçoit son bordereau : il dispose de deux jours pour transmettre sa facture, réglée ' +
     'le troisième jour, ou le premier jour ouvré suivant.',
 }

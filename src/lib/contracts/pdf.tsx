@@ -1,6 +1,7 @@
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer'
 import type { CorpsContrat } from '@/lib/contracts/modeles'
 import { COMPANY } from '@/lib/types'
+import { brand } from '@/lib/brand'
 
 export interface Signature {
   nom: string
@@ -80,7 +81,7 @@ function Contrat({ corps, signature }: { corps: CorpsContrat; signature: Signatu
           <View style={s.case}>
             <Text style={s.caseLabel}>POUR {COMPANY.name.toUpperCase()}</Text>
             <Text style={s.signe}>{COMPANY.name}</Text>
-            <Text style={s.preuve}>Contrat émis depuis Diploma Invoice.</Text>
+            <Text style={s.preuve}>Contrat émis depuis {brand().appTitle}.</Text>
           </View>
           <View style={s.case}>
             <Text style={s.caseLabel}>LE PRESTATAIRE</Text>

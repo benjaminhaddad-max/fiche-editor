@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Fraunces, Inter, Poppins, Space_Grotesk } from 'next/font/google'
 import './globals.css'
+import { brand } from '@/lib/brand'
 
 // Les trois familles de Diploma Lab : Inter pour le texte, Fraunces pour les
 // titres, Space Grotesk pour les intitulés en capitales.
@@ -27,9 +28,8 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: 'Diploma Invoice',
-  description:
-    'Déclaration des prestations, validation et facturation des prestataires Diploma Santé.',
+  title: brand().appTitle,
+  description: brand().description,
 }
 
 export default function RootLayout({

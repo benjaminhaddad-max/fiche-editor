@@ -1,5 +1,6 @@
 import { Logo } from '@/components/ui/Logo'
 import { WelcomeClient } from './WelcomeClient'
+import { brand } from '@/lib/brand'
 
 /**
  * Page d'arrivée des comptes invités. La vérification du jeton se fait dans
@@ -21,7 +22,7 @@ export default async function BienvenuePage({
         <div className="mb-8 text-center">
           <Logo size="lg" className="mx-auto" />
           <p className="mt-3 text-sm text-muted">
-            Prestations et facturation — Diploma Santé
+            Prestations et facturation — {brand().company.name}
           </p>
         </div>
 

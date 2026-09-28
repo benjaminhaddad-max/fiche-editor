@@ -13,7 +13,7 @@ import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
-import { getBrandId } from '@/lib/brand'
+import { brand, getBrandId } from '@/lib/brand'
 
 export const maxDuration = 300
 
@@ -250,7 +250,7 @@ async function demanderElements(db: Db, cycle: BillingCycle, relance: boolean) {
     if (relance) {
       await sendSms(
         f.phone,
-        `Diploma Santé : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${
+        `${brand().company.name} : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${
           process.env.NEXT_PUBLIC_APP_URL ?? ''
         }/elements-paie`
       )

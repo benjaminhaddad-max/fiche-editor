@@ -9,6 +9,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import type { Invoice, InvoiceLine } from '@/lib/types'
 import { InvoiceUpload } from '@/components/invoices/InvoiceUpload'
 import { sendInvoice, uploadInvoicePdf, useGeneratedPdf } from '../actions'
+import { brand } from '@/lib/brand'
 
 // La lecture du PDF déposé prend jusqu'à une minute.
 export const maxDuration = 120
@@ -65,7 +66,7 @@ export default async function InvoicePage({
       {awaitingUpload && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Déposez le PDF de votre facture ci-dessous : son montant est vérifié, puis elle part
-          automatiquement à Diploma Santé.
+          automatiquement à {brand().company.name}.
         </div>
       )}
 

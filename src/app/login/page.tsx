@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { RenewAccess } from '@/components/ui/RenewAccess'
+import { brand } from '@/lib/brand'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -39,7 +40,7 @@ export default function LoginPage() {
         <div className="mb-8 text-center">
           <Logo size="lg" className="mx-auto" />
           <p className="mt-3 text-sm text-muted">
-            Prestations et facturation — Diploma Santé
+            Prestations et facturation — {brand().company.name}
           </p>
         </div>
 

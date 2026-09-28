@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
+import { brand } from '@/lib/brand'
 
 /**
  * Demande d'un nouveau lien d'accès.
@@ -45,7 +46,7 @@ export function RenewAccess({ defaultEmail = '' }: { defaultEmail?: string }) {
   if (etat) {
     const messages: Record<Exclude<Etat, 'envoye'>, string> = {
       inconnu: `Aucun compte n’est enregistré avec l’adresse ${email}. Vérifiez la saisie, ou essayez l’adresse à laquelle vous aviez reçu l’invitation.`,
-      ferme: 'Ce compte a été désactivé. Écrivez à votre interlocuteur chez Diploma Santé.',
+      ferme: `Ce compte a été désactivé. Écrivez à votre interlocuteur chez ${brand().company.name}.`,
       attendez: 'Un lien vient déjà de partir il y a moins de deux minutes. Regardez votre boîte, il arrive.',
       echec: 'L’envoi a échoué. Réessayez dans un instant.',
     }

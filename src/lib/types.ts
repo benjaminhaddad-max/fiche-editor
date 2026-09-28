@@ -1,3 +1,5 @@
+import { brand } from '@/lib/brand'
+
 export type Role = 'prestataire' | 'manager' | 'admin'
 export type PricingType = 'forfait_mission' | 'forfait_horaire' | 'forfait_journalier'
 export type MissionStatus =
@@ -269,13 +271,11 @@ export interface InvoiceLine {
   sort_order: number
 }
 
-/** Coordonnees du destinataire des factures : Diploma Sante. */
-export const COMPANY = {
-  name: process.env.NEXT_PUBLIC_COMPANY_NAME ?? 'Diploma Santé',
-  legalForm: process.env.NEXT_PUBLIC_COMPANY_LEGAL_FORM ?? '',
-  address: process.env.NEXT_PUBLIC_COMPANY_ADDRESS ?? '',
-  postalCode: process.env.NEXT_PUBLIC_COMPANY_POSTAL_CODE ?? '',
-  city: process.env.NEXT_PUBLIC_COMPANY_CITY ?? '',
-  siret: process.env.NEXT_PUBLIC_COMPANY_SIRET ?? '',
-  vatNumber: process.env.NEXT_PUBLIC_COMPANY_VAT ?? '',
-} as const
+/**
+ * La société qui reçoit les factures : celle de l'école du déploiement.
+ *
+ * Elle ne se lit plus dans un jeu de variables uniques — il n'y en a qu'un,
+ * et les deux écoles auraient facturé sous le même nom. Les coordonnées
+ * vivent avec la marque, dans src/lib/brand/config.ts.
+ */
+export const COMPANY = brand().company

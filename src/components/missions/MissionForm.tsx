@@ -9,6 +9,7 @@ import { money, round2 } from '@/lib/format'
 import { PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
 import type { ActionResult } from '@/app/(app)/missions/actions'
 import type { Category, Mission, PricingType } from '@/lib/types'
+import { brand } from '@/lib/brand'
 
 interface Props {
   action: (prev: ActionResult, formData: FormData) => Promise<ActionResult>
@@ -54,7 +55,7 @@ export function MissionForm({
             label="Manager"
             defaultValue={mission?.manager_id ?? defaultManagerId ?? ''}
             error={errors.manager_id}
-            hint="La personne de Diploma Santé qui vous a confié la mission."
+            hint={`La personne de ${brand().company.name} qui vous a confié la mission.`}
             required
           >
             <option value="" disabled>

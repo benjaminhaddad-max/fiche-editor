@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import type { ProfileResult } from '@/app/(app)/profil/actions'
 import { isSalaried, type InvoiceSource, type Provider, type VatRegime } from '@/lib/types'
+import { brand } from '@/lib/brand'
 
 export function ProfileForm({
   action,
@@ -230,7 +231,7 @@ export function ProfileForm({
         <Card className="p-6">
           <h2 className="mb-1 text-sm font-semibold text-navy">Vos factures</h2>
           <p className="mb-5 text-xs text-muted">
-            Dans les deux cas, les montants sont ceux validés par Diploma Santé : ils ne
+            Dans les deux cas, les montants sont ceux validés par {brand().company.name} : ils ne
             sont jamais ressaisis.
           </p>
 
