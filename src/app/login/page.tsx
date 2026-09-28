@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { RenewAccess } from '@/components/ui/RenewAccess'
 import { brand } from '@/lib/brand'
+import { verifierAcces } from './actions'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -22,9 +23,28 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const { error } = await createClient().auth.signInWithPassword({ email, password })
+    const client = createClient()
+    const { error } = await client.auth.signInWithPassword({ email, password })
     if (error) {
       setError('Email ou mot de passe incorrect.')
+      setLoading(false)
+      return
+    }
+
+    // Le mot de passe peut être bon et le compte appartenir à l'autre école :
+    // les deux plateformes partagent la même base d'authentification. On le
+    // dit ici, sinon la personne « se connecte » puis se fait renvoyer de
+    // page en page jusqu'à un écran vide.
+    const acces = await verifierAcces()
+    if (acces.etat !== 'ok') {
+      await client.auth.signOut()
+      setError(
+        acces.etat === 'autre-ecole'
+          ? `Ce compte est rattaché à ${acces.ecole}. Connectez-vous sur ${acces.adresse.replace('https://', '')}.`
+          : acces.etat === 'ferme'
+            ? 'Ce compte a été désactivé. Écrivez à votre interlocuteur habituel.'
+            : 'Aucun espace n’est ouvert pour ce compte sur cette plateforme.'
+      )
       setLoading(false)
       return
     }
