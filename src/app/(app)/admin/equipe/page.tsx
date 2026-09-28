@@ -9,6 +9,7 @@ import { money } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { AppUser, Employment } from '@/lib/types'
 import { createUserAccount } from '../actions'
+import { getBrandId } from '@/lib/brand'
 
 interface Fiche {
   id: string
@@ -33,10 +34,16 @@ export default async function EquipePage({
   const cycle = cycleForDate(todayParis())
   const db = createServiceClient()
 
+  // Cette page montre « tout le monde » : c'est justement celle où l'absence
+  // de borne se verrait le plus vite, et se verrait par un manager.
+  const ecole = getBrandId()
   const [{ data: users }, { data: fiches }, { data: factures }] = await Promise.all([
-    db.from('inv_users').select('*').order('full_name'),
-    db.from('inv_providers').select('id, user_id, legal_name, employment_type, onboarding_complete, phone, contact_email, siret, tags'),
-    db.from('inv_invoices').select('provider_id, total_ttc'),
+    db.from('inv_users').select('*').eq('brand', ecole).order('full_name'),
+    db
+      .from('inv_providers')
+      .select('id, user_id, legal_name, employment_type, onboarding_complete, phone, contact_email, siret, tags')
+      .eq('brand', ecole),
+    db.from('inv_invoices').select('provider_id, total_ttc').eq('brand', ecole),
   ])
 
   const parUser = new Map(((fiches ?? []) as Fiche[]).filter((f) => f.user_id).map((f) => [f.user_id!, f]))

@@ -5,6 +5,7 @@ import { templates } from '@/lib/email/templates'
 import { champsManquants } from '@/lib/profil'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 interface FicheRelance {
   id: string
@@ -74,12 +75,14 @@ export async function relancerDeclarations(
       .select(
         'id, email, full_name, email_unreachable_reason, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type, legal_name, siret, iban, address_line1, postal_code, city, phone)'
       )
+      .eq('brand', getBrandId())
       .eq('role', 'prestataire')
       .eq('is_active', true),
     db.from('inv_invitations').select('user_id, exchanges'),
     db
       .from('inv_missions')
       .select('provider_id')
+      .eq('brand', getBrandId())
       .gte('start_date', cycle.periodStart)
       .lte('start_date', cycle.periodEnd),
   ])
@@ -186,6 +189,7 @@ export async function relancerDeclarations(
     : await db
         .from('inv_users')
         .select('id, email, full_name, email_unreachable_reason')
+        .eq('brand', getBrandId())
         .in('role', ['manager', 'admin'])
         .eq('is_active', true)
 

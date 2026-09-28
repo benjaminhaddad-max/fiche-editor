@@ -1,5 +1,6 @@
 import { cycleForDate } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getBrandId } from '@/lib/brand'
 
 /**
  * Forfaits mensuels : un contrat freelance à 500 € par mois n'a pas à être
@@ -21,6 +22,7 @@ export async function ouvrirForfaitsMensuels(aujourdhui: string): Promise<{ ouve
   const { data } = await db
     .from('inv_coaching_contracts')
     .select('id, provider_id, manager_id, category_id, title, rate_amount, start_date, end_date, monthly_last_run')
+    .eq('brand', getBrandId())
     .eq('monthly_auto', true)
     .eq('status', 'active')
     .lte('start_date', cycle.periodEnd)

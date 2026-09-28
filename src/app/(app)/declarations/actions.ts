@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/audit'
 import { cycleForDate, managerCanEdit, providerCanDeclare } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
+import { brandScope, getBrandId } from '@/lib/brand'
 
 export interface DeclarationResult {
   error?: string
@@ -103,8 +104,9 @@ export async function declarer(
 
   const { data: provider } = await db
     .from('inv_providers')
-    .select('id, legal_name, employment_type, pay_abatement')
+    .select('id, legal_name, employment_type, pay_abatement, brand')
     .eq('id', providerId)
+    .eq('brand', getBrandId())
     .maybeSingle()
   if (!provider) return { error: 'Prestataire introuvable.' }
 
@@ -116,6 +118,7 @@ export async function declarer(
   const { data: encadrants } = await db
     .from('inv_users')
     .select('id')
+    .eq('brand', getBrandId())
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
   const encadre = new Set((encadrants ?? []).map((e) => e.id as string))
@@ -124,7 +127,10 @@ export async function declarer(
   // Les enseignements soumis à Qualiopi : leur déclaration doit porter le
   // créneau, le groupe, le module et la modalité. Une ligne incomplète est
   // refusée ici plutôt que découverte le jour de l'audit.
-  const { data: cats } = await db.from('inv_categories').select('id, requires_session')
+  const { data: cats } = await db
+    .from('inv_categories')
+    .select('id, requires_session')
+    .in('brand', brandScope())
   const exigeSeance = new Set(
     (cats ?? []).filter((c) => c.requires_session).map((c) => c.id as string)
   )
@@ -193,6 +199,10 @@ export async function declarer(
   const rows = lignes.map((l) => ({
     provider_id: providerId,
     manager_id: user.role === 'manager' ? user.id : l.manager_id || managerId,
+    // L'école vient du prestataire, pas du déploiement : une prestation
+    // saisie par erreur depuis l'autre site resterait ainsi rattachée à la
+    // bonne, au lieu de changer d'école en silence.
+    brand: provider.brand,
     category_id: l.category_id,
     detail: l.detail,
     start_date: l.date,

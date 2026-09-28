@@ -4,6 +4,7 @@ import type { BillingCycle } from '@/lib/cycle'
 import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 export interface EnvoiBordereaux {
   bordereaux: number
@@ -32,9 +33,14 @@ export async function envoyerBordereaux(cycle: BillingCycle, auteurId?: string |
   const now = new Date().toISOString()
 
   // ---- 1. Fin de la vérification : les validations des managers sont acquises.
+  // La borne d'école n'est pas décorative ici : sans elle, cette mise à jour
+  // valide d'un coup les prestations des deux écoles, et le regroupement qui
+  // suit les mêle dans un même bordereau.
+  const ecole = getBrandId()
   const { data: promues } = await db
     .from('inv_missions')
     .update({ status: 'approved', admin_approved_at: now, admin_approved_by: auteurId ?? null })
+    .eq('brand', ecole)
     .eq('status', 'manager_approved')
     .lte('start_date', cycle.periodEnd)
     .is('invoice_id', null)
@@ -44,6 +50,7 @@ export async function envoyerBordereaux(cycle: BillingCycle, auteurId?: string |
   const { data: lignes } = await db
     .from('inv_missions')
     .select('id, provider_id, total_ht, provider:inv_providers(employment_type)')
+    .eq('brand', ecole)
     .eq('status', 'approved')
     .is('invoice_id', null)
     .is('statement_id', null)

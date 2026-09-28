@@ -10,6 +10,7 @@ import { logAudit } from '@/lib/audit'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { EMPLOYMENTS } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 export interface AdminResult {
   error?: string
@@ -79,6 +80,7 @@ export async function createUserAccount(
       full_name: v.full_name,
       role: v.role,
       phone: v.phone || null,
+      brand: getBrandId(),
     })
     .select('id')
     .single()
@@ -92,6 +94,7 @@ export async function createUserAccount(
   if (v.role === 'prestataire') {
     const { error: providerError } = await service.from('inv_providers').insert({
       user_id: appUser.id,
+      brand: getBrandId(),
       legal_name: v.legal_name!.trim(),
       invoice_prefix: 'FACT',
       employment_type: v.employment_type,

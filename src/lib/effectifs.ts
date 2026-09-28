@@ -2,6 +2,7 @@ import { round2 } from '@/lib/format'
 import { cycleForMonth } from '@/lib/cycle'
 import { effectifsParCoach, labConfigure } from '@/lib/lab'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getBrandId } from '@/lib/brand'
 
 export interface Regularisation {
   coach: string
@@ -55,6 +56,7 @@ export async function regulariserEffectifs(
        provider:inv_providers!inner(id, legal_name, pay_abatement, user:inv_users!inv_providers_user_id_fkey(email)),
        instalments:inv_contract_instalments!inner(due_date, label)`
     )
+    .eq('brand', getBrandId())
     .eq('status', 'active')
     .not('rate_base_headcount', 'is', null)
     .eq('instalments.due_date', echeance)
