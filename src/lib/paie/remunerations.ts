@@ -2,6 +2,7 @@ import type { BillingCycle } from '@/lib/cycle'
 import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 export interface LigneRemuneration {
   providerId: string
@@ -29,16 +30,22 @@ export interface LigneRemuneration {
  */
 export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRemuneration[]> {
   const db = createServiceClient()
+  const ecole = getBrandId()
   const [{ data: fiches }, { data: factures }, { data: missions }, { data: bulletins }] = await Promise.all([
-    db.from('inv_providers').select('id, legal_name, employment_type, user:inv_users!inv_providers_user_id_fkey(full_name, is_active)'),
+    db
+      .from('inv_providers')
+      .select('id, legal_name, employment_type, user:inv_users!inv_providers_user_id_fkey(full_name, is_active)')
+      .eq('brand', ecole),
     db
       .from('inv_invoices')
       .select('provider_id, subtotal_ht, total_ttc, status, period_start, issue_date')
+      .eq('brand', ecole)
       .gte('issue_date', cycle.periodStart)
       .lte('issue_date', cycle.paymentDate),
     db
       .from('inv_missions')
       .select('provider_id, total_ht, status, pay_basis')
+      .eq('brand', ecole)
       .gte('start_date', cycle.periodStart)
       .lte('start_date', cycle.periodEnd)
       .in('status', ['approved', 'invoiced', 'manager_approved']),

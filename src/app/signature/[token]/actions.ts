@@ -7,6 +7,7 @@ import { preuve, rangerPdf, reference } from '@/lib/contracts/signature'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getBrandId } from '@/lib/brand'
 
 export interface SignatureResult {
   error?: string
@@ -93,6 +94,7 @@ export async function signerContrat(_prev: SignatureResult, fd: FormData): Promi
   const { data: equipe } = await db
     .from('inv_users')
     .select('id, email, full_name, role')
+    .eq('brand', getBrandId())
     .or(`id.eq.${c.manager_id},role.eq.admin`)
     .eq('is_active', true)
   for (const u of equipe ?? []) {

@@ -11,6 +11,7 @@ import { formatDateLong, money, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { AiCheck, Employment, InvoiceStatus } from '@/lib/types'
 import { envoyerMaintenant, relancer } from './actions'
+import { getBrandId } from '@/lib/brand'
 
 interface Ligne {
   provider_id: string
@@ -37,6 +38,7 @@ export default async function BordereauxPage({
   const { data: lData } = await db
     .from('inv_missions')
     .select('provider_id, manager_id, total_ht, status, statement_id, provider:inv_providers(legal_name, employment_type)')
+    .eq('brand', getBrandId())
     .gte('start_date', cycle.periodStart)
     .lte('start_date', cycle.periodEnd)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])

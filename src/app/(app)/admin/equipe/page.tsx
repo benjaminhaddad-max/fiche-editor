@@ -79,8 +79,12 @@ export default async function EquipePage({
   let gere: string[] = []
   if (!admin) {
     const [{ data: parDefaut }, { data: parMission }] = await Promise.all([
-      db.from('inv_providers').select('user_id').eq('default_manager_id', me.id),
-      db.from('inv_missions').select('provider:inv_providers!inner(user_id)').eq('manager_id', me.id),
+      db.from('inv_providers').select('user_id').eq('brand', ecole).eq('default_manager_id', me.id),
+      db
+        .from('inv_missions')
+        .select('provider:inv_providers!inner(user_id)')
+        .eq('brand', ecole)
+        .eq('manager_id', me.id),
     ])
     const siens = new Set<string>()
     for (const f of parDefaut ?? []) if (f.user_id) siens.add(f.user_id as string)

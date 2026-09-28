@@ -10,6 +10,7 @@ import { money } from '@/lib/format'
 import { getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
+import { brandScope, getBrandId } from '@/lib/brand'
 
 interface Row {
   id: string
@@ -50,8 +51,14 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
          provider:inv_providers(legal_name, user_id),
          apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name)`
       )
+      .eq('brand', getBrandId())
       .order('issue_date', { ascending: false }),
-    supabase.from('inv_categories').select('id, name').eq('is_active', true).order('sort_order'),
+    supabase
+      .from('inv_categories')
+      .select('id, name')
+      .in('brand', brandScope())
+      .eq('is_active', true)
+      .order('sort_order'),
     getManagers(),
   ])
 

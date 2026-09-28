@@ -7,6 +7,7 @@ import { MissionFilters } from '@/components/admin/MissionFilters'
 import { formatPeriod, money } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { MissionStatus } from '@/lib/types'
+import { brandScope, getBrandId } from '@/lib/brand'
 
 type Origin = 'contract' | 'manager' | 'provider' | 'order'
 
@@ -43,6 +44,7 @@ export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefi
        provider:inv_providers(id, legal_name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
+    .eq('brand', getBrandId())
     .order('start_date', { ascending: false })
 
   // « facturable » n'est pas un statut mais la question qu'on se pose le plus :
@@ -55,8 +57,8 @@ export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefi
 
   const [{ data }, { data: cats }, { data: provs }] = await Promise.all([
     query,
-    supabase.from('inv_categories').select('id, name').order('sort_order'),
-    supabase.from('inv_providers').select('id, legal_name').order('legal_name'),
+    supabase.from('inv_categories').select('id, name').in('brand', brandScope()).order('sort_order'),
+    supabase.from('inv_providers').select('id, legal_name').eq('brand', getBrandId()).order('legal_name'),
   ])
 
   const missions = (data ?? []) as unknown as Row[]

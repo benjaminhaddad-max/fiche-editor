@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createHash } from 'node:crypto'
 import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getBrandId } from '@/lib/brand'
 
 const MOIS: Record<string, string> = {
   janvier: '01', fevrier: '02', mars: '03', avril: '04', mai: '05', juin: '06',
@@ -168,6 +169,7 @@ export async function enregistrerBulletin(input: {
   const { data: fiches } = await db
     .from('inv_providers')
     .select('id, legal_name, user:inv_users!inv_providers_user_id_fkey(full_name)')
+    .eq('brand', getBrandId())
   const liste = (fiches ?? []) as unknown as {
     id: string
     legal_name: string

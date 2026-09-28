@@ -11,6 +11,7 @@ import { POLE_LABEL } from '@/lib/labels'
 import { getActiveProviders, getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { POLES, type Pole } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 export default async function ContratsPage({
   searchParams,
@@ -20,7 +21,11 @@ export default async function ContratsPage({
   const { pole, nouveau, archives } = await searchParams
   const user = await requireRole('manager', 'admin')
   const supabase = await createServerSupabase()
-  let requete = supabase.from('inv_coaching_contracts').select(CONTRACT_SELECT).order('created_at', { ascending: false })
+  let requete = supabase
+    .from('inv_coaching_contracts')
+    .select(CONTRACT_SELECT)
+    .eq('brand', getBrandId())
+    .order('created_at', { ascending: false })
   // Un manager suit les contrats dont il est responsable ; l'administration voit tout.
   if (user.role === 'manager') requete = requete.eq('manager_id', user.id)
   const [{ data }, providers, managers] = await Promise.all([requete, getActiveProviders(), getManagers()])

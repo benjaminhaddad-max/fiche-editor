@@ -14,6 +14,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createInvitation } from '@/lib/invitation'
 import { sendSms, normalizePhone } from '@/lib/email/sms'
 import type { PricingType } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 export interface OrderResult {
   error?: string
@@ -46,6 +47,7 @@ async function prestatairePour(
   const { data: existant } = await db
     .from('inv_users')
     .select('id, role, is_active, provider:inv_providers!inv_providers_user_id_fkey(id)')
+    .eq('brand', getBrandId())
     .ilike('email', v.new_email)
     .maybeSingle()
   if (existant) {
@@ -61,7 +63,14 @@ async function prestatairePour(
 
   const { data: user, error: userError } = await db
     .from('inv_users')
-    .insert({ auth_id: auth.user.id, email: v.new_email, full_name: v.new_name, role: 'prestataire', phone: v.new_phone || null })
+    .insert({
+      auth_id: auth.user.id,
+      email: v.new_email,
+      full_name: v.new_name,
+      role: 'prestataire',
+      phone: v.new_phone || null,
+      brand: getBrandId(),
+    })
     .select('id')
     .single()
   if (userError || !user) {
@@ -71,7 +80,13 @@ async function prestatairePour(
 
   const { data: fiche, error: ficheError } = await db
     .from('inv_providers')
-    .insert({ user_id: user.id, legal_name: v.new_name, invoice_prefix: 'FACT', phone: v.new_phone || null })
+    .insert({
+      user_id: user.id,
+      brand: getBrandId(),
+      legal_name: v.new_name,
+      invoice_prefix: 'FACT',
+      phone: v.new_phone || null,
+    })
     .select('id')
     .single()
   if (ficheError || !fiche) return { error: `Création de la fiche impossible : ${ficheError?.message}` }

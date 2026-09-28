@@ -227,7 +227,7 @@ export async function saveCategory(
   const supabase = await createServerSupabase()
   const { error } = id
     ? await supabase.from('inv_categories').update(payload).eq('id', id)
-    : await supabase.from('inv_categories').insert(payload)
+    : await supabase.from('inv_categories').insert({ ...payload, brand: getBrandId() })
 
   if (error) return { error: `Enregistrement impossible : ${error.message}` }
 
@@ -390,7 +390,12 @@ export async function changerEmail(_prev: AdminResult, formData: FormData): Prom
   if (!compte) return { error: 'Cette fiche n’a pas de compte : il n’y a pas d’adresse à changer.' }
   if (compte.email.toLowerCase() === nouvel) return { success: 'C’est déjà cette adresse.' }
 
-  const { data: pris } = await db.from('inv_users').select('id').ilike('email', nouvel).maybeSingle()
+  const { data: pris } = await db
+    .from('inv_users')
+    .select('id')
+    .eq('brand', getBrandId())
+    .ilike('email', nouvel)
+    .maybeSingle()
   if (pris) return { fieldErrors: { email: 'Cette adresse est déjà utilisée par un autre compte.' } }
 
   const { error: eAuth } = await db.auth.admin.updateUserById(compte.auth_id, {

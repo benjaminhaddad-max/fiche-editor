@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createInvitation } from '@/lib/invitation'
 import { sendSms } from '@/lib/email/sms'
 import { formatDate, money } from '@/lib/format'
+import { getBrandId } from '@/lib/brand'
 
 /**
  * Envoie un email et le journalise. Ne leve jamais : une notification qui
@@ -121,6 +122,7 @@ export async function renewAccess(email: string): Promise<RenouvellementEtat> {
   const { data: user } = await supabase
     .from('inv_users')
     .select('id, is_active')
+    .eq('brand', getBrandId())
     .ilike('email', propre)
     .maybeSingle()
 
@@ -310,6 +312,7 @@ export async function notifyInvoiceReceived(invoiceId: string): Promise<void> {
   const { data: admins } = await supabase
     .from('inv_users')
     .select('email, full_name')
+    .eq('brand', getBrandId())
     .eq('role', 'admin')
     .eq('is_active', true)
 

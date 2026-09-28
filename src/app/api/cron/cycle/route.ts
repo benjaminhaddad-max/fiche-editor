@@ -13,6 +13,7 @@ import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
+import { getBrandId } from '@/lib/brand'
 
 export const maxDuration = 300
 
@@ -136,6 +137,7 @@ async function destinataires(db: Db) {
   const { data } = await db
     .from('inv_users')
     .select('id, email, full_name, role, provider:inv_providers!inv_providers_user_id_fkey(employment_type)')
+    .eq('brand', getBrandId())
     .eq('is_active', true)
   return (data ?? []) as unknown as {
     id: string
@@ -170,6 +172,7 @@ async function rappelerVerification(db: Db, cycle: BillingCycle) {
   const { data } = await db
     .from('inv_missions')
     .select('manager_id, total_ht')
+    .eq('brand', getBrandId())
     .eq('status', 'submitted')
     .lte('start_date', cycle.periodEnd)
   const parManager = new Map<string, { n: number; total: number }>()
@@ -215,6 +218,7 @@ async function demanderElements(db: Db, cycle: BillingCycle, relance: boolean) {
   const { data: fiches } = await db
     .from('inv_providers')
     .select('id, phone, employment_type, user:inv_users!inv_providers_user_id_fkey(email, full_name, is_active)')
+    .eq('brand', getBrandId())
     .neq('employment_type', 'independant')
   const { data: saisies } = await db
     .from('inv_payroll_inputs')

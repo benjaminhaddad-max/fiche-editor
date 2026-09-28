@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
 import { activeCycle, cycleForMonth, nextCycle, previousCycle } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
+import { brandScope } from '@/lib/brand'
 
 export const maxDuration = 300
 
@@ -44,7 +45,12 @@ export default async function RemunerationsPage({
   const courant = vues.some((v) => v.key === vue) ? vue! : vues[0].key
   const { data: cats } =
     courant === 'deposer'
-      ? await createServiceClient().from('inv_categories').select('id, name').eq('is_active', true).order('sort_order')
+      ? await createServiceClient()
+          .from('inv_categories')
+          .select('id, name')
+          .in('brand', brandScope())
+          .eq('is_active', true)
+          .order('sort_order')
       : { data: [] }
 
   return (

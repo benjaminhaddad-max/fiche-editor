@@ -60,8 +60,8 @@ export async function relancerDeclarations(
   let siens: Set<string> | null = null
   if (pourManager) {
     const [{ data: parDefaut }, { data: parMission }] = await Promise.all([
-      db.from('inv_providers').select('id').eq('default_manager_id', pourManager),
-      db.from('inv_missions').select('provider_id').eq('manager_id', pourManager),
+      db.from('inv_providers').select('id').eq('brand', getBrandId()).eq('default_manager_id', pourManager),
+      db.from('inv_missions').select('provider_id').eq('brand', getBrandId()).eq('manager_id', pourManager),
     ])
     siens = new Set([
       ...(parDefaut ?? []).map((f) => f.id as string),

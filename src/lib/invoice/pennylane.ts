@@ -16,6 +16,7 @@ import { getInvoicePdf, loadInvoiceForRender } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ibanValide, normaliserIban } from '@/lib/iban'
 import { COMPANY, type InvoiceLine } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 export interface SyncResult {
   ok: boolean
@@ -248,6 +249,7 @@ export async function rafraichirPaiements(): Promise<RetourPaiements> {
   const { data } = await supabase
     .from('inv_invoices')
     .select('id, number, pennylane_invoice_id, provider:inv_providers(legal_name)')
+    .eq('brand', getBrandId())
     .eq('pennylane_status', 'synced')
     .not('pennylane_invoice_id', 'is', null)
     .neq('status', 'paid')

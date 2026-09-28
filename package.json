@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint && node scripts/verifier-marque.mjs",
     "setup": "node --experimental-websocket scripts/setup.mjs",
     "e2e": "node --experimental-websocket scripts/e2e.mjs",
     "demo": "node --experimental-websocket scripts/demo.mjs",
@@ -20,7 +20,8 @@
     "blocages": "node --experimental-websocket scripts/blocages.mjs",
     "calendrier": "node scripts/calendrier.mjs",
     "migrer": "node scripts/migrer.mjs",
-    "retirer": "node --experimental-websocket scripts/retirer.mjs"
+    "retirer": "node --experimental-websocket scripts/retirer.mjs",
+    "verifier-marque": "node scripts/verifier-marque.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

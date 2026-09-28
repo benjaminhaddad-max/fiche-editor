@@ -4,6 +4,7 @@ import { templates } from '@/lib/email/templates'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
 import { classerDocument, enregistrerBulletin } from '@/lib/paie/bulletins'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getBrandId } from '@/lib/brand'
 
 export interface Courriel {
   /** Adresses pouvant être celle du manager (From, Reply-To, en-têtes de transfert). */
@@ -35,6 +36,7 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
   const { data: equipe } = await db
     .from('inv_users')
     .select('id, email, full_name, role')
+    .eq('brand', getBrandId())
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
   const { auteur, via, raison } = await identifierExpediteur(adresses, c.sujet, equipe ?? [])

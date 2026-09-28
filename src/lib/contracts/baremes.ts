@@ -1,6 +1,7 @@
 import { bareme } from '@/lib/contracts/enregistrement'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { TarifPersonne } from '@/components/missions/DeclarationForm'
+import { getBrandId } from '@/lib/brand'
 
 /**
  * Les barèmes négociés, prestataire par prestataire.
@@ -13,6 +14,7 @@ export async function baremesParPrestataire(): Promise<Record<string, TarifPerso
   const { data } = await db
     .from('inv_coaching_contracts')
     .select('provider_id, profile, rate_type, rate_amount')
+    .eq('brand', getBrandId())
     .eq('status', 'active')
     .not('profile', 'is', null)
 

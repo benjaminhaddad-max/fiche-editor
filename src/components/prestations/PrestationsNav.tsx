@@ -1,6 +1,7 @@
 import { PageHeader } from '@/components/ui/Page'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
+import { getBrandId } from '@/lib/brand'
 
 /**
  * Le bandeau de la page « Prestations », côté manager et admin : un seul
@@ -24,6 +25,7 @@ export async function PrestationsNav({
   let q = supabase
     .from('inv_missions')
     .select('id', { count: 'exact', head: true })
+    .eq('brand', getBrandId())
     .in('status', user.role === 'admin' ? ['submitted', 'manager_approved'] : ['submitted'])
   if (user.role === 'manager') q = q.eq('manager_id', user.id)
   const { count } = await q

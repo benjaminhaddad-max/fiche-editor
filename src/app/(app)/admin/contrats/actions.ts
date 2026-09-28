@@ -14,6 +14,7 @@ import { composer, nouveauJeton, rangerPdf } from '@/lib/contracts/signature'
 import { trouverOuCreerPrestataire } from '@/lib/personnes'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
+import { brandScope } from '@/lib/brand'
 
 export interface ContractResult {
   error?: string
@@ -74,6 +75,7 @@ export async function creerContrat(_prev: ContractResult, fd: FormData): Promise
   const { data: categorie } = await db
     .from('inv_categories')
     .select('id')
+    .in('brand', brandScope())
     .eq('pole', v.contract_type)
     .eq('is_active', true)
     .order('sort_order')
@@ -259,6 +261,7 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
   const { data: categorie } = await db
     .from('inv_categories')
     .select('id')
+    .in('brand', brandScope())
     .eq('pole', m.pole)
     .eq('is_active', true)
     .order('sort_order')

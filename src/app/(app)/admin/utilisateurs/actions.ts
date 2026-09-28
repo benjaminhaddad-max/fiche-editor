@@ -19,6 +19,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendInvitation } from '@/lib/email/notify'
 import { revalidatePath } from 'next/cache'
+import { getBrandId } from '@/lib/brand'
 
 export interface SessionSwitch {
   tokenHash?: string
@@ -208,10 +209,15 @@ export async function envoyerInvitationsEtRappels(
   let ecartes = 0
   if (auteur.role === 'manager') {
     const [{ data: parDefaut }, { data: parMission }] = await Promise.all([
-      service.from('inv_providers').select('user_id').eq('default_manager_id', auteur.id),
+      service
+        .from('inv_providers')
+        .select('user_id')
+        .eq('brand', getBrandId())
+        .eq('default_manager_id', auteur.id),
       service
         .from('inv_missions')
         .select('provider:inv_providers!inner(user_id)')
+        .eq('brand', getBrandId())
         .eq('manager_id', auteur.id),
     ])
     const siens = new Set<string>()
