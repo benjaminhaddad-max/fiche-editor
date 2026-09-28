@@ -120,6 +120,38 @@ programmer une fois par jour.
 Sans `BREVO_API_KEY`, rien n'est envoyé et tout est journalisé en `skipped` —
 la plateforme fonctionne normalement.
 
+## Deux écoles, un seul code
+
+Le même dépôt sert Diploma Invoice et Linova Invoice : deux projets Vercel,
+une seule base Supabase, comme Diploma Lab et Medibox Lab. La marque du
+déploiement est décidée par `NEXT_PUBLIC_BRAND` (`diploma` par défaut), et
+tout ce qui distingue les deux écoles vit dans `src/lib/brand/config.ts` —
+nom, logos, société facturée, expéditeur.
+
+Six tables portent une colonne `brand` : `inv_users`, `inv_providers`,
+`inv_missions`, `inv_invoices`, `inv_coaching_contracts` et `inv_categories`,
+cette dernière acceptant aussi `all` pour une catégorie commune.
+
+Trois garde-fous, parce qu'une frontière qui ne tient que par la discipline
+finit par céder :
+
+1. **À la connexion** — `getSessionUser` refuse un compte dont la marque
+   n'est pas celle du déploiement. Le contrôle est là plutôt qu'au
+   formulaire de connexion : un lien d'invitation ou une session reprise n'y
+   repassent jamais.
+2. **À l'écriture** — trois déclencheurs (`supabase/32_facture_marque.sql`)
+   reportent la marque du prestataire sur ses prestations, factures et
+   contrats, quelle que soit la voie. Y compris `inv_create_invoice`, qui
+   insère depuis le SQL et qu'aucune recherche dans le code ne voit.
+3. **À la lecture** — `npm run lint` refuse toute requête sur ces tables qui
+   n'est bornée ni par la marque, ni par une clé venue d'une requête déjà
+   bornée. Sans ce contrôle, la prochaine requête écrite sans borne rendrait
+   les lignes des deux écoles sans la moindre erreur à l'écran.
+
+Pour rattacher quelqu'un à l'autre école :
+`node --experimental-websocket scripts/basculer-marque.mjs --email … --vers linova`.
+Attention, la bascule coupe immédiatement l'accès à l'ancien site.
+
 ## Garde-fous
 
 - Une prestation partie en validation n'est plus modifiable par le prestataire.
