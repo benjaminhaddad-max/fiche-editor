@@ -12,7 +12,7 @@ import { notifyMissionRejected, notifyReadyToInvoice } from '@/lib/email/notify'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { managerCanEdit } from '@/lib/cycle'
-import { round2 } from '@/lib/format'
+import { formatDateLong, round2 } from '@/lib/format'
 
 /**
  * Valide une prestation.
@@ -182,14 +182,16 @@ export async function rejectMission(formData: FormData): Promise<void> {
  * Le manager ne touche qu'à ses propres lignes et jusqu'à la fin du mois ;
  * l'administrateur, à tout ce qui n'est pas encore facturé.
  */
-export async function corrigerMission(formData: FormData): Promise<void> {
+export async function corrigerMission(formData: FormData): Promise<CorrectionResultat> {
   const user = await requireRole('manager', 'admin')
   const id = String(formData.get('mission_id') ?? '')
   const detail = String(formData.get('detail') ?? '').trim()
   const quantity = Number(formData.get('quantity'))
   const unit = Number(formData.get('unit_amount_ht'))
   const nouveauManager = String(formData.get('manager_id') ?? '').trim()
-  if (!id || detail.length < 3 || !(quantity > 0) || !(unit >= 0)) return
+  if (!id || detail.length < 3 || !(quantity > 0) || !(unit >= 0)) {
+    return { error: 'Corrigez la désignation, la quantité et le montant avant d’enregistrer.' }
+  }
 
   const db = createServiceClient()
   const { data: m } = await db
@@ -197,31 +199,56 @@ export async function corrigerMission(formData: FormData): Promise<void> {
     .select('id, manager_id, status, start_date, detail, quantity, unit_amount_ht, total_ht, abatement_rate, invoice_id')
     .eq('id', id)
     .maybeSingle()
-  if (!m || m.invoice_id) return
-  if (!['submitted', 'manager_approved', 'approved'].includes(m.status)) return
-  if (user.role === 'manager' && (m.manager_id !== user.id || !managerCanEdit(m.start_date))) return
+  if (!m) return { error: 'Prestation introuvable.' }
+  if (m.invoice_id) return { error: 'Cette prestation est déjà facturée : elle ne se corrige plus.' }
+  if (!['submitted', 'manager_approved', 'approved'].includes(m.status)) {
+    return { error: 'Cette prestation n’est plus au stade de la vérification.' }
+  }
+  if (user.role === 'manager' && m.manager_id !== user.id) {
+    return { error: 'Cette prestation ne vous est pas rattachée.' }
+  }
 
   // Réattribuer, c'est envoyer la ligne se faire vérifier ailleurs : on ne
   // la confie qu'à quelqu'un qui encadre vraiment, et encore en poste.
   let managerId = m.manager_id
+  let reattribue = false
   if (nouveauManager && nouveauManager !== m.manager_id) {
     const { data: cible } = await db
       .from('inv_users')
-      .select('id')
+      .select('id, full_name')
       .eq('id', nouveauManager)
       .in('role', ['manager', 'admin'])
       .eq('is_active', true)
       .maybeSingle()
-    if (cible) managerId = cible.id
+    if (!cible) return { error: 'Cette personne n’encadre pas, ou n’est plus en poste.' }
+    managerId = cible.id
+    reattribue = true
+  }
+
+  // Le mois clos protège les montants, pas l'aiguillage. Une ligne tombée
+  // chez la mauvaise personne doit pouvoir partir chez la bonne, sinon elle
+  // reste bloquée chez quelqu'un qui ne peut plus rien en faire — c'est
+  // exactement ce qui arrivait aux prestations d'août.
+  const fenetreOuverte = user.role === 'admin' || managerCanEdit(m.start_date)
+  const montantChange =
+    detail !== m.detail ||
+    quantity !== Number(m.quantity) ||
+    unit !== Number(m.unit_amount_ht)
+  if (!fenetreOuverte && montantChange) {
+    const c = cycleForDate(m.start_date)
+    return {
+      error: `${c.label} est clos depuis le ${formatDateLong(c.reviewEnd)} : le montant ne se corrige plus, seul l’administrateur peut le reprendre.${reattribue ? ' Le changement de manager, lui, a été refusé avec le reste — réessayez sans toucher au montant.' : ''}`,
+    }
   }
 
   // On recalcule avec le taux figé sur la ligne : corriger un montant ne
   // doit pas faire réapparaître l'abattement, ni le faire disparaître.
   const total = round2(quantity * unit * (1 - Number(m.abatement_rate ?? 0) / 100))
-  await db
+  const { error: err } = await db
     .from('inv_missions')
     .update({ detail, quantity, unit_amount_ht: unit, total_ht: total, manager_id: managerId })
     .eq('id', id)
+  if (err) return { error: `Enregistrement impossible : ${err.message}` }
 
   await logAudit(null, {
     actorId: user.id,
@@ -235,6 +262,16 @@ export async function corrigerMission(formData: FormData): Promise<void> {
   })
 
   revalidatePath('/validation')
+  return {
+    message: reattribue
+      ? 'Correction enregistrée. La prestation part chez le manager choisi : elle disparaît de votre liste.'
+      : 'Correction enregistrée.',
+  }
+}
+
+export interface CorrectionResultat {
+  message?: string
+  error?: string
 }
 
 export interface AjoutResultat {

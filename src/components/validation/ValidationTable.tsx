@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 import { Check, Pencil, X } from 'lucide-react'
-import { approveMission, corrigerMission, rejectMission } from '@/app/(app)/validation/actions'
+import { clsx } from 'clsx'
+import {
+  approveMission,
+  corrigerMission,
+  rejectMission,
+  type CorrectionResultat,
+} from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
 import { cycleForDate, cycleForMonth } from '@/lib/cycle'
 import { formatPeriod, money } from '@/lib/format'
@@ -97,12 +103,20 @@ export function ValidationTable({
 }) {
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
+  const [correction, setCorrection] = useState<(CorrectionResultat & { id: string }) | null>(null)
   const [selection, setSelection] = useState<Set<string>>(new Set())
+  const [qui, setQui] = useState('')
 
-  const tousCoches = missions.length > 0 && missions.every((m) => selection.has(m.id))
+  // Un manager qui a dix prestataires devant lui les traite un par un :
+  // sans ce filtre, il relit la même liste entière à chaque fois.
+  const gens = [...new Set(missions.map((m) => m.provider_name))].sort((a, b) => a.localeCompare(b, 'fr'))
+  const visibles = qui ? missions.filter((m) => m.provider_name === qui) : missions
+
+  const tousCoches = visibles.length > 0 && visibles.every((m) => selection.has(m.id))
   const totalSelection = missions
     .filter((m) => selection.has(m.id))
     .reduce((s, m) => s + m.total_ht, 0)
+  const totalVisible = visibles.reduce((s, m) => s + m.total_ht, 0)
 
   function bascule(id: string) {
     setSelection((prev) => {
@@ -144,6 +158,39 @@ export function ValidationTable({
         </form>
       )}
 
+    {gens.length > 1 && (
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setQui('')}
+          className={clsx(
+            'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium',
+            qui === '' ? 'border-navy bg-navy text-cream' : 'border-line bg-white text-navy/70 hover:border-gold/50'
+          )}
+        >
+          Tout le monde ({missions.length})
+        </button>
+        {gens.map((g) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => setQui(g === qui ? '' : g)}
+            className={clsx(
+              'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium',
+              qui === g ? 'border-navy bg-navy text-cream' : 'border-line bg-white text-navy/70 hover:border-gold/50'
+            )}
+          >
+            {g} ({missions.filter((m) => m.provider_name === g).length})
+          </button>
+        ))}
+        {qui && (
+          <span className="text-xs text-muted">
+            {visibles.length} prestation{visibles.length > 1 ? 's' : ''} · {money(totalVisible)} HT
+          </span>
+        )}
+      </div>
+    )}
+
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -154,7 +201,7 @@ export function ValidationTable({
                   type="checkbox"
                   checked={tousCoches}
                   onChange={() =>
-                    setSelection(tousCoches ? new Set() : new Set(missions.map((m) => m.id)))
+                    setSelection(tousCoches ? new Set() : new Set(visibles.map((m) => m.id)))
                   }
                   title="Tout sélectionner"
                   className="h-4 w-4 cursor-pointer accent-emerald-600"
@@ -169,7 +216,7 @@ export function ValidationTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-line/60">
-            {missions.map((m) => (
+            {visibles.map((m) => (
               <tr
                 key={m.id}
                 className={selection.has(m.id) ? 'bg-emerald-50/60 align-top' : 'align-top'}
@@ -222,11 +269,23 @@ export function ValidationTable({
 
                   {m.contract && <ContractBreakdown c={m.contract} />}
 
+                  {correction?.id === m.id && correction.error && (
+                    <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{correction.error}</p>
+                  )}
+                  {correction?.id === m.id && correction.message && (
+                    <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                      {correction.message}
+                    </p>
+                  )}
+
                   {editing === m.id && (
                     <form
                       action={async (fd) => {
-                        await corrigerMission(fd)
-                        setEditing(null)
+                        const r = await corrigerMission(fd)
+                        setCorrection({ id: m.id, ...r })
+                        // Une correction refusée laisse le formulaire ouvert :
+                        // le refermer effacerait la saisie sans rien expliquer.
+                        if (!r.error) setEditing(null)
                       }}
                       className="mt-3 grid gap-2 rounded-lg border border-line bg-cream-muted p-3 sm:grid-cols-[1fr_90px_110px]"
                     >
