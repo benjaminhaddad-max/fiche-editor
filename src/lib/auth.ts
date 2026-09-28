@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { portalAccepts } from '@/lib/brand'
 import type { AppUser, Provider, Role } from '@/lib/types'
 
 /** Utilisateur applicatif courant, ou null si non connecte / desactive. */
@@ -17,6 +18,13 @@ export async function getSessionUser(): Promise<AppUser | null> {
     .maybeSingle()
 
   if (!data || !data.is_active) return null
+
+  // Une école ne voit pas l'autre. Le contrôle est ici plutôt qu'au
+  // formulaire de connexion : toute page passe par cette fonction, alors
+  // qu'un lien d'invitation ou une reprise de session ne repassent jamais
+  // par l'écran de connexion.
+  if (!portalAccepts((data as { brand?: string }).brand)) return null
+
   return data as AppUser
 }
 
