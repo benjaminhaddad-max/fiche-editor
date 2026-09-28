@@ -26,6 +26,8 @@ export interface BrandConfig {
   /** Couleur de la barre du navigateur sur mobile. */
   themeColor: string
   logos: { cream: string; navy: string }
+  /** Teintes de la charte, pour les emails et les documents. */
+  palette: { dark: string; accent: string; light: string; ink: string }
   /** Qui reçoit les factures : c'est cette société qui est facturée. */
   company: {
     name: string
@@ -51,6 +53,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     siteUrl: 'https://facturation.diploma-sante.fr',
     themeColor: '#0e1e35',
     logos: { cream: '/logo-diploma-invoice.webp', navy: '/logo-diploma-invoice-navy.webp' },
+    palette: { dark: '#0e1e35', accent: '#c8a44b', light: '#f7f4ee', ink: '#0e1e35' },
     company: {
       name: process.env.NEXT_PUBLIC_COMPANY_NAME ?? 'Diploma Santé',
       legalForm: process.env.NEXT_PUBLIC_COMPANY_LEGAL_FORM ?? '',
@@ -73,9 +76,15 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     description:
       'Déclarez vos prestations, suivez vos factures et vos paiements.',
     siteUrl: 'https://facturation.linova-education.fr',
-    // Le navy de la feuille de style de linova-education.fr.
+    // Bleu nuit de la charte Linova.
     themeColor: '#182d3c',
-    logos: { cream: '/logo-linova-invoice.webp', navy: '/logo-linova-invoice-navy.webp' },
+    // Le logotype est posé en vectoriel, sans retouche : la charte interdit
+    // d'en déformer les tracés. Ces fichiers servent aux emails, où un SVG
+    // en ligne ne passe pas partout.
+    logos: { cream: '/logo/linova-logotype.svg', navy: '/logo/linova-logotype.svg' },
+    // Relevées dans public/logo/LISEZ-MOI.md : bleu nuit, bleu lagon,
+    // blanc cassé, noir charbon. Le jaune vif ne sert qu'aux alertes.
+    palette: { dark: '#182d3c', accent: '#6da3a4', light: '#efefef', ink: '#222222' },
     // Relevé au registre des entreprises (SIREN 943 551 341, créée le
     // 9 avril 2025). Ces lignes s'impriment sur les factures des
     // prestataires : elles ne se devinent pas, elles se vérifient.
