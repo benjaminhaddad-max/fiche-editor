@@ -73,8 +73,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     description:
       'Déclarez vos prestations, suivez vos factures et vos paiements.',
     siteUrl: 'https://facturation.linova-education.fr',
-    // Relevés sur linova-education.fr : le navy de leur feuille de style, et
-    // le vert de la coche du logo.
+    // Le navy de la feuille de style de linova-education.fr.
     themeColor: '#182d3c',
     logos: { cream: '/logo-linova-invoice.webp', navy: '/logo-linova-invoice-navy.webp' },
     // Relevé au registre des entreprises (SIREN 943 551 341, créée le

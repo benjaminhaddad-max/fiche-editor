@@ -15,7 +15,7 @@ import { brand } from '@/lib/brand'
  */
 const RATIO: Record<string, number> = {
   diploma: 720 / 243,
-  linova: 2214 / 1117,
+  linova: 2309 / 1161,
 }
 
 export function Logo({

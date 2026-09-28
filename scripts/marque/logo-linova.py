@@ -1,15 +1,16 @@
 """
-Le logo Linova Invoice, construit à partir du logo officiel de Linova.
+Le logo Linova Invoice, construit à partir du logotype de Linova Lab.
 
-Le mot « LINOVA » est repris tel quel — ce sont les pixels du fichier
-distribué par linova-education.fr, coche verte comprise. Seul « Invoice »
-est redessiné, dans une fonte choisie sur la graisse du trait plutôt que
-sur la largeur : c'est le fût qui trahit une fonte trop grasse, pas la
-chasse. Les proportions des deux lignes sont relevées sur le logo Diploma
-Invoice, pour que les deux écoles aient la même architecture.
+La source est le fichier vectoriel de la charte, tel qu'il vit dans Linova
+Lab : `public/logo/linova-logotype.svg`. Ses tracés ne sont pas touchés —
+la charte l'interdit — et il est simplement rendu puis repris tel quel.
+Seul « Invoice » est composé, dans une fonte choisie sur la graisse du
+trait plutôt que sur la chasse : c'est le fût qui trahit une fonte trop
+grasse. Les deux lignes se terminent au même fer, comme sur Diploma
+Invoice, pour que les deux écoles aient la même architecture de marque.
 
-Sortie : deux PNG à fond transparent, l'un clair pour les fonds foncés,
-l'autre foncé pour les fonds clairs.
+Sortie : deux PNG et deux WebP à fond transparent, l'un clair pour les
+fonds foncés, l'autre foncé pour les fonds clairs.
 """
 import subprocess
 import tempfile
@@ -20,13 +21,15 @@ from PIL import Image, ImageDraw, ImageFont
 
 RACINE = Path("/Users/benjaminhaddad-diplomasante/Desktop/Plateformes Ben/fiche-editor")
 SORTIE = RACINE / "public"
-SOURCE = "https://linova-education.fr/images/logos/logo-sans-baseline-noir-bleu.svg"
+SOURCE = Path(
+    "/Users/benjaminhaddad-diplomasante/Desktop/Plateformes Ben/ypareobis-main"
+    "/public/logo/linova-logotype.svg"
+)
 REFERENCE = SORTIE / "logo-diploma-invoice-navy.png"
 
-# Couleurs relevées dans le fichier source et dans la feuille de style du
-# site : l'encre du mot, et le vert de la coche.
+# Le logotype de la charte est monochrome : il prend la couleur du texte
+# qui l'entoure. Deux encres suffisent donc, comme sur Diploma Invoice.
 ENCRE = (33, 33, 33)
-ACCENT = (110, 163, 165)
 CLAIR = (247, 244, 238)
 
 FONTE = "/System/Library/Fonts/Avenir Next.ttc"
@@ -89,20 +92,15 @@ def fut(masque: np.ndarray) -> float:
 RATIO_CAP = 0.58
 
 # ------------------------------------------------------------------- « LINOVA »
-import urllib.request
-
-svg = urllib.request.urlopen(SOURCE).read()
+# Le fichier de la charte est en `currentColor` : on lui donne une encre
+# franche le temps du rendu, l'opacité en sera déduite.
+svg = SOURCE.read_bytes().replace(b"currentColor", b"#212121")
 rgb = rasteriser(svg)
 plein = encre_de(rgb)
 ys, xs = np.where(plein > 0.05)
 boite = (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)
 mot = plein[boite[1]:boite[3], boite[0]:boite[2]]
 
-# La coche est le seul élément vert : on la garde à part pour la recolorer
-# autrement que le mot.
-zone = rgb[boite[1]:boite[3], boite[0]:boite[2]]
-vert = (np.abs(zone - np.array(ACCENT)).sum(axis=2) < 120) & (mot > 0.05)
-noir = (mot > 0.05) & ~vert
 # Le « I » de LINOVA : deuxième lettre, isolée par les colonnes vides.
 _col = (mot > 0.05).sum(axis=0)
 _vides, _deb = [], None
@@ -195,20 +193,14 @@ def poser(cible, bloc, x, y):
     cible[y:y + h, x:x + w] = np.maximum(cible[y:y + h, x:x + w], bloc)
 
 
-canal_mot = np.zeros((H, L))
-canal_accent = np.zeros((H, L))
-poser(canal_mot, np.where(noir, mot, 0), 0, 0)
-poser(canal_accent, np.where(vert, mot, 0), 0, 0)
-poser(canal_mot, invoice, 0, mot.shape[0] + GOUTTIERE)
+canevas = np.zeros((H, L))
+poser(canevas, mot, 0, 0)
+poser(canevas, invoice, 0, mot.shape[0] + GOUTTIERE)
 
 for nom, encre in [("logo-linova-invoice.png", CLAIR), ("logo-linova-invoice-navy.png", ENCRE)]:
     img = np.zeros((H, L, 4), dtype=np.uint8)
-    # La coche garde son vert des deux côtés : c'est le seul signe de couleur
-    # de la marque, et ce vert moyen tient aussi bien sur le navy que sur le
-    # blanc. La neutraliser sur fond foncé revenait à la rendre grise.
-    a = np.maximum(canal_mot, canal_accent)
-    for c in range(3):
-        img[..., c] = np.where(canal_accent > canal_mot, ACCENT[c], encre[c])
+    img[..., 0], img[..., 1], img[..., 2] = encre
+    a = canevas
     img[..., 3] = (a * 255).astype(np.uint8)
     Image.fromarray(img, "RGBA").save(SORTIE / nom)
     Image.fromarray(img, "RGBA").save(SORTIE / nom.replace(".png", ".webp"), "WEBP", lossless=True)
