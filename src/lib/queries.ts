@@ -32,7 +32,7 @@ export async function getCategoriesWithPole(opts: { forProvider?: boolean } = {}
   const supabase = await createServerSupabase()
   let q = supabase
     .from('inv_categories')
-    .select('id, name, provider_label, pole')
+    .select('id, name, provider_label, pole, requires_session')
     .eq('is_active', true)
     .order('sort_order')
   if (opts.forProvider) q = q.eq('visible_to_provider', true)
@@ -41,6 +41,7 @@ export async function getCategoriesWithPole(opts: { forProvider?: boolean } = {}
     id: c.id as string,
     label: (c.provider_label as string | null) || (c.name as string),
     pole: c.pole as import('@/lib/types').Pole,
+    requiresSession: c.requires_session === true,
   }))
 }
 

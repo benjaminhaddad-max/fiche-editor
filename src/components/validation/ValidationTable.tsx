@@ -7,7 +7,10 @@ import { Card } from '@/components/ui/Page'
 import { cycleForDate, cycleForMonth } from '@/lib/cycle'
 import { formatPeriod, money } from '@/lib/format'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
+import { MODALITE_LABEL, PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
+
+/** « 09:00:00 » venu de Postgres se lit « 09h00 ». */
+const heure = (t: string | null | undefined) => (t ? t.slice(0, 5).replace(':', 'h') : '')
 import type { PricingType } from '@/lib/types'
 import type { ContractContext } from '@/lib/contract-context'
 
@@ -17,6 +20,13 @@ export interface ReviewMission {
   formation: string | null
   regularisation: boolean
   regul_period: string | null
+  /** Détail de séance, quand l'enseignement est soumis à Qualiopi. */
+  start_time?: string | null
+  end_time?: string | null
+  groupe?: string | null
+  subject?: string | null
+  modality?: string | null
+  location?: string | null
   manager_id: string | null
   abatement_rate: number
   start_date: string
@@ -184,6 +194,18 @@ export function ValidationTable({
                       </span>
                     )}
                   </p>
+                  {/* La preuve Qualiopi se lit ici : sans le créneau et le
+                      groupe sous les yeux, un manager valide un total d'heures
+                      sans savoir ce qu'il valide. */}
+                  {m.start_time && (
+                    <p className="mt-0.5 text-xs font-medium text-navy/75">
+                      {heure(m.start_time)}–{heure(m.end_time)}
+                      {m.groupe ? ` · ${m.groupe}` : ''}
+                      {m.subject ? ` · ${m.subject}` : ''}
+                      {m.modality ? ` · ${MODALITE_LABEL[m.modality] ?? m.modality}` : ''}
+                      {m.location ? ` · ${m.location}` : ''}
+                    </p>
+                  )}
                   <p className="mt-0.5 text-xs text-muted">
                     {m.formation ? `${m.formation} · ` : ''}
                     {m.category_name} · {PRICING_LABEL[m.pricing_type]} ·{' '}

@@ -16,6 +16,8 @@ export interface DeclCategory {
   id: string
   label: string
   pole: Pole
+  /** Enseignement soumis à Qualiopi : la déclaration se fait séance par séance. */
+  requiresSession?: boolean
 }
 
 interface Ligne {
@@ -32,6 +34,13 @@ interface Ligne {
   pricing_type: PricingType
   quantity: string
   unit_amount_ht: string
+  /** Le créneau réel de la séance, et ce qu'elle couvre — exigences Qualiopi. */
+  start_time: string
+  end_time: string
+  groupe: string
+  subject: string
+  modality: string
+  location: string
 }
 
 export interface TarifPersonne {
@@ -55,7 +64,30 @@ interface Props {
 }
 
 /** Suggestions de formation : le champ reste libre, on ne fait qu'aider. */
-const FORMATIONS = ['PASS', 'LAS', 'LSPS', 'PAES', 'Terminale Santé', 'Prépa concours']
+const FORMATIONS = ['PASS', 'LAS', 'LSPS', 'PAES', 'Terminale Santé', 'Prépa concours', 'BTS']
+
+const MODALITES = [
+  { valeur: 'presentiel', label: 'Présentiel' },
+  { valeur: 'distanciel', label: 'Distanciel' },
+  { valeur: 'hybride', label: 'Hybride' },
+]
+
+/**
+ * La durée d'un créneau, en heures décimales.
+ *
+ * C'est elle qui alimente la quantité facturée quand on est payé à l'heure :
+ * un créneau de 9 h 00 à 12 h 30 vaut 3,5 — retaper « 3,5 » à côté du
+ * créneau reviendrait à saisir deux fois la même chose, et à laisser les
+ * deux diverger.
+ */
+function dureeHeures(debut: string, fin: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/
+  const d = m.exec(debut)
+  const f = m.exec(fin)
+  if (!d || !f) return null
+  const minutes = (Number(f[1]) * 60 + Number(f[2])) - (Number(d[1]) * 60 + Number(d[2]))
+  return minutes > 0 ? round2(minutes / 60) : null
+}
 
 /** Ce qu'on compte, et comment on l'écrit à côté des champs. */
 const UNITE: Record<PricingType, { quantite: string; pluriel: string; prix: string }> = {
@@ -109,6 +141,11 @@ export function DeclarationForm(props: Props) {
   const categorieParDefaut =
     categories.find((c) => c.pole === props.defaultPole)?.id ?? ''
 
+  // Une séance se compte à l'heure : c'est le seul mode où le créneau saisi
+  // et la quantité facturée disent la même chose.
+  const tarifPour = (catId: string): PricingType =>
+    categories.find((c) => c.id === catId)?.requiresSession ? 'forfait_horaire' : 'forfait_mission'
+
   const nouvelle = (): Ligne => ({
     cle: ++compteur,
     category_id: categorieParDefaut,
@@ -120,9 +157,15 @@ export function DeclarationForm(props: Props) {
     detail: '',
     date: today,
     kind: 'prestation',
-    pricing_type: 'forfait_mission',
+    pricing_type: tarifPour(categorieParDefaut),
     quantity: '1',
     unit_amount_ht: '',
+    start_time: '',
+    end_time: '',
+    groupe: '',
+    subject: '',
+    modality: '',
+    location: '',
   })
 
   const [lignes, setLignes] = useState<Ligne[]>(() => [nouvelle()])
@@ -150,20 +193,13 @@ export function DeclarationForm(props: Props) {
   }, [categories])
 
   const serialisees = JSON.stringify(
-    lignes.map(({ category_id, manager_id, pay_basis, formation, regularisation, regul_period, detail, date, kind, pricing_type, quantity, unit_amount_ht }) => ({
-      category_id,
-      manager_id,
-      pay_basis,
-      formation,
-      regularisation,
-      regul_period,
-      detail,
-      date,
-      kind,
-      pricing_type,
-      quantity,
-      unit_amount_ht,
-    }))
+    // La clé ne sert qu'au rendu : tout le reste part au serveur, y compris
+    // les champs de séance ajoutés depuis.
+    lignes.map((l) => {
+      const { cle, ...reste } = l
+      void cle
+      return reste
+    })
   )
 
   return (
@@ -236,6 +272,19 @@ export function DeclarationForm(props: Props) {
           {lignes.map((l, i) => {
             const erreur = state.lineErrors?.[i]
             const ligneTotal = round2((Number(l.quantity) || 0) * (Number(l.unit_amount_ht) || 0))
+            const seance = categories.find((c) => c.id === l.category_id)?.requiresSession === true
+            const duree = dureeHeures(l.start_time, l.end_time)
+            // Le créneau commande la quantité quand on est payé à l'heure :
+            // deux saisies du même nombre finiraient par diverger.
+            const majCreneau = (patch: Partial<Ligne>) => {
+              const debut = patch.start_time ?? l.start_time
+              const fin = patch.end_time ?? l.end_time
+              const h = dureeHeures(debut, fin)
+              maj(l.cle, {
+                ...patch,
+                ...(h !== null && l.pricing_type === 'forfait_horaire' ? { quantity: String(h) } : {}),
+              })
+            }
             return (
               <div key={l.cle} className="p-4 sm:p-5">
                 <div className="mb-2 flex items-center justify-between gap-3">
@@ -256,7 +305,13 @@ export function DeclarationForm(props: Props) {
                     <select
                       className="field w-full"
                       value={l.category_id}
-                      onChange={(e) => maj(l.cle, { category_id: e.target.value })}
+                      onChange={(e) => {
+                        const cat = categories.find((c) => c.id === e.target.value)
+                        maj(l.cle, {
+                          category_id: e.target.value,
+                          pricing_type: cat?.requiresSession ? 'forfait_horaire' : l.pricing_type,
+                        })
+                      }}
                       aria-label="Type de prestation"
                     >
                       <option value="" disabled>
@@ -375,6 +430,91 @@ export function DeclarationForm(props: Props) {
                     )}
                   </Champ>
 
+
+                  {seance && (
+                    <div className="lg:col-span-12">
+                      <div className="rounded-lg border border-gold/40 bg-gold/5 p-3 sm:p-4">
+                        <p className="mb-1 text-xs font-semibold text-navy">Détail de la séance</p>
+                        <p className="mb-3 text-xs text-muted">
+                          Une ligne par séance. Le créneau, le groupe, le module et la modalité sont
+                          demandés par Qualiopi pour prouver que la séance a bien eu lieu : un total
+                          d’heures sur le mois ne suffit pas lors d’un audit.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+                          <Champ label="Début" className="lg:col-span-2">
+                            <input
+                              type="time"
+                              className="field w-full"
+                              value={l.start_time}
+                              onChange={(e) => majCreneau({ start_time: e.target.value })}
+                              aria-label="Heure de début"
+                            />
+                          </Champ>
+                          <Champ label="Fin" className="lg:col-span-2">
+                            <input
+                              type="time"
+                              className="field w-full"
+                              value={l.end_time}
+                              onChange={(e) => majCreneau({ end_time: e.target.value })}
+                              aria-label="Heure de fin"
+                            />
+                          </Champ>
+                          <Champ label="Groupe ou classe" className="lg:col-span-4">
+                            <input
+                              className="field w-full"
+                              value={l.groupe}
+                              maxLength={120}
+                              placeholder="Ex : BTS 1re année — groupe A"
+                              onChange={(e) => maj(l.cle, { groupe: e.target.value })}
+                              aria-label="Groupe ou classe"
+                            />
+                          </Champ>
+                          <Champ label="Module ou matière" className="lg:col-span-4">
+                            <input
+                              className="field w-full"
+                              value={l.subject}
+                              maxLength={160}
+                              placeholder="Ex : Culture générale et expression"
+                              onChange={(e) => maj(l.cle, { subject: e.target.value })}
+                              aria-label="Module ou matière"
+                            />
+                          </Champ>
+                          <Champ label="Modalité" className="lg:col-span-4">
+                            <select
+                              className="field w-full"
+                              value={l.modality}
+                              onChange={(e) => maj(l.cle, { modality: e.target.value })}
+                              aria-label="Modalité"
+                            >
+                              <option value="">Choisir…</option>
+                              {MODALITES.map((m) => (
+                                <option key={m.valeur} value={m.valeur}>
+                                  {m.label}
+                                </option>
+                              ))}
+                            </select>
+                          </Champ>
+                          <Champ label="Lieu ou salle" className="lg:col-span-8">
+                            <input
+                              className="field w-full"
+                              value={l.location}
+                              maxLength={160}
+                              placeholder={l.modality === 'distanciel' ? 'Ex : Teams' : 'Ex : Campus Paris — salle 204'}
+                              onChange={(e) => maj(l.cle, { location: e.target.value })}
+                              aria-label="Lieu ou salle"
+                            />
+                          </Champ>
+                        </div>
+                        {duree !== null && (
+                          <p className="mt-2 text-xs text-navy/75">
+                            Durée de la séance : <strong>{duree.toString().replace('.', ',')} h</strong>
+                            {l.pricing_type === 'forfait_horaire' && ' — reportée dans les heures facturées.'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <Champ label="Compté" className="lg:col-span-3">
                     {l.kind === 'bonus' ? (
                       <p className="field w-full bg-cream-muted text-muted">Montant fixe</p>
@@ -470,6 +610,7 @@ export function DeclarationForm(props: Props) {
                 {
                   ...nouvelle(),
                   category_id: ls.at(-1)?.category_id ?? categorieParDefaut,
+                  pricing_type: tarifPour(ls.at(-1)?.category_id ?? categorieParDefaut),
                   manager_id: ls.at(-1)?.manager_id ?? '',
                   date: ls.at(-1)?.date ?? today,
                 },

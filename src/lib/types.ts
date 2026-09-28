@@ -127,6 +127,8 @@ export interface Category {
   provider_label: string | null
   pennylane_category_id: number | null
   visible_to_provider: boolean
+  /** Enseignement soumis à Qualiopi : déclaration séance par séance. */
+  requires_session: boolean
   is_active: boolean
   sort_order: number
   pole: Pole

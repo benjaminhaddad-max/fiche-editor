@@ -195,6 +195,8 @@ const CategorySchema = z.object({
   pole: z.enum(['coaching', 'professeur', 'referent', 'commercial', 'marketing', 'autres']),
   visible_to_provider: z.coerce.boolean<boolean>(),
   is_active: z.coerce.boolean<boolean>(),
+  /** Enseignement soumis à Qualiopi : déclaration séance par séance. */
+  requires_session: z.coerce.boolean<boolean>(),
 })
 
 export async function saveCategory(
@@ -208,6 +210,7 @@ export async function saveCategory(
     ...raw,
     visible_to_provider: formData.get('visible_to_provider') === 'on',
     is_active: formData.get('is_active') === 'on',
+    requires_session: formData.get('requires_session') === 'on',
   })
   if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error) }
 

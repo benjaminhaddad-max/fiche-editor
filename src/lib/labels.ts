@@ -134,3 +134,10 @@ export const RATE_TYPE_LABEL: Record<ContractRateType, string> = {
   horaire: 'À l’heure',
   mensuel: 'Mensuel',
 }
+
+/** Comment une séance s'est tenue — la preuve Qualiopi le demande. */
+export const MODALITE_LABEL: Record<string, string> = {
+  presentiel: 'Présentiel',
+  distanciel: 'Distanciel',
+  hybride: 'Hybride',
+}

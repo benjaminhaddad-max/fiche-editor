@@ -105,6 +105,25 @@ function CategoryForm({
         </label>
       </div>
 
+      {/* Qualiopi demande de prouver chaque séance, pas un total d'heures
+          mensuel. Cochée, cette case impose au prestataire le créneau, le
+          groupe, le module et la modalité — une ligne par séance. */}
+      <label className="flex cursor-pointer items-start gap-2 text-sm text-navy/80 sm:col-span-2">
+        <input
+          type="checkbox"
+          name="requires_session"
+          defaultChecked={category?.requires_session ?? false}
+          className="mt-0.5 h-4 w-4 accent-navy"
+        />
+        <span>
+          Déclaration séance par séance
+          <span className="block text-xs text-muted">
+            Pour les enseignements soumis à Qualiopi : créneau horaire, groupe, module et modalité
+            deviennent obligatoires, une ligne par séance.
+          </span>
+        </span>
+      </label>
+
       {state.error && (
         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 sm:col-span-2">
           {state.error}

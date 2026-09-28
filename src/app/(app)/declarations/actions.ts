@@ -34,6 +34,13 @@ const Ligne = z.object({
   pricing_type: z.enum(['forfait_mission', 'forfait_horaire', 'forfait_journalier']),
   quantity: z.coerce.number<number>().positive('Quantité supérieure à 0.').max(10000),
   unit_amount_ht: z.coerce.number<number>().nonnegative('Montant invalide.').max(1000000),
+  /** Le créneau réel de la séance, et ce qu'elle couvre — exigences Qualiopi. */
+  start_time: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal('')]).optional(),
+  end_time: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal('')]).optional(),
+  groupe: z.string().trim().max(120).optional(),
+  subject: z.string().trim().max(160).optional(),
+  modality: z.union([z.enum(['presentiel', 'distanciel', 'hybride']), z.literal('')]).optional(),
+  location: z.string().trim().max(160).optional(),
 })
 
 const Entete = z.object({
@@ -114,6 +121,14 @@ export async function declarer(
   const encadre = new Set((encadrants ?? []).map((e) => e.id as string))
   if (!encadre.has(managerId)) return { error: 'Ce manager n’est plus en poste, choisissez-en un autre.' }
 
+  // Les enseignements soumis à Qualiopi : leur déclaration doit porter le
+  // créneau, le groupe, le module et la modalité. Une ligne incomplète est
+  // refusée ici plutôt que découverte le jour de l'audit.
+  const { data: cats } = await db.from('inv_categories').select('id, requires_session')
+  const exigeSeance = new Set(
+    (cats ?? []).filter((c) => c.requires_session).map((c) => c.id as string)
+  )
+
   // ---- Lignes
   const lignes: z.infer<typeof Ligne>[] = []
   const lineErrors: Record<number, string> = {}
@@ -135,6 +150,22 @@ export async function declarer(
       const c = cycleForDate(r.data.date)
       lineErrors[i] = `Trop tard pour ${c.label} (clôture le ${formatDateLong(c.declarationDeadline)}). Cochez « régularisation » si c’est un rattrapage, ou demandez à votre manager de l’ajouter.`
       return
+    }
+    if (exigeSeance.has(r.data.category_id)) {
+      const manque = [
+        !r.data.start_time || !r.data.end_time ? 'le créneau horaire' : '',
+        !r.data.groupe ? 'le groupe' : '',
+        !r.data.subject ? 'le module' : '',
+        !r.data.modality ? 'la modalité' : '',
+      ].filter(Boolean)
+      if (manque.length) {
+        lineErrors[i] = `Cet enseignement se déclare séance par séance : il manque ${manque.join(', ')}.`
+        return
+      }
+      if (r.data.end_time! <= r.data.start_time!) {
+        lineErrors[i] = 'La fin de la séance doit suivre son début.'
+        return
+      }
     }
     if (user.role === 'manager' && !managerCanEdit(r.data.date)) {
       const c = cycleForDate(r.data.date)
@@ -178,6 +209,12 @@ export async function declarer(
     pricing_type: l.kind === 'bonus' ? 'forfait_mission' : l.pricing_type,
     quantity: l.kind === 'bonus' ? 1 : l.quantity,
     unit_amount_ht: l.kind === 'bonus' ? round2(l.quantity * l.unit_amount_ht) : l.unit_amount_ht,
+    start_time: l.start_time || null,
+    end_time: l.end_time || null,
+    groupe: l.groupe || null,
+    subject: l.subject || null,
+    modality: l.modality || null,
+    location: l.location || null,
     abatement_rate: abattement,
     total_ht: verse(l.quantity * l.unit_amount_ht),
     status,

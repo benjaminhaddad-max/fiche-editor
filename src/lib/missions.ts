@@ -5,6 +5,7 @@ import { getContractContext } from '@/lib/contract-context'
 
 export const MISSION_WITH_RELATIONS = `
   id, detail, formation, regularisation, regul_period, manager_id, start_date, end_date, pricing_type, quantity, unit_amount_ht,
+  start_time, end_time, groupe, subject, modality, location,
   total_ht, abatement_rate, status, submitted_at, manager_approved_at, admin_approved_at,
   rejected_at, rejection_reason,
   category:inv_categories(name, provider_label),
@@ -22,6 +23,12 @@ interface RawMission {
   abatement_rate: number
   start_date: string
   end_date: string | null
+  start_time: string | null
+  end_time: string | null
+  groupe: string | null
+  subject: string | null
+  modality: string | null
+  location: string | null
   pricing_type: ReviewMission['pricing_type']
   quantity: number
   unit_amount_ht: number
@@ -42,6 +49,12 @@ export function toReviewMission(row: RawMission): ReviewMission {
     abatement_rate: Number(row.abatement_rate ?? 0),
     start_date: row.start_date,
     end_date: row.end_date,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    groupe: row.groupe,
+    subject: row.subject,
+    modality: row.modality,
+    location: row.location,
     pricing_type: row.pricing_type,
     quantity: Number(row.quantity),
     unit_amount_ht: Number(row.unit_amount_ht),
