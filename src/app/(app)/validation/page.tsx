@@ -12,31 +12,44 @@ import { ManagerPicker } from '@/components/validation/ManagerPicker'
 import { getManagers } from '@/lib/queries'
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
+import { RecherchePrestataire } from '@/components/prestations/RecherchePrestataire'
+import { correspondPrestataire } from '@/lib/recherche-prestataire'
 
 export default async function ValidationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ manager?: string }>
+  searchParams: Promise<{ manager?: string; q?: string }>
 }) {
   const user = await requireRole('manager', 'admin')
-  const { manager } = await searchParams
+  const { manager, q } = await searchParams
+  const cherche = (q ?? '').trim()
   const cycle = cycleForDate(todayParis())
 
   if (user.role === 'manager') {
-    const [missions, managers] = await Promise.all([
+    const [toutes, managers] = await Promise.all([
       getMissionsByStatus(['submitted'], { managerId: user.id }),
       getManagers(),
     ])
+    const missions = toutes.filter((m) => correspondPrestataire(m.provider_name, cherche))
     return (
       <>
         <PrestationsNav user={user} current="a-valider" />
         <CalendrierMois pour="manager" />
         <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin={false} />
+        {(toutes.length > 0 || cherche) && (
+          <Suspense fallback={null}>
+            <RecherchePrestataire className="mb-4" />
+          </Suspense>
+        )}
         {missions.length === 0 ? (
-          <EmptyState
-            title="Rien à valider"
-            description="Aucune prestation ne vous est soumise pour le moment."
-          />
+          cherche ? (
+            <EmptyState title={`Aucune prestation à valider pour « ${cherche} »`} />
+          ) : (
+            <EmptyState
+              title="Rien à valider"
+              description="Aucune prestation ne vous est soumise pour le moment."
+            />
+          )
         ) : (
           <>
             <p className="mb-4 text-sm text-navy/70">
@@ -58,7 +71,7 @@ export default async function ValidationPage({
   const choix = manager ?? user.id
   const filtre = choix === 'tous' ? {} : { managerId: choix }
 
-  const [awaitingAdmin, awaitingManager, tousAdmin, tousManager, managers] =
+  const [parFiltreAdmin, parFiltreManager, tousAdmin, tousManager, managers] =
     await Promise.all([
       getMissionsByStatus(['manager_approved'], filtre),
       getMissionsByStatus(['submitted'], filtre),
@@ -67,8 +80,19 @@ export default async function ValidationPage({
       getManagers(),
     ])
 
-  const ailleurs =
-    tousAdmin.length + tousManager.length - awaitingAdmin.length - awaitingManager.length
+  // Une recherche de prestataire porte sur TOUS les managers : cherché par son
+  // nom, un prestataire rattaché à un autre manager ne doit pas rester caché
+  // derrière le filtre.
+  const awaitingAdmin = cherche
+    ? tousAdmin.filter((m) => correspondPrestataire(m.provider_name, cherche))
+    : parFiltreAdmin
+  const awaitingManager = cherche
+    ? tousManager.filter((m) => correspondPrestataire(m.provider_name, cherche))
+    : parFiltreManager
+
+  const ailleurs = cherche
+    ? 0
+    : tousAdmin.length + tousManager.length - parFiltreAdmin.length - parFiltreManager.length
 
   // L'état de la vérification, tous managers confondus : pendant ces trois
   // jours, la seule question utile est « qui n'a pas fini ». Le filtre y
@@ -104,8 +128,16 @@ export default async function ValidationPage({
       <EtatVerification lignes={etat} reviewEnd={cycle.reviewEnd} />
 
       <Suspense fallback={null}>
-        <ManagerPicker managers={managers} value={choix} ailleurs={ailleurs} />
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 [&>div]:mb-0">
+          <ManagerPicker managers={managers} value={choix} ailleurs={ailleurs} />
+          <RecherchePrestataire />
+        </div>
       </Suspense>
+      {cherche && (
+        <p className="-mt-3 mb-6 text-xs text-muted">
+          Recherche « {cherche} » sur tous les managers.
+        </p>
+      )}
 
       <section className="mb-10">
         <div className="mb-3 flex items-baseline justify-between">
@@ -122,7 +154,7 @@ export default async function ValidationPage({
           )}
         </div>
         {awaitingAdmin.length === 0 ? (
-          <EmptyState title="Rien de validé en attente du bordereau" />
+          <EmptyState title={cherche ? `Rien de validé pour « ${cherche} »` : 'Rien de validé en attente du bordereau'} />
         ) : (
           <ValidationTable missions={awaitingAdmin} showManager managers={managers} />
         )}
@@ -139,7 +171,7 @@ export default async function ValidationPage({
           Vous pouvez valider directement : les deux étapes seront cochées d’un coup.
         </p>
         {awaitingManager.length === 0 ? (
-          <EmptyState title="Aucune prestation en attente côté manager" />
+          <EmptyState title={cherche ? `Rien en attente côté manager pour « ${cherche} »` : 'Aucune prestation en attente côté manager'} />
         ) : (
           <ValidationTable missions={awaitingManager} showManager managers={managers} />
         )}

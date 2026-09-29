@@ -4,6 +4,8 @@ import { ClipboardCheck, FileSignature, UserPen, UserPlus } from 'lucide-react'
 import { Badge, MissionStatusBadge } from '@/components/ui/Badge'
 import { Card, EmptyState, StatTile } from '@/components/ui/Page'
 import { MissionFilters } from '@/components/admin/MissionFilters'
+import { RecherchePrestataire } from '@/components/prestations/RecherchePrestataire'
+import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import { formatPeriod, money } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { MissionStatus } from '@/lib/types'
@@ -35,6 +37,18 @@ interface Row {
 /** Toutes les prestations, filtrables : la vue d'historique de l'administrateur. */
 export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefined> }) {
   const supabase = await createServerSupabase()
+  const cherche = (f.q ?? '').trim()
+
+  // La liste des prestataires sert au menu ET à la recherche : on la lit
+  // d'abord, pour filtrer les prestations en base plutôt qu'après coup.
+  const { data: provs } = await supabase
+    .from('inv_providers')
+    .select('id, legal_name')
+    .eq('brand', getBrandId())
+    .order('legal_name')
+  const trouves = cherche
+    ? (provs ?? []).filter((p) => correspondPrestataire(p.legal_name, cherche)).map((p) => p.id)
+    : null
 
   let query = supabase
     .from('inv_missions')
@@ -54,11 +68,11 @@ export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefi
   if (f.categorie) query = query.eq('category_id', f.categorie)
   if (f.prestataire) query = query.eq('provider_id', f.prestataire)
   if (f.mois) query = query.gte('start_date', `${f.mois}-01`).lte('start_date', `${f.mois}-31`)
+  if (trouves) query = query.in('provider_id', trouves.length ? trouves : ['00000000-0000-0000-0000-000000000000'])
 
-  const [{ data }, { data: cats }, { data: provs }] = await Promise.all([
+  const [{ data }, { data: cats }] = await Promise.all([
     query,
     supabase.from('inv_categories').select('id, name').in('brand', brandScope()).order('sort_order'),
-    supabase.from('inv_providers').select('id, legal_name').eq('brand', getBrandId()).order('legal_name'),
   ])
 
   const missions = (data ?? []) as unknown as Row[]
@@ -97,6 +111,7 @@ export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefi
       </div>
 
       <Suspense fallback={null}>
+        <RecherchePrestataire className="mb-3" />
         <MissionFilters categories={cats ?? []} providers={provs ?? []} months={mois} />
       </Suspense>
 

@@ -1,6 +1,9 @@
 import { MissionStatusBadge } from '@/components/ui/Badge'
 import { HistoriqueAdmin } from '@/components/prestations/HistoriqueAdmin'
+import { Suspense } from 'react'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
+import { RecherchePrestataire } from '@/components/prestations/RecherchePrestataire'
+import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import { Card, EmptyState } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
 import { formatDate, formatPeriod, money } from '@/lib/format'
@@ -42,6 +45,18 @@ export default async function HistoriquePage({
     )
   }
   const supabase = await createServerSupabase()
+  const cherche = ((await searchParams).q ?? '').trim()
+
+  // Recherche d'un prestataire : filtrée en base, sinon le plafond de 200
+  // lignes cacherait ses prestations les plus anciennes.
+  let trouves: string[] | null = null
+  if (cherche) {
+    const { data: provs } = await supabase
+      .from('inv_providers')
+      .select('id, legal_name')
+      .eq('brand', getBrandId())
+    trouves = (provs ?? []).filter((p) => correspondPrestataire(p.legal_name, cherche)).map((p) => p.id)
+  }
 
   let query = supabase
     .from('inv_missions')
@@ -52,6 +67,7 @@ export default async function HistoriquePage({
     .limit(200)
 
   if (user.role === 'manager') query = query.eq('manager_id', user.id)
+  if (trouves) query = query.in('provider_id', trouves.length ? trouves : ['00000000-0000-0000-0000-000000000000'])
 
   const { data } = await query
   const rows = (data ?? []) as unknown as Row[]
@@ -60,8 +76,14 @@ export default async function HistoriquePage({
     <>
       <PrestationsNav user={user} current="historique" description="Les prestations que vous avez déjà traitées." />
 
+      <Suspense fallback={null}>
+        <RecherchePrestataire className="mb-4" />
+      </Suspense>
+
       {rows.length === 0 ? (
-        <EmptyState title="Aucune prestation traitée pour l’instant" />
+        <EmptyState
+          title={cherche ? `Aucune prestation traitée pour « ${cherche} »` : 'Aucune prestation traitée pour l’instant'}
+        />
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
@@ -9,6 +9,7 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { cycleForDate, cycleForMonth, providerCanDeclare } from '@/lib/cycle'
 import { money, round2 } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
+import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import type { DeclarationResult } from '@/app/(app)/declarations/actions'
 import type { Employment, Pole, PricingType } from '@/lib/types'
 
@@ -130,6 +131,13 @@ export function DeclarationForm(props: Props) {
   const { action, mode, categories, managers, providers, today } = props
   const [state, formAction] = useActionState<DeclarationResult, FormData>(action, {})
   const [providerId, setProviderId] = useState('')
+  // Plusieurs centaines de prestataires : on tape un bout de nom pour réduire
+  // la liste. Le prestataire déjà choisi reste toujours dans les options.
+  const [rechercheProvider, setRechercheProvider] = useState('')
+  const providersAffiches = useMemo(
+    () => (providers ?? []).filter((p) => p.id === providerId || correspondPrestataire(p.name, rechercheProvider)),
+    [providers, providerId, rechercheProvider]
+  )
   const [managerParDefaut, setManagerParDefaut] = useState(props.defaultManagerId ?? '')
   const employment: Employment =
     mode === 'prestataire'
@@ -214,10 +222,16 @@ export function DeclarationForm(props: Props) {
       <Card className="p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           {mode !== 'prestataire' && (
+            <div className="flex flex-col gap-2">
             <Select
               id="provider_id"
               name="provider_id"
               label="Prestataire"
+              hint={
+                rechercheProvider.trim()
+                  ? `${providersAffiches.length} prestataire${providersAffiches.length > 1 ? 's' : ''} correspond${providersAffiches.length > 1 ? 'ent' : ''}`
+                  : undefined
+              }
               value={providerId}
               onChange={(e) => setProviderId(e.target.value)}
               required
@@ -225,13 +239,37 @@ export function DeclarationForm(props: Props) {
               <option value="" disabled>
                 Choisir…
               </option>
-              {providers?.map((p) => (
+              {providersAffiches.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                   {p.employment !== 'independant' ? ` (${p.employment})` : ''}
                 </option>
               ))}
             </Select>
+            <div className="relative">
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone" />
+              <input
+                type="search"
+                value={rechercheProvider}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setRechercheProvider(v)
+                  // Un seul nom correspond : il est choisi d'office.
+                  const seuls = (providers ?? []).filter((p) => correspondPrestataire(p.name, v))
+                  if (v.trim() && seuls.length === 1) setProviderId(seuls[0].id)
+                }}
+                onKeyDown={(e) => {
+                  // Entrée soumettrait toute la déclaration.
+                  if (e.key === 'Enter') e.preventDefault()
+                }}
+                placeholder="Rechercher un prestataire…"
+                aria-label="Rechercher un prestataire"
+                className="field"
+                // `.field` est hors des couches Tailwind : un `pl-9` serait écrasé.
+                style={{ paddingLeft: '2.25rem' }}
+              />
+            </div>
+            </div>
           )}
           {mode === 'manager' ? (
             <input type="hidden" name="manager_id" value={props.defaultManagerId ?? ''} />

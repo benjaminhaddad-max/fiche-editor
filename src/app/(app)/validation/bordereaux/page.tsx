@@ -1,9 +1,12 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { AlertTriangle, Bell, MessageSquare, Send } from 'lucide-react'
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
 import { InvoiceStatusBadge } from '@/components/ui/Badge'
 import { Card, EmptyState, StatTile } from '@/components/ui/Page'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
+import { RecherchePrestataire } from '@/components/prestations/RecherchePrestataire'
+import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { requireRole } from '@/lib/auth'
 import { activeCycle, cycleForMonth, nextCycle, previousCycle, todayParis } from '@/lib/cycle'
@@ -25,10 +28,13 @@ interface Ligne {
 export default async function BordereauxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mois?: string }>
+  searchParams: Promise<{ mois?: string; q?: string }>
 }) {
   const user = await requireRole('manager', 'admin')
-  const { mois } = await searchParams
+  const { mois, q } = await searchParams
+  const cherche = (q ?? '').trim()
+  // La recherche suit le changement de mois : on cherche une personne, pas un mois.
+  const suffixe = cherche ? `&q=${encodeURIComponent(cherche)}` : ''
   const today = todayParis()
   const cycle = mois && /^\d{4}-\d{2}$/.test(mois) ? cycleForMonth(mois) : activeCycle(today)
   const envoye = today >= cycle.statementDate
@@ -91,6 +97,9 @@ export default async function BordereauxPage({
   const independants = visibles.filter(([, v]) => !v.salarie)
   const enAttente = visibles.reduce((n, [, v]) => n + v.enAttente, 0)
 
+  // Les tuiles gardent le mois entier ; seule la liste suit la recherche.
+  const affiches = visibles.filter(([, v]) => correspondPrestataire(v.nom, cherche))
+
   const prec = previousCycle(cycle)
   const suiv = nextCycle(cycle)
 
@@ -105,11 +114,11 @@ export default async function BordereauxPage({
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 text-sm">
-          <Link href={`/validation/bordereaux?mois=${prec.month}`} className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep">
+          <Link href={`/validation/bordereaux?mois=${prec.month}${suffixe}`} className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep">
             ←
           </Link>
           <p className="font-semibold capitalize text-navy">{cycle.label}</p>
-          <Link href={`/validation/bordereaux?mois=${suiv.month}`} className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep">
+          <Link href={`/validation/bordereaux?mois=${suiv.month}${suffixe}`} className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep">
             →
           </Link>
           <span className="text-muted">
@@ -149,8 +158,16 @@ export default async function BordereauxPage({
         />
       </div>
 
+      {visibles.length > 0 && (
+        <Suspense fallback={null}>
+          <RecherchePrestataire className="mb-4" />
+        </Suspense>
+      )}
+
       {visibles.length === 0 ? (
         <EmptyState title="Aucune prestation sur ce mois" />
+      ) : affiches.length === 0 ? (
+        <EmptyState title={`Personne ne correspond à « ${cherche} » sur ce mois`} />
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
@@ -165,7 +182,7 @@ export default async function BordereauxPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {visibles.map(([id, v]) => {
+                {affiches.map(([id, v]) => {
                   const s = bordereaux.get(id)
                   const facture = s?.invoice
                   const attendue = envoye && !v.salarie && (!facture || facture.status === 'issued')
