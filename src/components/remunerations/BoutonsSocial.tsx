@@ -65,7 +65,7 @@ export function BoutonsSocial({
             <input type="hidden" name="mois" value={mois} />
             <SubmitButton size="sm" pendingLabel="Envoi…" disabled={!pretes || !contact}>
               <Send size={14} />
-              {contact ? `Envoyer à ${contact.split(' ')[0]}` : 'Envoyer au social'}
+              {contact ? `Envoyer le récap à ${contact.split(' ')[0]}` : 'Envoyer le récap au social'}
             </SubmitButton>
           </form>
         </div>

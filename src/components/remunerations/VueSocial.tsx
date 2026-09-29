@@ -22,6 +22,11 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
 
   const pretes = lignes.filter((l) => l.status === 'approved')
   const enCours = lignes.filter((l) => l.status !== 'approved')
+  // Pour un salarié, le montant porté est ce qu'il touche : un net. Le brut
+  // ne subsiste que si quelqu'un a convenu d'un brut à part.
+  const somme = (l: typeof lignes, base: 'brut' | 'net') =>
+    round2(l.filter((x) => x.base === base).reduce((s, x) => s + x.total, 0))
+  const nature = (l: typeof lignes) => (l.some((x) => x.base === 'brut') ? 'brut' : 'net')
   const parPersonne = new Map<string, typeof lignes>()
   for (const l of lignes) parPersonne.set(l.personne, [...(parPersonne.get(l.personne) ?? []), l])
 
@@ -36,11 +41,11 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatTile
-          label="Prêt à envoyer (brut)"
-          value={money(round2(pretes.filter((l) => l.base === 'brut').reduce((s, l) => s + l.total, 0)))}
+          label={`Prêt à envoyer (${nature(pretes)})`}
+          value={money(round2(pretes.reduce((s, l) => s + l.total, 0)))}
           sub={
-            pretes.some((l) => l.base === 'net')
-              ? `+ ${money(round2(pretes.filter((l) => l.base === 'net').reduce((s, l) => s + l.total, 0)))} en net · ${pretes.length} ligne(s)`
+            somme(pretes, 'brut') && somme(pretes, 'net')
+              ? `dont ${money(somme(pretes, 'net'))} en net · ${pretes.length} ligne(s)`
               : `${pretes.length} ligne(s)`
           }
           accent="emerald"
@@ -68,10 +73,10 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                   {personne} <span className="ml-2 font-normal text-muted">{EMPLOYMENT_LABEL[ls[0].statut]}</span>
                 </p>
                 <p className="text-right text-sm font-semibold text-navy">
-                  {money(round2(ls.filter((l) => l.base === 'brut').reduce((s, l) => s + l.total, 0)))} brut
-                  {ls.some((l) => l.base === 'net') && (
+                  {money(round2(ls.reduce((s, l) => s + l.total, 0)))} {nature(ls)}
+                  {somme(ls, 'brut') > 0 && somme(ls, 'net') > 0 && (
                     <span className="mt-0.5 block text-xs font-medium text-gold-dark">
-                      + {money(round2(ls.filter((l) => l.base === 'net').reduce((s, l) => s + l.total, 0)))} convenus en net
+                      dont {money(somme(ls, 'net'))} en net
                     </span>
                   )}
                 </p>

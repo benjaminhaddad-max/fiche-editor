@@ -501,7 +501,7 @@ export const templates = {
     totalNet: number
     enAttente: { personne: string; n: number; total: number }[]
   }) => ({
-    subject: `Éléments de paie de ${p.label} — ${money(p.totalBrut)}${p.totalNet ? ` + ${money(p.totalNet)} en net` : ''}`,
+    subject: `Éléments de paie de ${p.label} — ${money(p.totalNet + p.totalBrut)} à verser`,
     html: layout(
       `Éléments variables de ${p.label}`,
       `<p style="margin:0 0 14px;">Voici les prestations validées de ${p.label}, à porter sur les bulletins.</p>
@@ -511,9 +511,9 @@ export const templates = {
          <div style="margin:0 0 14px;padding:12px 14px;background:#f7f4ee;border-radius:8px;">
            <p style="margin:0 0 6px;font-weight:600;color:#0e1e35;">${l.personne}
              <span style="font-weight:400;color:#8a7f6a;">— ${l.statut}</span></p>
-           <p style="margin:0 0 6px;font-size:16px;font-weight:600;color:#0e1e35;">${money(l.brut)} brut${
-             l.net ? ` <span style="font-size:13px;font-weight:500;color:#a8892e;">+ ${money(l.net)} convenus en net</span>` : ''
-           }</p>
+           <p style="margin:0 0 6px;font-size:16px;font-weight:600;color:#0e1e35;">${money(l.net + l.brut)} ${
+             l.brut && l.net ? 'à verser' : l.brut ? 'brut' : 'net'
+           }${l.brut && l.net ? ` <span style="font-size:13px;font-weight:500;color:#a8892e;">dont ${money(l.net)} en net</span>` : ''}</p>
            <ul style="margin:0;padding-left:18px;font-size:13px;color:#3b4c63;">
              ${l.detail.map((d) => `<li style="margin:2px 0;">${d}</li>`).join('')}
            </ul>
@@ -521,7 +521,12 @@ export const templates = {
          )
          .join('')}
        <p style="margin:14px 0 0;padding-top:12px;border-top:1px solid #e5ddc8;font-size:15px;">
-         <strong>Total : ${money(p.totalBrut)} brut</strong>${p.totalNet ? ` + ${money(p.totalNet)} convenus en net` : ''}</p>
+         <strong>Total : ${money(p.totalNet + p.totalBrut)} ${
+           p.totalBrut && p.totalNet ? 'à verser' : p.totalBrut ? 'brut' : 'net'
+         }</strong>${p.totalBrut && p.totalNet ? ` — dont ${money(p.totalNet)} en net` : ''}</p>
+       <p style="margin:8px 0 0;font-size:13px;color:#8a7f6a;">
+         Les montants indiqués « net » sont ceux que la personne doit toucher : l'abattement de
+         charges prévu au contrat en a déjà été retiré.</p>
        ${
          p.enAttente.length
            ? `<p style="margin:16px 0 0;padding:10px 12px;background:#fdf7e6;border:1px solid #e5ddc8;border-radius:8px;font-size:13px;color:#6b5b2a;">
