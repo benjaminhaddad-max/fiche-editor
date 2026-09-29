@@ -462,7 +462,31 @@ export const templates = {
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Vos prestations de ${p.label} doivent être déclarées
           <strong>au plus tard le ${formatDateLong(p.deadline)}</strong>.</p>
-       <p style="margin:0;">Après cette date, seul votre manager pourra en ajouter.</p>`,
+       <p style="margin:0;">Passé ce jour, vous pourrez encore les ajouter jusqu’à la fin du
+          mois en cochant « déclaration tardive » sous la date : votre manager les verra avec
+          les autres.</p>`,
+      { label: 'Déclarer mes prestations', href: `${APP_URL}/missions/new` }
+    ),
+  }),
+
+  /**
+   * Pour qui s'est heurté à la fenêtre de vérification.
+   *
+   * L'écran lui a dit que le mois était fermé et qu'il fallait passer par
+   * son manager. C'était faux, et beaucoup s'arrêtent là. On le lui dit.
+   */
+  declarationLate: (p: { name: string; label: string; reviewEnd: string }) => ({
+    subject: `Vos prestations de ${p.label} : c’est encore possible jusqu’au ${formatDateLong(p.reviewEnd)}`,
+    html: layout(
+      `Déclarer ${p.label}, c’est encore possible`,
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">Si vous avez essayé de déclarer vos prestations de ${p.label}
+          ces derniers jours, l’écran vous a répondu que le mois était fermé et qu’il fallait
+          passer par votre manager. <strong>C’était inexact</strong>, et nous l’avons corrigé.</p>
+       <p style="margin:0 0 12px;">Vous pouvez les saisir vous-même
+          <strong>jusqu’au ${formatDateLong(p.reviewEnd)}</strong>. Sous la date de chaque ligne,
+          cochez simplement « Déclaration tardive : le mois est en vérification ».</p>
+       <p style="margin:0;">Désolé pour le détour.</p>`,
       { label: 'Déclarer mes prestations', href: `${APP_URL}/missions/new` }
     ),
   }),
