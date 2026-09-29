@@ -14,6 +14,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { managerCanEdit } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
 import { getBrandId } from '@/lib/brand'
+import { montantVerse, tauxAbattement } from '@/lib/abattement'
+import type { Pole } from '@/lib/types'
 
 /**
  * Valide une prestation.
@@ -423,4 +425,57 @@ export async function relancerVerification(): Promise<RelanceVerification> {
       ? `Adresse à corriger, aucun message ne leur arrive : ${injoignables.join(' · ')}`
       : undefined,
   }
+}
+
+/**
+ * Lever ou rétablir l'abattement sur une prestation précise.
+ *
+ * La règle générale se décide sur la fiche de la personne — tel taux, sauf
+ * tel métier. Mais il reste des cas particuliers : un remboursement de
+ * transport n'est pas une rémunération, et lui retirer 20 % de charges n'a
+ * aucun sens. On ne touche donc pas à la règle, on corrige la ligne.
+ *
+ * Le montant convenu ne bouge pas : seul ce qui est versé se recalcule.
+ */
+export async function basculerAbattement(formData: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const id = String(formData.get('mission_id') ?? '')
+  if (!id) return
+
+  const db = createServiceClient()
+  const { data: m } = await db
+    .from('inv_missions')
+    .select('id, quantity, unit_amount_ht, abatement_rate, provider_id, category_id, invoice_id, status')
+    .eq('id', id)
+    .eq('brand', getBrandId())
+    .maybeSingle()
+  if (!m || m.invoice_id) return
+  if (!['submitted', 'manager_approved', 'approved'].includes(m.status)) return
+
+  // Lever, c'est mettre à zéro. Rétablir, c'est retrouver le taux que la
+  // règle aurait appliqué — pas un taux saisi au hasard.
+  let taux = 0
+  if (Number(m.abatement_rate ?? 0) === 0) {
+    const [{ data: fiche }, { data: cat }] = await Promise.all([
+      db.from('inv_providers').select('pay_abatement, abatement_exempt_poles').eq('id', m.provider_id).maybeSingle(),
+      db.from('inv_categories').select('pole').eq('id', m.category_id).maybeSingle(),
+    ])
+    taux = tauxAbattement(fiche ?? {}, cat?.pole as Pole | undefined)
+    if (!taux) return
+  }
+
+  const brut = Number(m.quantity) * Number(m.unit_amount_ht)
+  await db
+    .from('inv_missions')
+    .update({ abatement_rate: taux, total_ht: montantVerse(brut, taux) })
+    .eq('id', id)
+
+  await logAudit(db, {
+    actorId: user.id,
+    entityType: 'mission',
+    entityId: id,
+    action: taux ? 'abattement_retabli' : 'abattement_leve',
+    payload: { avant: Number(m.abatement_rate ?? 0), apres: taux, brut },
+  })
+  revalidatePath('/validation')
 }

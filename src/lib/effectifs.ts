@@ -3,6 +3,8 @@ import { cycleForMonth } from '@/lib/cycle'
 import { effectifsParCoach, labConfigure } from '@/lib/lab'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getBrandId } from '@/lib/brand'
+import { montantVerse, tauxAbattement } from '@/lib/abattement'
+import type { Pole } from '@/lib/types'
 
 export interface Regularisation {
   coach: string
@@ -53,7 +55,7 @@ export async function regulariserEffectifs(
     .from('inv_coaching_contracts')
     .select(
       `id, headcount, rate_base_amount, rate_base_headcount, manager_id, category_id, contract_type,
-       provider:inv_providers!inner(id, legal_name, pay_abatement, user:inv_users!inv_providers_user_id_fkey(email)),
+       provider:inv_providers!inner(id, legal_name, pay_abatement, abatement_exempt_poles, user:inv_users!inv_providers_user_id_fkey(email)),
        instalments:inv_contract_instalments!inner(due_date, label)`
     )
     .eq('brand', getBrandId())
@@ -71,7 +73,13 @@ export async function regulariserEffectifs(
     manager_id: string | null
     category_id: string | null
     contract_type: string
-    provider: { id: string; legal_name: string; pay_abatement: number; user: { email: string } | { email: string }[] | null }
+    provider: {
+      id: string
+      legal_name: string
+      pay_abatement: number
+      abatement_exempt_poles: string[] | null
+      user: { email: string } | { email: string }[] | null
+    }
     instalments: { due_date: string; label: string }[]
   }[]) {
     out.verifies++
@@ -113,7 +121,9 @@ export async function regulariserEffectifs(
       .maybeSingle()
     if (deja) continue
 
-    const abattement = Number(c.provider.pay_abatement ?? 0)
+    // Une régularisation d'effectif est du coaching : elle suit donc
+    // l'exemption éventuelle du coaching, pas le taux général.
+    const abattement = tauxAbattement(c.provider, c.contract_type as Pole)
     await db.from('inv_missions').insert({
       provider_id: c.provider.id,
       manager_id: c.manager_id,
@@ -125,7 +135,7 @@ export async function regulariserEffectifs(
       quantity: 1,
       unit_amount_ht: montant,
       abatement_rate: abattement,
-      total_ht: round2(montant * (1 - abattement / 100)),
+      total_ht: montantVerse(montant, abattement),
       status: 'manager_approved',
       origin: 'contract',
       regularisation: true,

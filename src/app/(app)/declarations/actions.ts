@@ -9,6 +9,8 @@ import { cycleForDate, managerCanEdit, providerCanDeclare } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { brandScope, getBrandId } from '@/lib/brand'
+import { montantVerse, tauxAbattement } from '@/lib/abattement'
+import type { Pole } from '@/lib/types'
 
 export interface DeclarationResult {
   error?: string
@@ -104,7 +106,7 @@ export async function declarer(
 
   const { data: provider } = await db
     .from('inv_providers')
-    .select('id, legal_name, employment_type, pay_abatement, brand')
+    .select('id, legal_name, employment_type, pay_abatement, abatement_exempt_poles, brand')
     .eq('id', providerId)
     .eq('brand', getBrandId())
     .maybeSingle()
@@ -129,11 +131,14 @@ export async function declarer(
   // refusée ici plutôt que découverte le jour de l'audit.
   const { data: cats } = await db
     .from('inv_categories')
-    .select('id, requires_session')
+    .select('id, pole, requires_session')
     .in('brand', brandScope())
   const exigeSeance = new Set(
     (cats ?? []).filter((c) => c.requires_session).map((c) => c.id as string)
   )
+  // Le pôle décide de l'abattement : un accord peut en exempter un métier
+  // précis sans exempter les autres.
+  const poleDe = new Map((cats ?? []).map((c) => [c.id as string, c.pole as Pole]))
 
   // ---- Lignes
   const lignes: z.infer<typeof Ligne>[] = []
@@ -192,11 +197,12 @@ export async function declarer(
   // Le montant écrit est celui convenu avec le manager ; ce qui sera versé
   // en tient compte de l'abattement du contrat. On fige le taux sur la
   // ligne : une prestation passée ne doit pas bouger si le taux change.
-  const abattement = Number(provider.pay_abatement ?? 0)
-  const verse = (brut: number) => round2(brut * (1 - abattement / 100))
+  const taux = (categoryId: string) => tauxAbattement(provider, poleDe.get(categoryId))
 
   const declarationId = randomUUID()
-  const rows = lignes.map((l) => ({
+  const rows = lignes.map((l) => {
+    const abattement = taux(l.category_id)
+    return {
     provider_id: providerId,
     manager_id: user.role === 'manager' ? user.id : l.manager_id || managerId,
     // L'école vient du prestataire, pas du déploiement : une prestation
@@ -226,7 +232,7 @@ export async function declarer(
     modality: l.modality || null,
     location: l.location || null,
     abatement_rate: abattement,
-    total_ht: verse(l.quantity * l.unit_amount_ht),
+    total_ht: montantVerse(l.quantity * l.unit_amount_ht, abattement),
     status,
     origin: user.role === 'prestataire' ? 'provider' : 'manager',
     declaration_id: declarationId,
@@ -234,7 +240,8 @@ export async function declarer(
     submitted_at: brouillon ? null : now,
     ...(user.role !== 'prestataire' ? { manager_approved_at: now, manager_approved_by: user.id } : {}),
     ...(user.role === 'admin' ? { admin_approved_at: now, admin_approved_by: user.id } : {}),
-  }))
+    }
+  })
 
   const { error } = await db.from('inv_missions').insert(rows)
   if (error) return { error: `Enregistrement impossible : ${error.message}` }

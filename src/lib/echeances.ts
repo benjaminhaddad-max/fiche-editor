@@ -2,6 +2,8 @@ import { PROGRAMME_LABEL } from '@/lib/contracts'
 import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { brandScope, getBrandId } from '@/lib/brand'
+import { montantVerse, tauxAbattement } from '@/lib/abattement'
+import type { Pole } from '@/lib/types'
 
 interface Due {
   id: string
@@ -51,9 +53,9 @@ export async function ouvrirEcheances(aujourdhui: string): Promise<{ ouvertes: n
   // au contrat est celui qu'on aurait versé à un auto-entrepreneur.
   const { data: fiches } = await db
     .from('inv_providers')
-    .select('id, pay_abatement')
+    .select('id, pay_abatement, abatement_exempt_poles')
     .eq('brand', getBrandId())
-  const abattement = new Map((fiches ?? []).map((f) => [f.id as string, Number(f.pay_abatement ?? 0)]))
+  const fiche = new Map((fiches ?? []).map((f) => [f.id as string, f]))
   const ignorees: string[] = []
   let ouvertes = 0
   const now = new Date().toISOString()
@@ -62,6 +64,12 @@ export async function ouvrirEcheances(aujourdhui: string): Promise<{ ouvertes: n
     const c = e.contract
     if (!c || c.status !== 'active') continue
     const categorie = c.category_id ?? cats?.find((x) => x.pole === c.contract_type)?.id
+    // Le taux dépend du métier : un accord peut exempter le coaching sans
+    // exempter le reste.
+    const abattu = tauxAbattement(
+      fiche.get(c.provider_id) ?? {},
+      cats?.find((x) => x.id === categorie)?.pole as Pole | undefined
+    )
     if (!c.manager_id || !categorie) {
       ignorees.push(`${e.label} (${c.id}) : ${!c.manager_id ? 'manager' : 'catégorie'} manquant`)
       continue
@@ -85,8 +93,8 @@ export async function ouvrirEcheances(aujourdhui: string): Promise<{ ouvertes: n
         pricing_type: 'forfait_mission',
         quantity: 1,
         unit_amount_ht: e.amount_ht,
-        abatement_rate: abattement.get(c.provider_id) ?? 0,
-        total_ht: round2(Number(e.amount_ht) * (1 - (abattement.get(c.provider_id) ?? 0) / 100)),
+        abatement_rate: abattu,
+        total_ht: montantVerse(Number(e.amount_ht), abattu),
         status: 'manager_approved',
         origin: 'contract',
         submitted_at: now,

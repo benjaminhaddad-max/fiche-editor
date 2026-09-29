@@ -1,6 +1,8 @@
 import { cycleForDate } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getBrandId } from '@/lib/brand'
+import { brandScope, getBrandId } from '@/lib/brand'
+import { montantVerse, tauxAbattement } from '@/lib/abattement'
+import type { Pole } from '@/lib/types'
 
 /**
  * Forfaits mensuels : un contrat freelance à 500 € par mois n'a pas à être
@@ -27,6 +29,17 @@ export async function ouvrirForfaitsMensuels(aujourdhui: string): Promise<{ ouve
     .eq('status', 'active')
     .lte('start_date', cycle.periodEnd)
 
+  // L'abattement de contrat s'appliquait partout sauf ici : un forfait
+  // mensuel partait au montant plein, même pour un salarié dont le contrat
+  // prévoit une retenue. Personne ne l'aurait vu, le montant convenu et le
+  // montant versé étant identiques sur la ligne.
+  const [{ data: fiches }, { data: cats }] = await Promise.all([
+    db.from('inv_providers').select('id, pay_abatement, abatement_exempt_poles').eq('brand', getBrandId()),
+    db.from('inv_categories').select('id, pole').in('brand', brandScope()),
+  ])
+  const fiche = new Map((fiches ?? []).map((f) => [f.id as string, f]))
+  const poleDe = new Map((cats ?? []).map((x) => [x.id as string, x.pole as Pole]))
+
   for (const c of data ?? []) {
     if (c.monthly_last_run && c.monthly_last_run >= cycle.periodStart) continue
     if (c.end_date && c.end_date < cycle.periodStart) continue
@@ -36,6 +49,7 @@ export async function ouvrirForfaitsMensuels(aujourdhui: string): Promise<{ ouve
     }
 
     const now = new Date().toISOString()
+    const abattu = tauxAbattement(fiche.get(c.provider_id) ?? {}, poleDe.get(c.category_id))
     const { error } = await db.from('inv_missions').insert({
       provider_id: c.provider_id,
       manager_id: c.manager_id,
@@ -46,7 +60,8 @@ export async function ouvrirForfaitsMensuels(aujourdhui: string): Promise<{ ouve
       pricing_type: 'forfait_mission',
       quantity: 1,
       unit_amount_ht: c.rate_amount,
-      total_ht: c.rate_amount,
+      abatement_rate: abattu,
+      total_ht: montantVerse(Number(c.rate_amount), abattu),
       status: 'manager_approved',
       origin: 'contract',
       declared_by: c.manager_id,

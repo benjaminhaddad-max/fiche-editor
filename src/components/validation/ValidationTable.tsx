@@ -5,6 +5,7 @@ import { Check, Pencil, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   approveMission,
+  basculerAbattement,
   corrigerMission,
   rejectMission,
   type CorrectionResultat,
@@ -26,6 +27,10 @@ export interface ReviewMission {
   formation: string | null
   regularisation: boolean
   regul_period: string | null
+  /** Sa fiche prévoit-elle un abattement ? Sinon, rien à lever. */
+  abattable?: boolean
+  /** Sous contrat : il ne facture pas, sa ligne part au service paie. */
+  salarie?: boolean
   /** Qui a posé la validation manager, et quand. Vide si personne encore. */
   manager_approved_at?: string | null
   valide_par?: string | null
@@ -116,6 +121,9 @@ export function ValidationTable({
   // geste attendu ici n'est plus « valider » mais « bon à payer » : garder le
   // même mot faisait croire que le manager n'avait rien fait.
   const dejaVues = missions.length > 0 && missions.every((m) => Boolean(m.manager_approved_at))
+  // Un salarié ne facture pas : sa ligne ne devient pas « bon à payer »,
+  // elle part au service paie. Le mot doit le dire.
+  const tousSalaries = missions.length > 0 && missions.every((m) => m.salarie)
   const gens = [...new Set(missions.map((m) => m.provider_name))].sort((a, b) => a.localeCompare(b, 'fr'))
   const visibles = qui ? missions.filter((m) => m.provider_name === qui) : missions
 
@@ -159,7 +167,11 @@ export function ValidationTable({
             </button>
             <SubmitButton size="sm" variant="success" pendingLabel="Validation…">
               <Check size={14} />
-              {dejaVues ? 'Bon à payer pour la sélection' : 'Valider la sélection'}
+              {!dejaVues
+                ? 'Valider la sélection'
+                : tousSalaries
+                  ? 'Bon pour la paie — la sélection'
+                  : 'Bon à payer pour la sélection'}
             </SubmitButton>
           </div>
         </form>
@@ -272,6 +284,20 @@ export function ValidationTable({
                         {` − ${m.abatement_rate} % (contrat)`}
                       </>
                     )}
+                    {/* Le levier au cas par cas : un remboursement de
+                        transport n'est pas une rémunération, et lui retirer
+                        des charges n'aurait aucun sens. */}
+                    {m.abattable && (
+                      <form action={basculerAbattement} className="mt-1 inline-block">
+                        <input type="hidden" name="mission_id" value={m.id} />
+                        <button
+                          type="submit"
+                          className="cursor-pointer text-[11px] font-medium text-gold-dark underline-offset-2 hover:underline"
+                        >
+                          {m.abatement_rate > 0 ? 'Lever l’abattement sur cette ligne' : 'Rétablir l’abattement'}
+                        </button>
+                      </form>
+                    )}
                   </p>
 
                   {m.manager_approved_at && (
@@ -383,7 +409,11 @@ export function ValidationTable({
                         className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
                       >
                         <Check size={14} />
-                        {m.manager_approved_at ? 'Bon à payer' : 'Valider'}
+                        {!m.manager_approved_at
+                          ? 'Valider'
+                          : m.salarie
+                            ? 'Bon pour la paie'
+                            : 'Bon à payer'}
                       </button>
                     </form>
                     <button
