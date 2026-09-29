@@ -1,6 +1,7 @@
 import { formatDate, formatDateLong, money } from '@/lib/format'
 import type { BillingCycle } from '@/lib/cycle'
 import { COMPANY } from '@/lib/types'
+import { brand } from '@/lib/brand'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 const INVITATION_DAYS = Number(process.env.INVITATION_DAYS ?? 30)
@@ -15,7 +16,7 @@ function layout(title: string, body: string, cta?: { label: string; href: string
              style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #e5ddc8;
                     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
         <tr><td style="padding:24px 28px 0;">
-          <p style="margin:0;font-size:13px;font-weight:600;color:#a8892e;letter-spacing:.3px;">DIPLOMA INVOICE</p>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#a8892e;letter-spacing:.3px;">${brand().appTitle.toUpperCase()}</p>
           <h1 style="margin:8px 0 0;font-size:19px;line-height:1.35;color:#0e1e35;">${title}</h1>
         </td></tr>
         <tr><td style="padding:16px 28px 4px;font-size:14px;line-height:1.65;color:#3b4c63;">
@@ -482,6 +483,75 @@ export const templates = {
        </ul>
        <p style="margin:0;">Dans les deux cas elle est lue automatiquement et classée : vous n'avez rien à saisir.</p>`,
       { label: 'Déposer une facture', href: `${APP_URL}/remunerations?vue=factures` }
+    ),
+  }),
+
+  /**
+   * Le récapitulatif envoyé au service paie.
+   *
+   * Il liste ce qui est acquis, personne par personne, et dit franchement
+   * ce qui ne l'est pas encore : envoyer un récapitulatif silencieux sur
+   * les lignes en attente ferait payer un mois incomplet sans que personne
+   * s'en aperçoive avant le bulletin.
+   */
+  socialRecap: (p: {
+    label: string
+    lignes: { personne: string; statut: string; brut: number; net: number; detail: string[] }[]
+    totalBrut: number
+    totalNet: number
+    enAttente: { personne: string; n: number; total: number }[]
+  }) => ({
+    subject: `Éléments de paie de ${p.label} — ${money(p.totalBrut)}${p.totalNet ? ` + ${money(p.totalNet)} en net` : ''}`,
+    html: layout(
+      `Éléments variables de ${p.label}`,
+      `<p style="margin:0 0 14px;">Voici les prestations validées de ${p.label}, à porter sur les bulletins.</p>
+       ${p.lignes
+         .map(
+           (l) => `
+         <div style="margin:0 0 14px;padding:12px 14px;background:#f7f4ee;border-radius:8px;">
+           <p style="margin:0 0 6px;font-weight:600;color:#0e1e35;">${l.personne}
+             <span style="font-weight:400;color:#8a7f6a;">— ${l.statut}</span></p>
+           <p style="margin:0 0 6px;font-size:16px;font-weight:600;color:#0e1e35;">${money(l.brut)} brut${
+             l.net ? ` <span style="font-size:13px;font-weight:500;color:#a8892e;">+ ${money(l.net)} convenus en net</span>` : ''
+           }</p>
+           <ul style="margin:0;padding-left:18px;font-size:13px;color:#3b4c63;">
+             ${l.detail.map((d) => `<li style="margin:2px 0;">${d}</li>`).join('')}
+           </ul>
+         </div>`
+         )
+         .join('')}
+       <p style="margin:14px 0 0;padding-top:12px;border-top:1px solid #e5ddc8;font-size:15px;">
+         <strong>Total : ${money(p.totalBrut)} brut</strong>${p.totalNet ? ` + ${money(p.totalNet)} convenus en net` : ''}</p>
+       ${
+         p.enAttente.length
+           ? `<p style="margin:16px 0 0;padding:10px 12px;background:#fdf7e6;border:1px solid #e5ddc8;border-radius:8px;font-size:13px;color:#6b5b2a;">
+                <strong>Pas encore validé, donc pas dans ce total :</strong><br>
+                ${p.enAttente.map((a) => `${a.personne} — ${a.n} ligne${a.n > 1 ? 's' : ''}, ${money(a.total)}`).join('<br>')}
+              </p>`
+           : ''
+       }`
+    ),
+  }),
+
+  /**
+   * La relance de vérification, mais pour les seuls salariés.
+   *
+   * La paie ne suit pas le rythme des factures : un bulletin se prépare
+   * plus tôt qu'un virement, et une ligne validée trop tard bascule sur le
+   * mois suivant. On relance donc à part, en le disant.
+   */
+  socialReminder: (p: { name: string; count: number; total: number; gens: string[]; label: string }) => ({
+    subject: `Paie de ${p.label} : ${p.count} prestation${p.count > 1 ? 's' : ''} de salariés à valider`,
+    html: layout(
+      'La paie n’attend pas',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;"><strong>${p.count} prestation${p.count > 1 ? 's' : ''}</strong>
+          (${money(p.total)}) de personnes <strong>sous contrat</strong> attendent votre validation :
+          ${p.gens.join(', ')}.</p>
+       <p style="margin:0;">Ces montants partent sur leur bulletin de salaire, pas sur une facture.
+          Le service paie les attend avant les autres : une ligne validée trop tard bascule sur le
+          mois suivant.</p>`,
+      { label: 'Valider ces prestations', href: `${APP_URL}/validation` }
     ),
   }),
 

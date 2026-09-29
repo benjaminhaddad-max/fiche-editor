@@ -41,6 +41,8 @@ export interface BrandConfig {
   email: { senderName: string; senderEmail: string }
   /** Adresse où déposer une facture reçue par mail, quand il y en a une. */
   inboundEmail: string | null
+  /** Qui prépare les bulletins : c'est à elle que part le récapitulatif de paie. */
+  payrollContact: { name: string; email: string } | null
 }
 
 export const BRANDS: Record<BrandId, BrandConfig> = {
@@ -68,6 +70,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderEmail: 'facturation@diploma-sante.fr',
     },
     inboundEmail: process.env.DEPOT_FACTURES_EMAIL ?? null,
+    payrollContact: { name: 'Shirel Benchetrit', email: 'shirel.benchetrit@diploma-sante.fr' },
   },
   linova: {
     id: 'linova',
@@ -102,6 +105,9 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderEmail: process.env.BREVO_SENDER_EMAIL ?? 'facturation@linova-education.fr',
     },
     inboundEmail: process.env.DEPOT_FACTURES_EMAIL ?? null,
+    // À renseigner dès que Linova aura son interlocuteur paie : sans lui, le
+    // bouton d'envoi se désactive plutôt que d'écrire à l'aveugle.
+    payrollContact: null,
   },
 }
 
