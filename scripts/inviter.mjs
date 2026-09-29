@@ -39,7 +39,22 @@ if (!/^https:\/\//.test(APP) || /localhost|127\.0\.0\.1|\.local/.test(APP)) {
   console.error('  Corrigez .env.local avant d\'envoyer quoi que ce soit.\n')
   process.exit(1)
 }
-const SOCIETE = process.env.NEXT_PUBLIC_COMPANY_NAME ?? 'Diploma Santé'
+// L'école servie : la même variable que les déploiements. Sans elle, une
+// invitation Linova partirait sous l'en-tête et le nom de Diploma.
+const MARQUE = process.env.NEXT_PUBLIC_BRAND === 'linova' ? 'linova' : 'diploma'
+const ECOLES = {
+  diploma: { produit: 'Diploma Invoice', societe: 'Diploma Santé' },
+  linova: { produit: 'Linova Invoice', societe: 'Linova Formation' },
+}
+const PRODUIT = ECOLES[MARQUE].produit
+const SOCIETE = process.env.NEXT_PUBLIC_COMPANY_NAME ?? ECOLES[MARQUE].societe
+
+// Un lien qui pointe sur l'autre école ne mène nulle part : on refuse
+// plutôt que d'envoyer un accès inutilisable.
+if (MARQUE === 'linova' && !APP.includes('linova')) {
+  console.error(`\n✗ NEXT_PUBLIC_BRAND vaut « linova » mais NEXT_PUBLIC_APP_URL pointe sur ${APP}.\n`)
+  process.exit(1)
+}
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const hash = (t) => createHash('sha256').update(t).digest('hex')
@@ -48,7 +63,7 @@ const enveloppe = (titre, corps, lien) => `<!doctype html><html lang="fr"><body 
 <table role="presentation" width="100%" style="background:#f7f4ee;padding:32px 12px;"><tr><td align="center">
 <table role="presentation" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid #e5ddc8;
  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-<tr><td style="padding:24px 28px 0;"><p style="margin:0;font-size:13px;font-weight:600;color:#0e1e35;letter-spacing:.3px;">DIPLOMA INVOICE</p>
+<tr><td style="padding:24px 28px 0;"><p style="margin:0;font-size:13px;font-weight:600;color:#0e1e35;letter-spacing:.3px;">${PRODUIT.toUpperCase()}</p>
 <h1 style="margin:8px 0 0;font-size:19px;line-height:1.35;color:#0e1e35;">${titre}</h1></td></tr>
 <tr><td style="padding:16px 28px 4px;font-size:14px;line-height:1.65;color:#3b4c63;">${corps}</td></tr>
 <tr><td style="padding:12px 28px 24px;"><a href="${lien}" style="display:inline-block;background:#0e1e35;
@@ -58,8 +73,8 @@ ${SOCIETE} — message automatique, merci de ne pas y répondre directement.</td
 </table></td></tr></table></body></html>`
 
 const SUJET = RENVOI
-  ? `Votre nouveau lien Diploma Invoice — ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' }).format(new Date())}`
-  : 'Créez votre accès à Diploma Invoice'
+  ? `Votre nouveau lien ${PRODUIT} — ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' }).format(new Date())}`
+  : `Créez votre accès à ${PRODUIT}`
 
 const AVERTISSEMENT = RENVOI
   ? `<p style="margin:0 0 12px;padding:10px 12px;background:#fdf7e6;border:1px solid #e5ddc8;
