@@ -60,6 +60,8 @@ interface Props {
   defaultManagerId?: string | null
   defaultPole?: Pole
   employment?: Employment
+  /** Ce que le contrat paie déjà, et qu'il ne faut donc pas redéclarer. */
+  couvertures?: { categoryId: string; resume: string }[]
   today: string
   deadlineText: string
 }
@@ -145,6 +147,8 @@ export function DeclarationForm(props: Props) {
       : (providers?.find((p) => p.id === providerId)?.employment ?? 'independant')
   const salarie = employment !== 'independant'
   const tarif = mode === 'prestataire' ? props.tarifs?.['moi'] : props.tarifs?.[providerId]
+  const couvertePar = (categoryId: string) =>
+    props.couvertures?.find((c) => c.categoryId === categoryId)?.resume ?? null
 
   const categorieParDefaut =
     categories.find((c) => c.pole === props.defaultPole)?.id ?? ''
@@ -380,6 +384,11 @@ export function DeclarationForm(props: Props) {
                         />
                         C’est un bonus
                       </label>
+                    )}
+                    {couvertePar(l.category_id) && (
+                      <p className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+                        {couvertePar(l.category_id)}
+                      </p>
                     )}
                   </Champ>
 

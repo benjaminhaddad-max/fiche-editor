@@ -112,7 +112,7 @@ export async function EtatDuMois({ providerId }: { providerId: string }) {
         <p className="mt-1.5 text-xs text-navy/70">
           {peutDeclarer
             ? `À déclarer avant le ${formatDateLong(mois.declarationDeadline)}.`
-            : 'Les déclarations de ce mois sont closes : demandez à votre manager.'}
+            : 'Les déclarations de ce mois sont closes, mais un oubli passe encore : cochez « déclaration tardive » sous sa date.'}
         </p>
       </div>
 

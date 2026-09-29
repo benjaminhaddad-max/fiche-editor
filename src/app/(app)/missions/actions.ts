@@ -208,6 +208,18 @@ export async function submitMission(formData: FormData): Promise<void> {
   revalidatePath('/missions')
 }
 
+/**
+ * Retirer une de ses prestations.
+ *
+ * Une ligne envoyée en validation ne pouvait plus être reprise : il fallait
+ * demander à son manager de la refuser. Alexandra a déclaré son coaching
+ * sans savoir qu'il était déjà couvert par son contrat, a vu le doublon sur
+ * son récapitulatif, et n'a rien pu faire — la ligne est partie en paie.
+ *
+ * Tant que personne ne l'a regardée, elle n'appartient qu'à celui qui l'a
+ * écrite. Dès qu'un manager l'a validée, en revanche, elle engage quelqu'un
+ * d'autre : on ne l'efface plus sans lui.
+ */
 export async function deleteMission(formData: FormData): Promise<void> {
   await requireProvider()
   const id = String(formData.get('mission_id') ?? '')
@@ -218,7 +230,7 @@ export async function deleteMission(formData: FormData): Promise<void> {
     .from('inv_missions')
     .delete()
     .eq('id', id)
-    .in('status', ['draft', 'rejected'])
+    .in('status', ['draft', 'submitted', 'rejected'])
 
   revalidatePath('/missions')
 }

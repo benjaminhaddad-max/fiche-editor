@@ -7,6 +7,7 @@ import { activeCycle, cycleForDate, providerCanDeclare, todayParis } from '@/lib
 import { formatDateLong } from '@/lib/format'
 import { getCategoriesWithPole, getManagers } from '@/lib/queries'
 import { baremesParPrestataire } from '@/lib/contracts/baremes'
+import { couvertureParContrat } from '@/lib/contracts/couverture'
 import { isSalaried, type Pole } from '@/lib/types'
 import { declarer } from '../../declarations/actions'
 
@@ -17,10 +18,11 @@ export default async function NewMissionPage({
 }) {
   const { pole } = await searchParams
   const { provider } = await requireProvider()
-  const [categories, managers, tarifs] = await Promise.all([
+  const [categories, managers, tarifs, couvertures] = await Promise.all([
     getCategoriesWithPole({ forProvider: true }),
     getManagers(),
     baremesParPrestataire(),
+    couvertureParContrat(provider.id),
   ])
   // Le prestataire ne voit que le sien.
   const monTarif = tarifs[provider.id] ? { moi: tarifs[provider.id] } : undefined
@@ -67,6 +69,7 @@ export default async function NewMissionPage({
         defaultPole={pole}
         employment={provider.employment_type}
         tarifs={monTarif}
+        couvertures={couvertures}
         today={today}
         deadlineText={texte}
       />

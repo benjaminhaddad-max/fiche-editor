@@ -31,8 +31,8 @@ function etapes(pour: Public, c: ReturnType<typeof activeCycle>): Etape[] {
     ]
   }
   return [
-    { phase: 'declaration', quand: `jusqu’au ${formatDateLong(c.declarationDeadline)}`, quoi: 'Déclarez vos prestations du mois. Passé cette date, seul votre manager peut en ajouter.' },
-    { phase: 'verification', quand: du(c.reviewStart, c.reviewEnd), quoi: 'Vos managers vérifient. Rien à faire de votre côté, sauf s’ils vous écrivent.' },
+    { phase: 'declaration', quand: `jusqu’au ${formatDateLong(c.declarationDeadline)}`, quoi: 'Déclarez vos prestations du mois. Passé cette date, vous pourrez encore en ajouter en cochant « déclaration tardive ».' },
+    { phase: 'verification', quand: du(c.reviewStart, c.reviewEnd), quoi: 'Vos managers vérifient. Vous pouvez encore ajouter un oubli en cochant « déclaration tardive » sous sa date.' },
     { phase: 'facturation', quand: `${le(c.statementDate)} → ${formatDateLong(c.invoiceDeadline)}`, quoi: 'Vous recevez votre bordereau : générez ou déposez votre facture sous 2 jours.' },
     { phase: 'paiement', quand: le(c.paymentDate), quoi: 'Paiement, par virement (le 3, ou le premier jour ouvré qui suit).' },
   ]
