@@ -4,7 +4,8 @@ import { cycleForDate, todayParis } from '@/lib/cycle'
 import { Clock } from 'lucide-react'
 import { EmptyState } from '@/components/ui/Page'
 import { ValidationTable } from '@/components/validation/ValidationTable'
-import { EtatVerification, type LigneManager } from '@/components/validation/EtatVerification'
+import { PanneauVerification } from '@/components/validation/PanneauVerification'
+import type { LigneManager } from '@/components/validation/EtatVerification'
 import { requireRole } from '@/lib/auth'
 import { money } from '@/lib/format'
 import { getMissionsByStatus } from '@/lib/missions'
@@ -139,7 +140,7 @@ export default async function ValidationPage({
         }
       />
 
-      <EtatVerification lignes={etat} reviewEnd={cycle.reviewEnd} />
+      <PanneauVerification lignes={etat} reviewEnd={cycle.reviewEnd} />
 
       <Suspense fallback={null}>
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 [&>div]:mb-0">

@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState, useState } from 'react'
-import { ArrowRightLeft, Check, Pencil, X } from 'lucide-react'
+import { Fragment, useActionState, useState } from 'react'
+import { ArrowRightLeft, Check, ChevronRight, Pencil, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   approveMission,
@@ -118,6 +118,17 @@ export function ValidationTable({
   const [editing, setEditing] = useState<string | null>(null)
   const [correction, setCorrection] = useState<(CorrectionResultat & { id: string }) | null>(null)
   const [confier, setConfier] = useState<string | null>(null)
+  // Le détail se déplie à la demande. Tout afficher d'emblée donnait des
+  // lignes de cinq hauteurs : on ne voyait plus que six prestations à
+  // l'écran, et il fallait défiler pour en juger vingt.
+  const [ouvert, setOuvert] = useState<Set<string>>(new Set())
+  const basculerDetail = (id: string) =>
+    setOuvert((p) => {
+      const n = new Set(p)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
   const [transfert, transferer] = useActionState<TransfertResultat | null, FormData>(
     reattribuerMissions,
     null
@@ -295,11 +306,11 @@ export function ValidationTable({
           </thead>
           <tbody className="divide-y divide-line/60">
             {visibles.map((m) => (
+            <Fragment key={m.id}>
               <tr
-                key={m.id}
-                className={selection.has(m.id) ? 'bg-emerald-50/60 align-top' : 'align-top'}
+                className={clsx('align-middle', selection.has(m.id) && 'bg-emerald-50/60')}
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-2">
                   <input
                     type="checkbox"
                     checked={selection.has(m.id)}
@@ -307,18 +318,96 @@ export function ValidationTable({
                     className="h-4 w-4 cursor-pointer accent-emerald-600"
                   />
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 font-medium text-navy">
+                <td className="whitespace-nowrap px-4 py-2 font-medium text-navy">
                   {m.provider_name}
                 </td>
-                <td className="px-4 py-3">
-                  <p className="flex flex-wrap items-center gap-2 text-navy">
-                    {m.detail}
+                <td className="px-4 py-2">
+                  <button
+                    type="button"
+                    onClick={() => basculerDetail(m.id)}
+                    title={ouvert.has(m.id) ? 'Replier' : 'Voir le détail'}
+                    className="flex w-full cursor-pointer items-center gap-1.5 text-left"
+                  >
+                    <ChevronRight
+                      size={14}
+                      className={clsx(
+                        'shrink-0 text-navy/40 transition-transform',
+                        ouvert.has(m.id) && 'rotate-90'
+                      )}
+                    />
+                    <span className="truncate text-navy">{m.detail}</span>
                     {m.regularisation && (
-                      <span className="rounded-full bg-amber-50 px-2 py-px text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-                        Rattrapage {m.regul_period ? cycleForMonth(m.regul_period).label : cycleForDate(m.start_date).label}
+                      <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-px text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                        rattrapage
                       </span>
                     )}
-                  </p>
+                    {m.manager_approved_at && (
+                      <span className="shrink-0 text-emerald-600" title={`Validée par ${m.valide_par ?? 'son manager'}`}>
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                </td>
+                <td className="whitespace-nowrap px-4 py-2 text-navy/70">
+                  {formatPeriod(m.start_date, m.end_date)}
+                </td>
+                {showManager && (
+                  <td className="whitespace-nowrap px-4 py-2 text-navy/70">
+                    {m.manager_name}
+                  </td>
+                )}
+                <td className="whitespace-nowrap px-4 py-2 text-right font-semibold text-navy">
+                  {money(m.total_ht)}
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <form action={approveMission}>
+                      <input type="hidden" name="mission_id" value={m.id} />
+                      <button
+                        type="submit"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
+                      >
+                        <Check size={14} />
+                        {!m.manager_approved_at
+                          ? 'Valider'
+                          : m.salarie
+                            ? 'Bon pour la paie'
+                            : 'Bon à payer'}
+                      </button>
+                    </form>
+                    {managers.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setConfier(confier === m.id ? null : m.id)}
+                        title="Cette prestation n’est pas pour vous ? La confier à un autre manager"
+                        className="cursor-pointer rounded-lg border border-line p-1.5 text-navy/60 transition-colors hover:border-gold/50 hover:text-navy"
+                      >
+                        <ArrowRightLeft size={14} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditing(editing === m.id ? null : m.id)}
+                      title="Corriger la désignation, la quantité ou le montant"
+                      className="inline-flex cursor-pointer items-center rounded-lg border border-line p-1.5 text-navy/70 hover:bg-cream-muted"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRejecting(rejecting === m.id ? null : m.id)}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-navy/80 transition-colors hover:bg-cream-muted"
+                    >
+                      <X size={14} />
+                      Refuser
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {(ouvert.has(m.id) || editing === m.id || rejecting === m.id || confier === m.id) && (
+                <tr key={`${m.id}-detail`} className="bg-cream-muted/40">
+                  <td />
+                  <td colSpan={showManager ? 6 : 5} className="px-4 pb-3 pt-0">
                   {/* La preuve Qualiopi se lit ici : sans le créneau et le
                       groupe sous les yeux, un manager valide un total d'heures
                       sans savoir ce qu'il valide. */}
@@ -480,63 +569,10 @@ export function ValidationTable({
                       </div>
                     </form>
                   )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-navy/70">
-                  {formatPeriod(m.start_date, m.end_date)}
-                </td>
-                {showManager && (
-                  <td className="whitespace-nowrap px-4 py-3 text-navy/70">
-                    {m.manager_name}
                   </td>
-                )}
-                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
-                  {money(m.total_ht)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-2">
-                    <form action={approveMission}>
-                      <input type="hidden" name="mission_id" value={m.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
-                      >
-                        <Check size={14} />
-                        {!m.manager_approved_at
-                          ? 'Valider'
-                          : m.salarie
-                            ? 'Bon pour la paie'
-                            : 'Bon à payer'}
-                      </button>
-                    </form>
-                    {managers.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setConfier(confier === m.id ? null : m.id)}
-                        title="Cette prestation n’est pas pour vous ? La confier à un autre manager"
-                        className="cursor-pointer rounded-lg border border-line p-1.5 text-navy/60 transition-colors hover:border-gold/50 hover:text-navy"
-                      >
-                        <ArrowRightLeft size={14} />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setEditing(editing === m.id ? null : m.id)}
-                      title="Corriger la désignation, la quantité ou le montant"
-                      className="inline-flex cursor-pointer items-center rounded-lg border border-line p-1.5 text-navy/70 hover:bg-cream-muted"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRejecting(rejecting === m.id ? null : m.id)}
-                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-navy/80 transition-colors hover:bg-cream-muted"
-                    >
-                      <X size={14} />
-                      Refuser
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                </tr>
+              )}
+            </Fragment>
             ))}
           </tbody>
         </table>

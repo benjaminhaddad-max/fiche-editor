@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { clsx } from 'clsx'
 import Link from 'next/link'
 import { Send } from 'lucide-react'
 import { Card } from '@/components/ui/Page'
@@ -33,9 +34,12 @@ export interface LigneManager {
 export function EtatVerification({
   lignes,
   reviewEnd,
+  nu = false,
 }: {
   lignes: LigneManager[]
   reviewEnd: string
+  /** Dans un panneau, le cadre est déjà là : on ne le redouble pas. */
+  nu?: boolean
 }) {
   const [etat, relancer] = useActionState<RelanceVerification | null, FormData>(
     () => relancerVerification(),
@@ -50,12 +54,19 @@ export function EtatVerification({
 
   if (lignes.length === 0) return null
 
+  const Cadre = nu ? Nu : Card
+
   return (
-    <Card className="mb-6 overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-cream-muted px-4 py-3 sm:px-5">
+    <Cadre className={nu ? '' : 'mb-6 overflow-hidden'}>
+      <div
+        className={clsx(
+          'flex flex-wrap items-start justify-between gap-3',
+          nu ? 'mb-3' : 'border-b border-line bg-cream-muted px-4 py-3 sm:px-5'
+        )}
+      >
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-navy">Où en est la vérification</p>
-          <p className="mt-0.5 text-xs text-muted">
+          {!nu && <p className="text-sm font-semibold text-navy">Où en est la vérification</p>}
+          <p className={nu ? 'text-xs text-muted' : 'mt-0.5 text-xs text-muted'}>
             À valider avant le {formatDateLong(reviewEnd)} : le bordereau part le lendemain.
           </p>
         </div>
@@ -136,6 +147,11 @@ export function EtatVerification({
       {etat?.error && (
         <p className="border-t border-line bg-red-50 px-4 py-2.5 text-sm text-red-700 sm:px-5">{etat.error}</p>
       )}
-    </Card>
+    </Cadre>
   )
+}
+
+/** Un cadre qui n'en est pas un, pour l'usage en panneau. */
+function Nu({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={className}>{children}</div>
 }
