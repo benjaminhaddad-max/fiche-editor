@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useState } from 'react'
 import { Logo } from '@/components/ui/Logo'
 import { createClient } from '@/lib/supabase/client'
 
@@ -12,13 +12,22 @@ import { createClient } from '@/lib/supabase/client'
  * la personne entrait « avec succès » puis se faisait renvoyer de page en
  * page jusqu'à un écran blanc.
  *
- * La session ouverte est refermée dès l'affichage : la laisser vivre ferait
- * reboucler l'entrée à chaque visite.
+ * On garde la session ouverte tant que cet écran est affiché. La refermer
+ * tout de suite paraissait plus propre, mais le middleware renvoie à la
+ * connexion dès qu'il n'y a plus de session : le message s'affichait puis
+ * disparaissait aussitôt, et on retombait sur le formulaire sans avoir rien
+ * pu lire. La déconnexion attend donc qu'on la demande.
  */
 export function AutreEcole({ ecole, site }: { ecole: string; site: string }) {
-  useEffect(() => {
-    createClient().auth.signOut()
-  }, [])
+  const [sortie, setSortie] = useState(false)
+
+  async function changerDeCompte() {
+    setSortie(true)
+    await createClient().auth.signOut()
+    // Rechargement franc plutôt que navigation interne : la session vient
+    // de disparaître, le routeur travaillerait sur un état périmé.
+    window.location.href = '/login'
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-cream px-4">
@@ -38,9 +47,14 @@ export function AutreEcole({ ecole, site }: { ecole: string; site: string }) {
             Aller sur {site.replace('https://', '')}
           </a>
         </div>
-        <a href="/login" className="mt-4 inline-block text-xs text-muted hover:text-navy">
-          Me connecter avec un autre compte
-        </a>
+        <button
+          type="button"
+          onClick={changerDeCompte}
+          disabled={sortie}
+          className="mt-4 cursor-pointer text-xs text-muted hover:text-navy disabled:opacity-50"
+        >
+          {sortie ? 'Déconnexion…' : 'Me connecter avec un autre compte'}
+        </button>
       </div>
     </div>
   )
