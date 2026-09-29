@@ -187,6 +187,21 @@ export function providerCanDeclare(missionDate: string, today: string = todayPar
   return today <= cycleForDate(missionDate).declarationDeadline
 }
 
+/**
+ * Le mois de cette date est-il en vérification ?
+ *
+ * Entre la clôture des déclarations et la fin du mois, les managers
+ * relisent : le prestataire ne peut plus rien ajouter de lui-même. Mais ce
+ * mois-là n'est pas « passé » pour autant — il n'est même pas fini. Lui
+ * proposer un « rattrapage d'un mois passé » pour déclarer le travail de la
+ * semaine, c'est lui demander de se reconnaître dans une phrase qui ne
+ * décrit pas sa situation. Beaucoup renoncent là.
+ */
+export function enVerification(missionDate: string, today: string = todayParis()): boolean {
+  const c = cycleForDate(missionDate)
+  return today > c.declarationDeadline && today <= c.reviewEnd
+}
+
 /** Un manager peut-il encore saisir ou corriger cette prestation ? Jusqu'à L. */
 export function managerCanEdit(missionDate: string, today: string = todayParis()): boolean {
   return today <= cycleForDate(missionDate).reviewEnd

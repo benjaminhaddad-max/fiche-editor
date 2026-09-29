@@ -6,7 +6,7 @@ import { clsx } from 'clsx'
 import { Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { cycleForDate, cycleForMonth, providerCanDeclare } from '@/lib/cycle'
+import { cycleForDate, cycleForMonth, enVerification, providerCanDeclare } from '@/lib/cycle'
 import { money, round2 } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
 import { correspondPrestataire } from '@/lib/recherche-prestataire'
@@ -433,6 +433,11 @@ export function DeclarationForm(props: Props) {
                       onChange={(e) => maj(l.cle, { date: e.target.value })}
                       aria-label="Date"
                     />
+                    {/* Le même interrupteur sert à deux situations qui ne se
+                        ressemblent pas : déclarer un mois déjà clos, et
+                        déclarer le mois en cours une fois la vérification
+                        commencée. Il se nomme donc d'après celle où l'on se
+                        trouve — sinon personne ne s'y reconnaît. */}
                     <label className="mt-1.5 flex items-start gap-1.5 text-xs text-navy/70">
                       <input
                         type="checkbox"
@@ -445,7 +450,11 @@ export function DeclarationForm(props: Props) {
                         }
                         className="mt-0.5 accent-navy"
                       />
-                      <span>Rattrapage d’un mois passé</span>
+                      <span>
+                        {enVerification(l.date, today)
+                          ? 'Déclaration tardive : le mois est en vérification'
+                          : 'Rattrapage d’un mois passé'}
+                      </span>
                     </label>
                     {l.regularisation && (
                       <select
@@ -462,8 +471,19 @@ export function DeclarationForm(props: Props) {
                       </select>
                     )}
                     {mode === 'prestataire' && !providerCanDeclare(l.date, today) && !l.regularisation && (
-                      <p className="mt-1 text-xs text-amber-700">
-                        {cycleForDate(l.date).label} est clos : cochez « rattrapage ».
+                      <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                        {enVerification(l.date, today) ? (
+                          <>
+                            {cycleForDate(l.date).label} est en vérification : les managers relisent.
+                            Cochez « déclaration tardive » juste au-dessus pour l’ajouter quand même —
+                            votre manager la verra avec les autres.
+                          </>
+                        ) : (
+                          <>
+                            {cycleForDate(l.date).label} est clos : cochez « rattrapage d’un mois
+                            passé » juste au-dessus pour l’ajouter quand même.
+                          </>
+                        )}
                       </p>
                     )}
                   </Champ>

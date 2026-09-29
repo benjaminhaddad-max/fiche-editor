@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getSessionUser } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { cycleForDate, managerCanEdit, providerCanDeclare } from '@/lib/cycle'
+import { cycleForDate, enVerification, managerCanEdit, providerCanDeclare } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { brandScope, getBrandId } from '@/lib/brand'
@@ -159,7 +159,11 @@ export async function declarer(
     }
     if (user.role === 'prestataire' && !providerCanDeclare(r.data.date) && !r.data.regularisation) {
       const c = cycleForDate(r.data.date)
-      lineErrors[i] = `Trop tard pour ${c.label} (clôture le ${formatDateLong(c.declarationDeadline)}). Cochez « régularisation » si c’est un rattrapage, ou demandez à votre manager de l’ajouter.`
+      // Le message nomme la case telle qu'elle s'appelle à l'écran : deux
+      // mots pour un seul interrupteur, et on cherche celui qui n'existe pas.
+      lineErrors[i] = enVerification(r.data.date)
+        ? `${c.label} est en vérification depuis le ${formatDateLong(c.reviewStart)} : cochez « déclaration tardive » pour l’ajouter quand même.`
+        : `${c.label} est clos depuis le ${formatDateLong(c.declarationDeadline)} : cochez « rattrapage d’un mois passé » pour l’ajouter quand même.`
       return
     }
     if (exigeSeance.has(r.data.category_id)) {

@@ -28,9 +28,12 @@ export default async function NewMissionPage({
   const today = todayParis()
   const mois = cycleForDate(today)
   const precedent = activeCycle(today)
+  // Cette phrase disait « vous ne pouvez plus y ajouter de prestation » :
+  // c'était faux, et c'est là que les gens renonçaient. On peut encore, en
+  // cochant « déclaration tardive » — autant le dire tout de suite.
   const texte = providerCanDeclare(today)
     ? `Prestations de ${mois.label} : à déclarer au plus tard le ${formatDateLong(mois.declarationDeadline)}.`
-    : `${mois.label} est en vérification depuis le ${formatDateLong(mois.reviewStart)} : vous ne pouvez plus y ajouter de prestation, demandez à votre manager. Vous pouvez déclarer celles du mois prochain.`
+    : `${mois.label} est en vérification depuis le ${formatDateLong(mois.reviewStart)} : les managers relisent. Vous pouvez encore ajouter une prestation de ${mois.label} en cochant « déclaration tardive » sous sa date — votre manager la verra avec les autres.`
 
   return (
     <>
