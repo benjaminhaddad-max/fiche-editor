@@ -28,7 +28,21 @@ export interface LectureFournisseur {
   avertissement: string | null
 }
 
-const nullable = (type: string, description: string) => ({ type: [type, 'null'], description })
+/**
+ * Un champ absent se dit par une chaîne vide, pas par `null`.
+ *
+ * L'API refuse un schéma qui passe seize paramètres à type multiple — le
+ * coût de compilation explose. Celui-ci en comptait dix-huit : toutes les
+ * factures déposées à l'adresse de dépôt repartaient en « Lecture
+ * impossible : 400 ». Seuls les montants gardent donc `null`, parce que
+ * zéro y est une valeur comme une autre ; pour le texte, le vide suffit à
+ * dire l'absence.
+ */
+const texte = (description: string) => ({
+  type: 'string',
+  description: `${description} Chaîne vide si l’information ne figure pas sur le document.`,
+})
+const nombre = (description: string) => ({ type: ['number', 'null'], description })
 
 const SCHEMA = {
   type: 'object',
@@ -38,27 +52,27 @@ const SCHEMA = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        nom: nullable('string', 'Raison sociale ou nom de l’émetteur de la facture (pas Diploma Santé).'),
-        siret: nullable('string', 'SIRET (14 chiffres) ou SIREN (9 chiffres) de l’émetteur, chiffres seulement.'),
-        tva_intracom: nullable('string', 'Numéro de TVA intracommunautaire de l’émetteur.'),
-        adresse: nullable('string', 'Rue de l’émetteur.'),
-        code_postal: nullable('string', 'Code postal de l’émetteur.'),
-        ville: nullable('string', 'Ville de l’émetteur.'),
-        email: nullable('string', 'Email de l’émetteur.'),
-        iban: nullable('string', 'IBAN de l’émetteur.'),
+        nom: texte('Raison sociale ou nom de l’émetteur de la facture (pas Diploma Santé).'),
+        siret: texte('SIRET (14 chiffres) ou SIREN (9 chiffres) de l’émetteur, chiffres seulement.'),
+        tva_intracom: texte('Numéro de TVA intracommunautaire de l’émetteur.'),
+        adresse: texte('Rue de l’émetteur.'),
+        code_postal: texte('Code postal de l’émetteur.'),
+        ville: texte('Ville de l’émetteur.'),
+        email: texte('Email de l’émetteur.'),
+        iban: texte('IBAN de l’émetteur.'),
       },
       required: ['nom', 'siret', 'tva_intracom', 'adresse', 'code_postal', 'ville', 'email', 'iban'],
     },
-    numero: nullable('string', 'Numéro de la facture.'),
-    date: nullable('string', 'Date d’émission au format AAAA-MM-JJ.'),
-    echeance: nullable('string', 'Date d’échéance au format AAAA-MM-JJ.'),
-    objet: nullable('string', 'Objet de la facture en une ligne.'),
-    total_ht: nullable('number', 'Total hors taxes.'),
-    montant_tva: nullable('number', 'Montant total de TVA (0 si non applicable).'),
-    total_ttc: nullable('number', 'Total toutes taxes comprises, net à payer.'),
-    taux_tva: nullable('number', 'Taux de TVA principal en pourcentage (20, 10, 5.5, 0).'),
-    categorie: nullable('string', 'La catégorie la plus adaptée, recopiée exactement depuis la liste fournie.'),
-    avertissement: nullable('string', 'Une phrase si le document n’est pas une facture, est illisible, ou si les totaux ne se recoupent pas.'),
+    numero: texte('Numéro de la facture.'),
+    date: texte('Date d’émission au format AAAA-MM-JJ.'),
+    echeance: texte('Date d’échéance au format AAAA-MM-JJ.'),
+    objet: texte('Objet de la facture en une ligne.'),
+    total_ht: nombre('Total hors taxes.'),
+    montant_tva: nombre('Montant total de TVA (0 si non applicable).'),
+    total_ttc: nombre('Total toutes taxes comprises, net à payer.'),
+    taux_tva: nombre('Taux de TVA principal en pourcentage (20, 10, 5.5, 0).'),
+    categorie: texte('La catégorie la plus adaptée, recopiée exactement depuis la liste fournie.'),
+    avertissement: texte('Une phrase si le document n’est pas une facture, est illisible, ou si les totaux ne se recoupent pas.'),
   },
   required: ['fournisseur', 'numero', 'date', 'echeance', 'objet', 'total_ht', 'montant_tva', 'total_ttc', 'taux_tva', 'categorie', 'avertissement'],
 } as const
@@ -77,7 +91,7 @@ export async function lireFactureFournisseur(pdf: Buffer, categories: string[]):
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf.toString('base64') } },
           {
             type: 'text',
-            text: `Cette facture a été adressée à Diploma Santé, qui en est le CLIENT. Extrais l'identité de l'ÉMETTEUR (le fournisseur) et les montants, tels qu'ils sont écrits, sans rien inventer : un champ absent vaut null.
+            text: `Cette facture a été adressée à Diploma Santé, qui en est le CLIENT. Extrais l'identité de l'ÉMETTEUR (le fournisseur) et les montants, tels qu'ils sont écrits, sans rien inventer : un champ texte absent vaut une chaîne vide, un montant absent vaut null.
 
 Catégories comptables possibles (recopie exactement l'une d'elles dans "categorie", ou "Autres") :
 ${categories.map((c) => `- ${c}`).join('\n')}`,
@@ -89,7 +103,34 @@ ${categories.map((c) => `- ${c}`).join('\n')}`,
   if (response.stop_reason === 'refusal') throw new Error('La lecture du document a été refusée.')
   const bloc = response.content.find((b) => b.type === 'text')
   if (!bloc || bloc.type !== 'text') throw new Error('Aucun contenu lisible dans la réponse.')
-  return JSON.parse(bloc.text) as LectureFournisseur
+
+  // Le schéma dit l'absence par une chaîne vide ; le reste du code lit des
+  // `null`. On rétablit la convention ici, en un seul endroit.
+  const lu = JSON.parse(bloc.text) as Record<string, unknown>
+  const vide = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+  const f = (lu.fournisseur ?? {}) as Record<string, unknown>
+  return {
+    fournisseur: {
+      nom: vide(f.nom),
+      siret: vide(f.siret),
+      tva_intracom: vide(f.tva_intracom),
+      adresse: vide(f.adresse),
+      code_postal: vide(f.code_postal),
+      ville: vide(f.ville),
+      email: vide(f.email),
+      iban: vide(f.iban),
+    },
+    numero: vide(lu.numero),
+    date: vide(lu.date),
+    echeance: vide(lu.echeance),
+    objet: vide(lu.objet),
+    total_ht: typeof lu.total_ht === 'number' ? lu.total_ht : null,
+    montant_tva: typeof lu.montant_tva === 'number' ? lu.montant_tva : null,
+    total_ttc: typeof lu.total_ttc === 'number' ? lu.total_ttc : null,
+    taux_tva: typeof lu.taux_tva === 'number' ? lu.taux_tva : null,
+    categorie: vide(lu.categorie),
+    avertissement: vide(lu.avertissement),
+  }
 }
 
 const norm = (s: string | null | undefined) =>
@@ -151,7 +192,14 @@ export async function enregistrerFactureDiverse(input: {
   try {
     lu = await lireFactureFournisseur(input.pdf, categories.map((c) => c.name))
   } catch (err) {
-    return { ok: false, error: `Lecture impossible : ${err instanceof Error ? err.message : String(err)}` }
+    // Le détail technique reste dans les journaux : renvoyer une erreur
+    // d'API à l'expéditeur, c'est lui demander de déboguer notre code.
+    console.error('[facture diverse] lecture impossible', err)
+    return {
+      ok: false,
+      error:
+        'Le document n’a pas pu être analysé. Vérifiez qu’il s’agit bien d’une facture au format PDF, puis renvoyez-le ; si cela se reproduit, prévenez la comptabilité.',
+    }
   }
 
   const nom = lu.fournisseur.nom?.trim()
