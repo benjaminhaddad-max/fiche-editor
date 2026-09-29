@@ -488,11 +488,15 @@ export interface TransfertResultat {
 /**
  * Confier un paquet de prestations à un autre manager.
  *
- * Un manager s'absente — arrêt, congés, départ — et ses prestations restent
- * bloquées derrière lui : personne d'autre ne les voit dans sa liste, et le
- * bordereau part sans elles. Les réattribuer une par une par le formulaire
- * de correction supposait de retaper la désignation, la quantité et le
- * montant de chaque ligne.
+ * Deux situations, un même geste. Un manager s'absente — arrêt, congés,
+ * départ — et ses prestations restent bloquées derrière lui : personne
+ * d'autre ne les voit dans sa liste, et le bordereau part sans elles. Ou
+ * bien le prestataire s'est simplement trompé de destinataire, et celui qui
+ * reçoit la ligne est le premier à s'en apercevoir.
+ *
+ * Un manager peut donc transmettre, mais seulement ce qui lui est confié :
+ * il ne déplace pas les prestations d'un collègue. L'administration, elle,
+ * déplace n'importe quoi.
  *
  * Celui qui les reçoit validera en son nom : c'est lui qui répond de ce
  * qu'il approuve, et l'historique garde trace du transfert.
@@ -501,7 +505,7 @@ export async function reattribuerMissions(
   _prev: TransfertResultat | null,
   formData: FormData
 ): Promise<TransfertResultat> {
-  const user = await requireRole('admin')
+  const user = await requireRole('manager', 'admin')
   const ids = [...new Set(formData.getAll('mission_id').map(String).filter(Boolean))]
   const vers = String(formData.get('vers') ?? '')
   if (!ids.length) return { error: 'Choisissez au moins une prestation.' }
@@ -519,7 +523,7 @@ export async function reattribuerMissions(
   if (!cible) return { error: 'Cette personne n’encadre pas, ou n’est plus en poste.' }
 
   // Une prestation déjà facturée ou partie en paie ne change plus de main.
-  const { data: lignes } = await db
+  let q = db
     .from('inv_missions')
     .select('id, manager_id, total_ht')
     .in('id', ids)
@@ -527,7 +531,17 @@ export async function reattribuerMissions(
     .in('status', ['submitted', 'manager_approved'])
     .is('invoice_id', null)
     .is('payroll_batch_id', null)
-  if (!lignes?.length) return { error: 'Aucune de ces prestations ne peut être transférée.' }
+  // Un manager ne transmet que ce qu'on lui a confié.
+  if (user.role === 'manager') q = q.eq('manager_id', user.id)
+  const { data: lignes } = await q
+  if (!lignes?.length) {
+    return {
+      error:
+        user.role === 'manager'
+          ? 'Aucune de ces prestations ne vous est confiée, ou elles ne sont plus transférables.'
+          : 'Aucune de ces prestations ne peut être transférée.',
+    }
+  }
 
   const aBouger = lignes.filter((l) => l.manager_id !== cible.id)
   if (!aBouger.length) return { error: `Ces prestations sont déjà confiées à ${cible.full_name}.` }

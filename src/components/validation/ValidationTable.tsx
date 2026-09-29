@@ -105,11 +105,14 @@ export function ValidationTable({
   missions,
   showManager,
   managers = [],
+  moi,
 }: {
   missions: ReviewMission[]
   showManager?: boolean
   /** Pour réattribuer une prestation au bon manager depuis la correction. */
   managers?: { id: string; full_name: string }[]
+  /** Qui regarde : on ne se propose pas à soi-même comme destinataire. */
+  moi?: string
 }) {
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -165,11 +168,13 @@ export function ValidationTable({
             <option value="" disabled>
               Choisir…
             </option>
-            {managers.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.full_name}
-              </option>
-            ))}
+            {managers
+              .filter((x) => x.id !== moi)
+              .map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.full_name}
+                </option>
+              ))}
           </select>
           <SubmitButton size="sm" variant="secondary" pendingLabel="Transfert…">
             <ArrowRightLeft size={14} />

@@ -58,7 +58,7 @@ export default async function ValidationPage({
                 {money(missions.reduce((s, m) => s + m.total_ht, 0))} HT
               </span>
             </p>
-            <ValidationTable missions={missions} managers={managers} />
+            <ValidationTable missions={missions} managers={managers} moi={user.id} />
           </>
         )}
       </>
@@ -156,7 +156,7 @@ export default async function ValidationPage({
         {awaitingAdmin.length === 0 ? (
           <EmptyState title={cherche ? `Rien de validé pour « ${cherche} »` : 'Rien de validé en attente du bordereau'} />
         ) : (
-          <ValidationTable missions={awaitingAdmin} showManager managers={managers} />
+          <ValidationTable missions={awaitingAdmin} showManager managers={managers} moi={user.id} />
         )}
       </section>
 
@@ -173,7 +173,7 @@ export default async function ValidationPage({
         {awaitingManager.length === 0 ? (
           <EmptyState title={cherche ? `Rien en attente côté manager pour « ${cherche} »` : 'Aucune prestation en attente côté manager'} />
         ) : (
-          <ValidationTable missions={awaitingManager} showManager managers={managers} />
+          <ValidationTable missions={awaitingManager} showManager managers={managers} moi={user.id} />
         )}
       </section>
     </>
