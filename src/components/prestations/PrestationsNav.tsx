@@ -1,24 +1,30 @@
 import { PageHeader } from '@/components/ui/Page'
+import { ongletsDuMois } from '@/components/layout/onglets-du-mois'
+import { activeCycle } from '@/lib/cycle'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
 import { getBrandId } from '@/lib/brand'
 
 /**
- * Le bandeau de la page « Prestations », côté manager et admin : un seul
- * titre, et ses quatre vues en onglets dedans. Le compteur « à valider » est
- * relu à chaque affichage, c'est lui qui appelle à l'action.
+ * Le bandeau du mois, côté manager et admin : un seul titre, et toutes les
+ * vues du mois en onglets dedans — validation, bordereaux, factures, paie.
+ * Le compteur « à valider » est relu à chaque affichage, c'est lui qui
+ * appelle à l'action.
  */
 export async function PrestationsNav({
   user,
   current,
   title = 'Prestations',
-  description = 'Validez, corrigez ou refusez les prestations de vos prestataires avant le bordereau du mois.',
+  description = 'Tout le mois au même endroit : ce qui est à valider, ce qui part en bordereau, et ce qui se paie.',
+  mois,
   actions,
 }: {
   user: AppUser
   current: string
   title?: string
   description?: string
+  /** Le mois affiché, pour que les onglets de rémunération y restent. */
+  mois?: string
   actions?: React.ReactNode
 }) {
   const supabase = await createServerSupabase()
@@ -36,12 +42,7 @@ export async function PrestationsNav({
       description={description}
       actions={actions}
       currentTab={current}
-      tabs={[
-        { key: 'a-valider', label: 'À valider', href: '/validation', count: count ?? 0 },
-        { key: 'declarer', label: 'Déclarer pour un prestataire', href: '/validation/declarer' },
-        { key: 'bordereaux', label: 'Bordereaux du mois', href: '/validation/bordereaux' },
-        { key: 'historique', label: 'Historique', href: '/validation/historique' },
-      ]}
+      tabs={ongletsDuMois(user.role, count ?? 0, mois ?? activeCycle().month)}
     />
   )
 }

@@ -33,7 +33,7 @@ export default async function DeclarerPourPage() {
     <>
       <PrestationsNav
         user={user}
-        current="declarer"
+        current="a-valider"
         description="Déclarez directement les missions de vos prestataires : elles rejoindront leur bordereau du mois."
       />
       <CalendrierMois pour="manager" />

@@ -70,10 +70,27 @@ function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
     ]
   }
 
+  // Un seul point d'entrée pour le mois. « Prestations » et
+  // « Rémunérations » étaient deux entrées avec chacune ses onglets : on
+  // validait d'un côté, on payait de l'autre, et il fallait ressortir du
+  // menu pour suivre un montant de bout en bout. C'est le même sujet à deux
+  // moments, ce sont donc des onglets, pas deux rubriques.
   const activite: NavGroup = {
-    label: 'Activité',
+    label: 'Le mois',
     items: [
-      { href: '/validation', label: 'Prestations', icon: ListChecks, prefixes: ['/validation'] },
+      {
+        href: '/validation',
+        label: 'Prestations',
+        icon: ListChecks,
+        prefixes: [
+          '/validation',
+          '/remunerations',
+          '/admin/factures',
+          '/admin/paie',
+          '/paie-du-mois',
+          '/factures-diverses',
+        ],
+      },
       { href: '/bons-de-mission', label: 'Bons de mission', icon: ClipboardList, prefixes: ['/bons-de-mission'] },
     ],
   }
@@ -81,17 +98,6 @@ function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
   if (role === 'manager') {
     return [
       activite,
-      {
-        label: 'Rémunérations',
-        items: [
-          {
-            href: '/remunerations',
-            label: 'Rémunérations',
-            icon: Wallet,
-            prefixes: ['/remunerations', '/paie-du-mois', '/factures-diverses'],
-          },
-        ],
-      },
       {
         label: 'Dossiers',
         items: [
@@ -105,17 +111,6 @@ function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
 
   return [
     activite,
-    {
-      label: 'Rémunérations',
-      items: [
-        {
-          href: '/remunerations',
-          label: 'Rémunérations',
-          icon: Wallet,
-          prefixes: ['/remunerations', '/admin/factures', '/admin/paie', '/paie-du-mois'],
-        },
-      ],
-    },
     {
       label: 'Dossiers',
       items: [

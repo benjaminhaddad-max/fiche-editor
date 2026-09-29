@@ -1,6 +1,6 @@
+import Link from 'next/link'
 import { Suspense } from 'react'
 import { cycleForDate, todayParis } from '@/lib/cycle'
-import { OutilsManager } from '@/components/validation/OutilsManager'
 import { Clock } from 'lucide-react'
 import { EmptyState } from '@/components/ui/Page'
 import { ValidationTable } from '@/components/validation/ValidationTable'
@@ -14,6 +14,7 @@ import { CalendrierMois } from '@/components/cycle/CalendrierMois'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 import { RecherchePrestataire } from '@/components/prestations/RecherchePrestataire'
 import { correspondPrestataire } from '@/lib/recherche-prestataire'
+import { PenLine } from 'lucide-react'
 
 export default async function ValidationPage({
   searchParams,
@@ -33,9 +34,17 @@ export default async function ValidationPage({
     const missions = toutes.filter((m) => correspondPrestataire(m.provider_name, cherche))
     return (
       <>
-        <PrestationsNav user={user} current="a-valider" />
+        <PrestationsNav
+          user={user}
+          current="a-valider"
+          actions={
+            <Link href="/validation/declarer" className="ds-header-action-ghost">
+              <PenLine size={16} />
+              Déclarer pour un prestataire
+            </Link>
+          }
+        />
         <CalendrierMois pour="manager" />
-        <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin={false} />
         {(toutes.length > 0 || cherche) && (
           <Suspense fallback={null}>
             <RecherchePrestataire className="mb-4" />
@@ -122,8 +131,13 @@ export default async function ValidationPage({
         user={user}
         current="a-valider"
         description="Ce que les managers ont validé part dans le bordereau du 1er. Vous pouvez intervenir avant."
+        actions={
+          <Link href="/validation/declarer" className="ds-header-action-ghost">
+            <PenLine size={16} />
+            Déclarer pour un prestataire
+          </Link>
+        }
       />
-      <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin />
 
       <EtatVerification lignes={etat} reviewEnd={cycle.reviewEnd} />
 

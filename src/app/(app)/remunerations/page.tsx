@@ -11,6 +11,7 @@ import { requireRole } from '@/lib/auth'
 import { activeCycle, cycleForMonth, nextCycle, previousCycle } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
 import { brandScope } from '@/lib/brand'
+import { ongletsDuMois } from '@/components/layout/onglets-du-mois'
 
 export const maxDuration = 300
 
@@ -28,21 +29,16 @@ export default async function RemunerationsPage({
   const { vue, mois, onglet } = await searchParams
   const cycle = mois && /^\d{4}-\d{2}$/.test(mois) ? cycleForMonth(mois) : activeCycle()
 
-  const vues: TabItem[] =
-    user.role === 'admin'
-      ? [
-          { key: 'mois', label: 'Ce mois-ci', href: `/remunerations?mois=${cycle.month}` },
-          { key: 'factures', label: 'Factures', href: `/remunerations?vue=factures&mois=${cycle.month}` },
-          { key: 'elements', label: 'Éléments de paie', href: `/remunerations?vue=elements&mois=${cycle.month}` },
-          { key: 'bulletins', label: 'Bulletins', href: `/remunerations?vue=bulletins&mois=${cycle.month}` },
-          { key: 'social', label: 'À envoyer au social', href: `/remunerations?vue=social&mois=${cycle.month}` },
-        ]
-      : [
-          { key: 'elements', label: 'Éléments de paie', href: `/remunerations?vue=elements&mois=${cycle.month}` },
-          { key: 'deposer', label: 'Déposer une facture', href: '/remunerations?vue=deposer' },
-        ]
+  // Les mêmes onglets que « Prestations » : c'est le même mois, vu plus
+  // loin dans son parcours. Les avoir en double dans le menu obligeait à
+  // ressortir pour suivre un montant de bout en bout.
+  const vues: TabItem[] = ongletsDuMois(user.role, 0, cycle.month)
+  if (user.role !== 'admin') {
+    vues.push({ key: 'deposer', label: 'Déposer une facture', href: '/remunerations?vue=deposer' })
+  }
 
-  const courant = vues.some((v) => v.key === vue) ? vue! : vues[0].key
+  const connues = new Set(vues.map((v) => v.key))
+  const courant = vue && connues.has(vue) ? vue : user.role === 'admin' ? 'mois' : 'elements'
   const { data: cats } =
     courant === 'deposer'
       ? await createServiceClient()
