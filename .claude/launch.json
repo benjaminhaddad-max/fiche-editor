@@ -21,6 +21,17 @@
         "3100"
       ],
       "port": 3100
+    },
+    {
+      "name": "linova-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "start",
+        "-p",
+        "3200"
+      ],
+      "port": 3200
     }
   ]
 }
