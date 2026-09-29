@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Search, X } from 'lucide-react'
 
 /**
@@ -13,13 +13,18 @@ export function RecherchePrestataire({ className = '' }: { className?: string })
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const [texte, setTexte] = useState(params.get('q') ?? '')
+  const dansLAdresse = params.get('q') ?? ''
+  const [texte, setTexte] = useState(dansLAdresse)
+  const [vu, setVu] = useState(dansLAdresse)
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Retour arrière / lien suivi : le champ reprend ce que dit l'adresse.
-  useEffect(() => {
-    setTexte(params.get('q') ?? '')
-  }, [params])
+  // Retour arrière / lien suivi : le champ reprend ce que dit l'adresse. On
+  // le recale pendant le rendu plutôt que dans un effet — un effet ferait
+  // s'afficher l'ancien texte le temps d'une image.
+  if (vu !== dansLAdresse) {
+    setVu(dansLAdresse)
+    setTexte(dansLAdresse)
+  }
 
   function appliquer(v: string) {
     const next = new URLSearchParams(params.toString())

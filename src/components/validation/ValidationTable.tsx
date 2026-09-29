@@ -13,8 +13,7 @@ import {
   type TransfertResultat,
 } from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
-import { cycleForDate, cycleForMonth } from '@/lib/cycle'
-import { formatDateLong, formatPeriod, money } from '@/lib/format'
+import { formatDate, formatDateLong, formatPeriod, money } from '@/lib/format'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { MODALITE_LABEL, PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
 
@@ -114,10 +113,18 @@ export function ValidationTable({
   /** Qui regarde : on ne se propose pas à soi-même comme destinataire. */
   moi?: string
 }) {
-  const [rejecting, setRejecting] = useState<string | null>(null)
-  const [editing, setEditing] = useState<string | null>(null)
+  // Corriger, transférer, refuser : trois volets sous la même ligne. Un seul
+  // à la fois, sinon on ne sait plus lequel on est en train de remplir.
+  const [volet, setVolet] = useState<{ id: string; quoi: 'corriger' | 'confier' | 'refuser' } | null>(null)
+  const ouvrir = (id: string, quoi: 'corriger' | 'confier' | 'refuser') =>
+    setVolet((v) => (v?.id === id && v.quoi === quoi ? null : { id, quoi }))
+  const editing = volet?.quoi === 'corriger' ? volet.id : null
+  const confier = volet?.quoi === 'confier' ? volet.id : null
+  const rejecting = volet?.quoi === 'refuser' ? volet.id : null
+  const setEditing = (id: string | null) => setVolet(id ? { id, quoi: 'corriger' } : null)
+  const setRejecting = (id: string | null) => setVolet(id ? { id, quoi: 'refuser' } : null)
+  const setConfier = (id: string | null) => setVolet(id ? { id, quoi: 'confier' } : null)
   const [correction, setCorrection] = useState<(CorrectionResultat & { id: string }) | null>(null)
-  const [confier, setConfier] = useState<string | null>(null)
   // Le détail se déplie à la demande. Tout afficher d'emblée donnait des
   // lignes de cinq hauteurs : on ne voyait plus que six prestations à
   // l'écran, et il fallait défiler pour en juger vingt.
@@ -125,8 +132,12 @@ export function ValidationTable({
   const basculerDetail = (id: string) =>
     setOuvert((p) => {
       const n = new Set(p)
-      if (n.has(id)) n.delete(id)
-      else n.add(id)
+      if (n.has(id)) {
+        n.delete(id)
+        // Replier ferme aussi le formulaire ouvert dessous : sinon le détail
+        // se rouvrait de lui-même et le repli semblait sans effet.
+        setVolet((v) => (v?.id === id ? null : v))
+      } else n.add(id)
       return n
     })
   const [transfert, transferer] = useActionState<TransfertResultat | null, FormData>(
@@ -282,10 +293,19 @@ export function ValidationTable({
 
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col className="w-8" />
+            <col className="w-44" />
+            <col />
+            <col className="w-28" />
+            {showManager && <col className="w-32" />}
+            <col className="w-24" />
+            <col className="w-36" />
+          </colgroup>
           <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
             <tr>
-              <th className="w-10 px-4 py-3">
+              <th className="px-3 py-2.5">
                 <input
                   type="checkbox"
                   checked={tousCoches}
@@ -296,12 +316,12 @@ export function ValidationTable({
                   className="h-4 w-4 cursor-pointer accent-emerald-600"
                 />
               </th>
-              <th className="px-4 py-3 font-medium">Prestataire</th>
-              <th className="px-4 py-3 font-medium">Prestation</th>
-              <th className="px-4 py-3 font-medium">Période</th>
-              {showManager && <th className="px-4 py-3 font-medium">Manager</th>}
-              <th className="px-4 py-3 text-right font-medium">Montant HT</th>
-              <th className="px-4 py-3 text-right font-medium">Décision</th>
+              <th className="px-3 py-2.5 font-medium">Prestataire</th>
+              <th className="px-3 py-2.5 font-medium">Prestation</th>
+              <th className="px-3 py-2.5 font-medium">Période</th>
+              {showManager && <th className="px-3 py-2.5 font-medium">Manager</th>}
+              <th className="px-3 py-2.5 text-right font-medium">Montant HT</th>
+              <th className="px-3 py-2.5 text-right font-medium">Décision</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line/60">
@@ -310,7 +330,7 @@ export function ValidationTable({
               <tr
                 className={clsx('align-middle', selection.has(m.id) && 'bg-emerald-50/60')}
               >
-                <td className="px-4 py-2">
+                <td className="px-3 py-2">
                   <input
                     type="checkbox"
                     checked={selection.has(m.id)}
@@ -318,10 +338,10 @@ export function ValidationTable({
                     className="h-4 w-4 cursor-pointer accent-emerald-600"
                   />
                 </td>
-                <td className="whitespace-nowrap px-4 py-2 font-medium text-navy">
+                <td className="truncate px-3 py-2 font-medium text-navy" title={m.provider_name}>
                   {m.provider_name}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-3 py-2">
                   <button
                     type="button"
                     onClick={() => basculerDetail(m.id)}
@@ -335,7 +355,9 @@ export function ValidationTable({
                         ouvert.has(m.id) && 'rotate-90'
                       )}
                     />
-                    <span className="truncate text-navy">{m.detail}</span>
+                    <span className="truncate text-navy" title={m.detail}>
+                      {m.detail}
+                    </span>
                     {m.regularisation && (
                       <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-px text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">
                         rattrapage
@@ -348,66 +370,42 @@ export function ValidationTable({
                     )}
                   </button>
                 </td>
-                <td className="whitespace-nowrap px-4 py-2 text-navy/70">
-                  {formatPeriod(m.start_date, m.end_date)}
+                <td
+                  className="truncate px-3 py-2 text-xs text-navy/70"
+                  title={formatPeriod(m.start_date, m.end_date)}
+                >
+                  {periodeCourte(m.start_date, m.end_date)}
                 </td>
                 {showManager && (
-                  <td className="whitespace-nowrap px-4 py-2 text-navy/70">
+                  <td className="truncate px-3 py-2 text-xs text-navy/70" title={m.manager_name}>
                     {m.manager_name}
                   </td>
                 )}
-                <td className="whitespace-nowrap px-4 py-2 text-right font-semibold text-navy">
+                <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-navy">
                   {money(m.total_ht)}
                 </td>
-                <td className="px-4 py-2">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <form action={approveMission}>
-                      <input type="hidden" name="mission_id" value={m.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
-                      >
-                        <Check size={14} />
-                        {!m.manager_approved_at
-                          ? 'Valider'
-                          : m.salarie
-                            ? 'Bon pour la paie'
-                            : 'Bon à payer'}
-                      </button>
-                    </form>
-                    {managers.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setConfier(confier === m.id ? null : m.id)}
-                        title="Cette prestation n’est pas pour vous ? La confier à un autre manager"
-                        className="cursor-pointer rounded-lg border border-line p-1.5 text-navy/60 transition-colors hover:border-gold/50 hover:text-navy"
-                      >
-                        <ArrowRightLeft size={14} />
-                      </button>
-                    )}
+                <td className="px-3 py-2 text-right">
+                  <form action={approveMission}>
+                    <input type="hidden" name="mission_id" value={m.id} />
                     <button
-                      type="button"
-                      onClick={() => setEditing(editing === m.id ? null : m.id)}
-                      title="Corriger la désignation, la quantité ou le montant"
-                      className="inline-flex cursor-pointer items-center rounded-lg border border-line p-1.5 text-navy/70 hover:bg-cream-muted"
+                      type="submit"
+                      className="inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
                     >
-                      <Pencil size={14} />
+                      <Check size={13} />
+                      {!m.manager_approved_at
+                        ? 'Valider'
+                        : m.salarie
+                          ? 'Bon pour la paie'
+                          : 'Bon à payer'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setRejecting(rejecting === m.id ? null : m.id)}
-                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-navy/80 transition-colors hover:bg-cream-muted"
-                    >
-                      <X size={14} />
-                      Refuser
-                    </button>
-                  </div>
+                  </form>
                 </td>
               </tr>
               {(ouvert.has(m.id) || editing === m.id || rejecting === m.id || confier === m.id) && (
                 <tr key={`${m.id}-detail`} className="bg-cream-muted/40">
                   <td />
-                  <td colSpan={showManager ? 6 : 5} className="px-4 pb-3 pt-0">
+                  <td colSpan={showManager ? 6 : 5} className="px-3 pb-3 pt-0">
+                    <div className="max-w-3xl">
                   {/* La preuve Qualiopi se lit ici : sans le créneau et le
                       groupe sous les yeux, un manager valide un total d'heures
                       sans savoir ce qu'il valide. */}
@@ -457,6 +455,35 @@ export function ValidationTable({
 
                   {m.contract && <ContractBreakdown c={m.contract} />}
 
+                  {/* Les gestes rares vivent ici, en toutes lettres. Sur la
+                      ligne, trois icônes muettes encombraient la décision
+                      sans qu'on sache laquelle faisait quoi. */}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {managers.length > 0 && (
+                      <BoutonDetail
+                        actif={confier === m.id}
+                        onClick={() => ouvrir(m.id, 'confier')}
+                        icone={<ArrowRightLeft size={13} />}
+                      >
+                        Changer de manager
+                      </BoutonDetail>
+                    )}
+                    <BoutonDetail
+                      actif={editing === m.id}
+                      onClick={() => ouvrir(m.id, 'corriger')}
+                      icone={<Pencil size={13} />}
+                    >
+                      Corriger
+                    </BoutonDetail>
+                    <BoutonDetail
+                      actif={rejecting === m.id}
+                      onClick={() => ouvrir(m.id, 'refuser')}
+                      icone={<X size={13} />}
+                    >
+                      Refuser
+                    </BoutonDetail>
+                  </div>
+
                   {correction?.id === m.id && correction.error && (
                     <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{correction.error}</p>
                   )}
@@ -481,23 +508,6 @@ export function ValidationTable({
                       <input name="detail" defaultValue={m.detail} className="field text-xs" aria-label="Désignation" required minLength={3} />
                       <input name="quantity" type="number" step="0.25" min="0.25" defaultValue={m.quantity} className="field text-xs" aria-label="Quantité" required />
                       <input name="unit_amount_ht" type="number" step="0.01" min="0" defaultValue={m.unit_amount_ht} className="field text-xs" aria-label="Prix unitaire HT" required />
-                      {managers.length > 0 && (
-                        <label className="text-xs text-navy/70 sm:col-span-3">
-                          Manager rattaché
-                          <select
-                            name="manager_id"
-                            defaultValue={m.manager_id ?? ''}
-                            className="field mt-1 text-xs"
-                            aria-label="Manager rattaché"
-                          >
-                            {managers.map((x) => (
-                              <option key={x.id} value={x.id}>
-                                {x.full_name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
                       <div className="flex gap-2 sm:col-span-3">
                         <SubmitButton size="sm" pendingLabel="…">Enregistrer la correction</SubmitButton>
                         <button type="button" onClick={() => setEditing(null)} className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-navy/70 hover:bg-cream-deep">
@@ -569,6 +579,7 @@ export function ValidationTable({
                       </div>
                     </form>
                   )}
+                    </div>
                   </td>
                 </tr>
               )}
@@ -581,3 +592,50 @@ export function ValidationTable({
     </>
   )
 }
+
+/**
+ * Un geste secondaire, dans le détail d’une ligne.
+ *
+ * Il s’allume quand son formulaire est ouvert : sans ça, rien ne dit
+ * lequel des trois a répondu au clic.
+ */
+function BoutonDetail({
+  actif,
+  onClick,
+  icone,
+  children,
+}: {
+  actif: boolean
+  onClick: () => void
+  icone: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors',
+        actif
+          ? 'border-gold/60 bg-gold/10 text-navy'
+          : 'border-line bg-white text-navy/70 hover:border-gold/50 hover:text-navy'
+      )}
+    >
+      {icone}
+      {children}
+    </button>
+  )
+}
+
+/**
+ * La période, resserrée pour la ligne.
+ *
+ * « du 13/09/2026 au 25/09/2026 » débordait sur la colonne voisine ; le
+ * libellé entier reste au survol.
+ */
+function periodeCourte(start: string | null, end: string | null): string {
+  if (!start) return '—'
+  if (!end || end === start) return formatDate(start)
+  return `${formatDate(start).slice(0, 5)} → ${formatDate(end).slice(0, 5)}`
+}
+
