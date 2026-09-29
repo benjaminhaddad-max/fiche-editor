@@ -13,6 +13,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { managerCanEdit } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
+import { getBrandId } from '@/lib/brand'
 
 /**
  * Valide une prestation.
@@ -336,5 +337,90 @@ export async function ajouterPrestataire(
     message: trouve.cree
       ? `${nom} est ajouté${prevenir ? ' et a reçu son accès ainsi que le calendrier du mois' : ''}.`
       : `${nom} était déjà sur la plateforme${prevenir ? ', son accès vient de lui être renvoyé' : ''}.`,
+  }
+}
+
+export interface RelanceVerification {
+  message?: string
+  error?: string
+}
+
+/**
+ * « Il vous reste tant de jours pour valider. »
+ *
+ * Le même rappel que celui du premier jour de vérification, mais déclenché
+ * à la main. La tâche automatique ne le poste qu'une fois : passé ce jour,
+ * l'administration n'avait plus aucun moyen de réveiller un manager en
+ * retard, sinon lui écrire un à un.
+ *
+ * Seuls les managers qui ont réellement des lignes en attente sont écrits :
+ * relancer quelqu'un qui a fini est le meilleur moyen qu'il cesse de lire
+ * ces messages.
+ */
+export async function relancerVerification(): Promise<RelanceVerification> {
+  const user = await requireRole('admin')
+  const cycle = cycleForDate(todayParis())
+  const db = createServiceClient()
+
+  const { data: enAttente } = await db
+    .from('inv_missions')
+    .select('manager_id, total_ht')
+    .eq('brand', getBrandId())
+    .eq('status', 'submitted')
+    .lte('start_date', cycle.periodEnd)
+
+  const parManager = new Map<string, { n: number; total: number }>()
+  for (const m of enAttente ?? []) {
+    const c = parManager.get(m.manager_id as string) ?? { n: 0, total: 0 }
+    parManager.set(m.manager_id as string, { n: c.n + 1, total: c.total + Number(m.total_ht) })
+  }
+  if (parManager.size === 0) return { message: 'Rien en attente : aucun manager à relancer.' }
+
+  const { data: encadrants } = await db
+    .from('inv_users')
+    .select('id, email, full_name, email_unreachable_reason')
+    .eq('brand', getBrandId())
+    .in('role', ['manager', 'admin'])
+    .eq('is_active', true)
+    .in('id', [...parManager.keys()])
+
+  let envoyes = 0
+  const injoignables: string[] = []
+  for (const m of encadrants ?? []) {
+    if (m.email_unreachable_reason) {
+      injoignables.push(`${m.full_name} (${m.email})`)
+      continue
+    }
+    const c = parManager.get(m.id as string)!
+    await deliver({
+      to: { email: m.email as string, name: m.full_name as string },
+      ...templates.reviewReminder({
+        name: m.full_name as string,
+        count: c.n,
+        total: round2(c.total),
+        reviewEnd: cycle.reviewEnd,
+        label: cycle.label,
+      }),
+      template: 'review_reminder',
+      entityType: 'user',
+      entityId: m.id as string,
+    })
+    envoyes++
+  }
+
+  await logAudit(db, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: user.id,
+    action: 'relance_verification',
+    payload: { envoyes, en_attente: enAttente?.length ?? 0 },
+  })
+  revalidatePath('/validation')
+
+  return {
+    message: `Relance partie à ${envoyes} manager${envoyes > 1 ? 's' : ''} — ${enAttente?.length ?? 0} prestation(s) en attente, à valider avant le ${formatDateLong(cycle.reviewEnd)}.`,
+    error: injoignables.length
+      ? `Adresse à corriger, aucun message ne leur arrive : ${injoignables.join(' · ')}`
+      : undefined,
   }
 }

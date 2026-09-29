@@ -4,6 +4,7 @@ import { OutilsManager } from '@/components/validation/OutilsManager'
 import { Clock } from 'lucide-react'
 import { EmptyState } from '@/components/ui/Page'
 import { ValidationTable } from '@/components/validation/ValidationTable'
+import { EtatVerification, type LigneManager } from '@/components/validation/EtatVerification'
 import { requireRole } from '@/lib/auth'
 import { money } from '@/lib/format'
 import { getMissionsByStatus } from '@/lib/missions'
@@ -69,6 +70,28 @@ export default async function ValidationPage({
   const ailleurs =
     tousAdmin.length + tousManager.length - awaitingAdmin.length - awaitingManager.length
 
+  // L'état de la vérification, tous managers confondus : pendant ces trois
+  // jours, la seule question utile est « qui n'a pas fini ». Le filtre y
+  // répondait un manager à la fois.
+  const parManager = new Map<string, LigneManager>()
+  const nom = new Map(managers.map((m) => [m.id, m.full_name]))
+  const compter = (liste: typeof tousAdmin, champ: 'attente' | 'faites') => {
+    for (const m of liste) {
+      const id = m.manager_id ?? ''
+      const l =
+        parManager.get(id) ??
+        { id, nom: nom.get(id) ?? m.manager_name, attente: 0, attenteTotal: 0, faites: 0, faitesTotal: 0 }
+      if (champ === 'attente') { l.attente++; l.attenteTotal += m.total_ht }
+      else { l.faites++; l.faitesTotal += m.total_ht }
+      parManager.set(id, l)
+    }
+  }
+  compter(tousManager, 'attente')
+  compter(tousAdmin, 'faites')
+  const etat = [...parManager.values()].sort(
+    (a, b) => b.attente - a.attente || a.nom.localeCompare(b.nom, 'fr')
+  )
+
   return (
     <>
       <PrestationsNav
@@ -77,6 +100,8 @@ export default async function ValidationPage({
         description="Ce que les managers ont validé part dans le bordereau du 1er. Vous pouvez intervenir avant."
       />
       <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin />
+
+      <EtatVerification lignes={etat} reviewEnd={cycle.reviewEnd} />
 
       <Suspense fallback={null}>
         <ManagerPicker managers={managers} value={choix} ailleurs={ailleurs} />
