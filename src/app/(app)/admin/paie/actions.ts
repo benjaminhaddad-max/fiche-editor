@@ -9,7 +9,7 @@ import { cycleForMonth } from '@/lib/cycle'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
-import { lignesPaie } from '@/lib/paie'
+import { estAcquise, lignesPaie } from '@/lib/paie'
 import { createServiceClient } from '@/lib/supabase/service'
 import { enregistrerBulletin } from '@/lib/paie/bulletins'
 
@@ -28,7 +28,7 @@ export async function cloturerPaie(fd: FormData): Promise<void> {
     .from('inv_missions')
     .select('id, total_ht')
     .in('id', ids)
-    .eq('status', 'approved')
+    .in('status', ['manager_approved', 'approved'])
     .is('payroll_batch_id', null)
   if (!lignes?.length) return
 
@@ -40,9 +40,15 @@ export async function cloturerPaie(fd: FormData): Promise<void> {
     .single()
   if (!lot) return
 
+  // L'envoi vaut validation : c'est lui, le geste de l'administration.
   await db
     .from('inv_missions')
-    .update({ payroll_batch_id: lot.id, status: 'invoiced' })
+    .update({
+      payroll_batch_id: lot.id,
+      status: 'invoiced',
+      admin_approved_at: new Date().toISOString(),
+      admin_approved_by: user.id,
+    })
     .in('id', lignes.map((l) => l.id))
 
   await logAudit(null, {
@@ -124,7 +130,7 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
 
   const cycle = cycleForMonth(mois)
   const lignes = await lignesPaie(cycle.periodStart, cycle.periodEnd)
-  const pretes = lignes.filter((l) => l.status === 'approved')
+  const pretes = lignes.filter((l) => estAcquise(l.status))
   if (!pretes.length) return { error: 'Rien de validé à envoyer pour ce mois.' }
 
   // Le détail par personne, tel qu'il se lira sur le bulletin.
@@ -144,7 +150,7 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
 
   // Ce qui n'est pas validé ne part pas, mais se dit.
   const attente = new Map<string, { n: number; total: number }>()
-  for (const l of lignes.filter((x) => x.status !== 'approved')) {
+  for (const l of lignes.filter((x) => !estAcquise(x.status))) {
     const c = attente.get(l.personne) ?? { n: 0, total: 0 }
     attente.set(l.personne, { n: c.n + 1, total: round2(c.total + l.total) })
   }
@@ -177,7 +183,12 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
   if (lot) {
     await db
       .from('inv_missions')
-      .update({ payroll_batch_id: lot.id, status: 'invoiced' })
+      .update({
+        payroll_batch_id: lot.id,
+        status: 'invoiced',
+        admin_approved_at: new Date().toISOString(),
+        admin_approved_by: user.id,
+      })
       .in('id', pretes.map((l) => l.id))
   }
 
@@ -194,7 +205,7 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
     message:
       `Récapitulatif envoyé à ${destinataire.name} : ${pretes.length} ligne(s), ${money(totalBrut)} brut` +
       (totalNet ? ` + ${money(totalNet)} en net` : '') +
-      (attente.size ? `. ${attente.size} personne(s) ont encore des lignes non validées, elles sont signalées dans le message.` : '.'),
+      (attente.size ? `. ${attente.size} personne(s) ont encore des lignes qu'aucun manager n'a validées, elles sont signalées dans le message.` : '.'),
   }
 }
 
@@ -213,7 +224,7 @@ export async function relancerPourLaPaie(_prev: EnvoiSocial | null, fd: FormData
 
   const cycle = cycleForMonth(mois)
   const lignes = (await lignesPaie(cycle.periodStart, cycle.periodEnd)).filter(
-    (l) => l.status === 'submitted' || l.status === 'manager_approved'
+    (l) => l.status === 'submitted'
   )
   if (!lignes.length) return { message: 'Rien en attente : aucun manager à relancer pour la paie.' }
 

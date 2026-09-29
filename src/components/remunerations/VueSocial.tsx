@@ -7,7 +7,7 @@ import { cloturerPaie } from '@/app/(app)/admin/paie/actions'
 import type { BillingCycle } from '@/lib/cycle'
 import { formatDate, money, round2 } from '@/lib/format'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
-import { lignesPaie } from '@/lib/paie'
+import { estAcquise, lignesPaie } from '@/lib/paie'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { MissionStatus } from '@/lib/types'
 
@@ -20,8 +20,10 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
     .eq('cycle_month', cycle.month)
     .order('created_at')
 
-  const pretes = lignes.filter((l) => l.status === 'approved')
-  const enCours = lignes.filter((l) => l.status !== 'approved')
+  // Validée par son manager, c'est acquis : l'envoi ci-dessous est le seul
+  // geste qui reste à l'administration.
+  const pretes = lignes.filter((l) => estAcquise(l.status))
+  const enCours = lignes.filter((l) => !estAcquise(l.status))
   // Pour un salarié, le montant porté est ce qu'il touche : un net. Le brut
   // ne subsiste que si quelqu'un a convenu d'un brut à part.
   const somme = (l: typeof lignes, base: 'brut' | 'net') =>
@@ -50,7 +52,7 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
           }
           accent="emerald"
         />
-        <StatTile label="Encore en validation" value={String(enCours.length)} accent={enCours.length ? 'amber' : 'slate'} />
+        <StatTile label="En attente d’un manager" value={String(enCours.length)} accent={enCours.length ? 'amber' : 'slate'} />
         <StatTile
           label="Déjà envoyé ce mois"
           value={money((lots ?? []).reduce((s, l) => s + Number(l.total_ht), 0))}
@@ -89,8 +91,8 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                         type="checkbox"
                         name="mission_id"
                         value={l.id}
-                        defaultChecked={l.status === 'approved'}
-                        disabled={l.status !== 'approved'}
+                        defaultChecked={estAcquise(l.status)}
+                        disabled={!estAcquise(l.status)}
                         className="mt-0.5 h-4 w-4 accent-navy"
                       />
                       <span>
@@ -105,7 +107,7 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                       </span>
                     </label>
                     <span className="flex shrink-0 items-center gap-3">
-                      {l.status !== 'approved' && <MissionStatusBadge status={l.status as MissionStatus} />}
+                      {!estAcquise(l.status) && <MissionStatusBadge status={l.status as MissionStatus} />}
                       <span className="w-28 text-right font-medium text-navy">
                         {money(l.total)}
                         <span className="ml-1 text-[11px] font-normal text-muted">{l.base}</span>

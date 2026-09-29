@@ -22,6 +22,19 @@ export interface LignePaie {
 }
 
 /**
+ * Une ligne acquise : son manager l'a validée.
+ *
+ * Il n'y a pas de deuxième validation. Le geste de l'administration, c'est
+ * l'envoi lui-même — le bordereau chez Pennylane pour les indépendants, le
+ * récapitulatif au social pour les salariés. Tant qu'on exigeait un clic de
+ * plus par ligne, une prestation validée par son manager s'affichait
+ * « en attente admin » et ne partait pas, alors que plus personne
+ * n'attendait rien.
+ */
+export const estAcquise = (status: string) =>
+  status === 'manager_approved' || status === 'approved'
+
+/**
  * Éléments de paie d'un mois : prestations et bonus des vacataires et
  * alternants, validés ou en cours de validation, pas encore envoyés.
  */

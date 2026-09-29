@@ -12,7 +12,7 @@ import type {
 export const MISSION_STATUS_LABEL: Record<MissionStatus, string> = {
   draft: 'Brouillon',
   submitted: 'En attente manager',
-  manager_approved: 'En attente admin',
+  manager_approved: 'Validée par le manager',
   approved: 'Validée — facturable',
   rejected: 'Refusée',
   contested: 'Contestée',
@@ -22,7 +22,7 @@ export const MISSION_STATUS_LABEL: Record<MissionStatus, string> = {
 export const MISSION_STATUS_STYLE: Record<MissionStatus, string> = {
   draft: 'bg-cream-deep text-stone ring-line',
   submitted: 'bg-amber-50 text-amber-700 ring-amber-200',
-  manager_approved: 'bg-navy/5 text-navy-soft ring-navy/15',
+  manager_approved: 'bg-emerald-50/70 text-emerald-800 ring-emerald-200/70',
   approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   rejected: 'bg-red-50 text-red-700 ring-red-200',
   contested: 'bg-orange-50 text-orange-700 ring-orange-200',

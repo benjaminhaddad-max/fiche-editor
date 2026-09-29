@@ -45,10 +45,10 @@ export function BoutonsSocial({
           </p>
           <p className="mt-1 text-xs text-muted">
             {pretes === 0
-              ? 'Rien de validé pour l’instant : il n’y a rien à transmettre.'
-              : `${pretes} ligne${pretes > 1 ? 's' : ''} validée${pretes > 1 ? 's' : ''} partiront, avec le détail par personne.`}
+              ? 'Aucun manager n’a encore validé de ligne : il n’y a rien à transmettre.'
+              : `${pretes} ligne${pretes > 1 ? 's' : ''} validée${pretes > 1 ? 's' : ''} par leur manager ${pretes > 1 ? 'partiront' : 'partira'}, avec le détail par personne.`}
             {enAttente > 0 &&
-              ` ${enAttente} ligne${enAttente > 1 ? 's' : ''} encore en attente ${enAttente > 1 ? 'seront signalées' : 'sera signalée'} dans le message, sans être comptée${enAttente > 1 ? 's' : ''}.`}
+              ` ${enAttente} ligne${enAttente > 1 ? 's' : ''} qu'aucun manager n'a encore validée${enAttente > 1 ? 's' : ''} ${enAttente > 1 ? 'seront signalées' : 'sera signalée'} dans le message, sans être comptée${enAttente > 1 ? 's' : ''}.`}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
