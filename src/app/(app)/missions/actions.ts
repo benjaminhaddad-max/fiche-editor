@@ -7,6 +7,8 @@ import { requireProvider } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { round2 } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { montantVerse, tauxAbattement } from '@/lib/abattement'
+import type { Pole } from '@/lib/types'
 
 export interface ActionResult {
   error?: string
@@ -72,11 +74,22 @@ export async function createMission(
 
   const submit = formData.get('intent') === 'submit'
   const v = parsed.data
+
+  // L'abattement de contrat s'appliquait partout sauf ici : une prestation
+  // saisie seule partait au montant plein, alors que le contrat prévoit une
+  // retenue. Rien ne l'aurait montré, montant convenu et montant versé
+  // étant alors identiques sur la ligne.
+  const supabase = await createServerSupabase()
+  const { data: cat } = await supabase
+    .from('inv_categories')
+    .select('pole')
+    .eq('id', v.category_id)
+    .maybeSingle()
+  const abattement = tauxAbattement(provider, cat?.pole as Pole | undefined)
   // Le total est toujours recalcule cote serveur : le champ affiche dans le
   // formulaire n'est qu'une aide a la saisie.
-  const total = round2(v.quantity * v.unit_amount_ht)
+  const total = montantVerse(v.quantity * v.unit_amount_ht, abattement)
 
-  const supabase = await createServerSupabase()
   const { data, error } = await supabase
     .from('inv_missions')
     .insert({
@@ -89,6 +102,9 @@ export async function createMission(
       pricing_type: v.pricing_type,
       quantity: v.quantity,
       unit_amount_ht: v.unit_amount_ht,
+      abatement_rate: abattement,
+      // Pour un salarié, le montant porté est ce qu'il touche : un net.
+      pay_basis: provider.employment_type === 'independant' ? null : 'net',
       total_ht: total,
       status: submit ? 'submitted' : 'draft',
       submitted_at: submit ? new Date().toISOString() : null,

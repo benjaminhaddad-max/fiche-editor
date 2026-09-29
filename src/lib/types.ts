@@ -96,6 +96,10 @@ export interface Provider {
   /** Absent pour un fournisseur sans compte (facture reçue par email). */
   user_id: string | null
   employment_type: Employment
+  /** Pourcentage retiré du montant convenu, du fait des charges du contrat. */
+  pay_abatement: number
+  /** Pôles auxquels cet abattement ne s'applique pas, pour cette personne. */
+  abatement_exempt_poles: string[] | null
   contact_email: string | null
   legal_name: string
   legal_form: string | null
