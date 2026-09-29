@@ -11,7 +11,8 @@ export const MISSION_WITH_RELATIONS = `
   rejected_at, rejection_reason,
   category:inv_categories(name, provider_label),
   provider:inv_providers(legal_name),
-  manager:inv_users!inv_missions_manager_id_fkey(full_name)
+  manager:inv_users!inv_missions_manager_id_fkey(full_name),
+  valideur:inv_users!inv_missions_manager_approved_by_fkey(full_name)
 `
 
 interface RawMission {
@@ -34,9 +35,11 @@ interface RawMission {
   quantity: number
   unit_amount_ht: number
   total_ht: number
+  manager_approved_at: string | null
   category: { name: string; provider_label: string | null } | null
   provider: { legal_name: string } | null
   manager: { full_name: string } | null
+  valideur: { full_name: string } | null
 }
 
 export function toReviewMission(row: RawMission): ReviewMission {
@@ -63,6 +66,11 @@ export function toReviewMission(row: RawMission): ReviewMission {
     category_name: row.category?.name ?? '—',
     provider_name: row.provider?.legal_name ?? '—',
     manager_name: row.manager?.full_name ?? '—',
+    // Qui a validé, et quand. Sans ça, l'administration ne distinguait pas
+    // une ligne déjà vue par son manager d'une ligne encore à voir : le
+    // tableau affichait le manager rattaché, pas celui qui avait tranché.
+    manager_approved_at: row.manager_approved_at,
+    valide_par: row.valideur?.full_name ?? null,
   }
 }
 

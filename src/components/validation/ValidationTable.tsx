@@ -11,7 +11,7 @@ import {
 } from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
 import { cycleForDate, cycleForMonth } from '@/lib/cycle'
-import { formatPeriod, money } from '@/lib/format'
+import { formatDateLong, formatPeriod, money } from '@/lib/format'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { MODALITE_LABEL, PRICING_LABEL, PRICING_UNIT } from '@/lib/labels'
 
@@ -26,6 +26,9 @@ export interface ReviewMission {
   formation: string | null
   regularisation: boolean
   regul_period: string | null
+  /** Qui a posé la validation manager, et quand. Vide si personne encore. */
+  manager_approved_at?: string | null
+  valide_par?: string | null
   /** Détail de séance, quand l'enseignement est soumis à Qualiopi. */
   start_time?: string | null
   end_time?: string | null
@@ -109,6 +112,10 @@ export function ValidationTable({
 
   // Un manager qui a dix prestataires devant lui les traite un par un :
   // sans ce filtre, il relit la même liste entière à chaque fois.
+  // Toutes ces lignes sont-elles déjà passées par leur manager ? Si oui, le
+  // geste attendu ici n'est plus « valider » mais « bon à payer » : garder le
+  // même mot faisait croire que le manager n'avait rien fait.
+  const dejaVues = missions.length > 0 && missions.every((m) => Boolean(m.manager_approved_at))
   const gens = [...new Set(missions.map((m) => m.provider_name))].sort((a, b) => a.localeCompare(b, 'fr'))
   const visibles = qui ? missions.filter((m) => m.provider_name === qui) : missions
 
@@ -152,7 +159,7 @@ export function ValidationTable({
             </button>
             <SubmitButton size="sm" variant="success" pendingLabel="Validation…">
               <Check size={14} />
-              Valider la sélection
+              {dejaVues ? 'Bon à payer pour la sélection' : 'Valider la sélection'}
             </SubmitButton>
           </div>
         </form>
@@ -267,6 +274,13 @@ export function ValidationTable({
                     )}
                   </p>
 
+                  {m.manager_approved_at && (
+                    <p className="mt-1 text-xs font-medium text-emerald-700">
+                      ✓ Validée par {m.valide_par ?? 'son manager'} le{' '}
+                      {formatDateLong(m.manager_approved_at.slice(0, 10))}
+                    </p>
+                  )}
+
                   {m.contract && <ContractBreakdown c={m.contract} />}
 
                   {correction?.id === m.id && correction.error && (
@@ -369,7 +383,7 @@ export function ValidationTable({
                         className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
                       >
                         <Check size={14} />
-                        Valider
+                        {m.manager_approved_at ? 'Bon à payer' : 'Valider'}
                       </button>
                     </form>
                     <button
