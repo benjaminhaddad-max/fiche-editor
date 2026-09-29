@@ -260,6 +260,15 @@ export function ValidationTable({
       </div>
     )}
 
+    {/* Sans cette phrase, la sélection multiple n'existe que pour qui a
+        pensé à cocher : rien à l'écran ne dit qu'une case ouvre deux
+        actions de masse. */}
+    {selection.size === 0 && missions.length > 1 && (
+      <p className="mb-2 text-xs text-muted">
+        Cochez plusieurs lignes pour les valider, ou les confier d’un coup à un autre manager.
+      </p>
+    )}
+
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
