@@ -25,6 +25,21 @@ export interface LignePaie {
  * Éléments de paie d'un mois : prestations et bonus des vacataires et
  * alternants, validés ou en cours de validation, pas encore envoyés.
  */
+/**
+ * Les éléments variables à porter sur les bulletins.
+ *
+ * On ne filtre pas sur le mois du travail, mais sur tout ce qui n'est pas
+ * encore parti en paie et dont la date ne dépasse pas la fin de période.
+ * La nuance a coûté cher : une prestation de juillet déclarée en septembre
+ * — un rattrapage, ou simplement un retard — ne tombait dans aucune fenêtre,
+ * puisque juillet était clos et que septembre ne la voyait pas. Elle
+ * n'apparaissait nulle part et n'aurait jamais atteint un bulletin.
+ *
+ * C'est la règle que suivent déjà les bordereaux des indépendants : ce qui
+ * traîne est ramassé au passage, jamais oublié.
+ *
+ * `avecEnvoyees` rouvre ce qui est déjà parti, pour relire un mois clos.
+ */
 export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyees?: boolean } = {}): Promise<LignePaie[]> {
   const db = createServiceClient()
   let q = db
@@ -37,11 +52,13 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
     )
     .eq('brand', getBrandId())
     .neq('provider.employment_type', 'independant')
-    .gte('start_date', debut)
     .lte('start_date', fin)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])
     .order('start_date')
-  if (!opts.avecEnvoyees) q = q.is('payroll_batch_id', null)
+  // Relire un mois déjà clos : là, on borne des deux côtés, sinon on
+  // ramasserait tout l'historique.
+  if (opts.avecEnvoyees) q = q.gte('start_date', debut)
+  else q = q.is('payroll_batch_id', null)
   const { data } = await q
   return ((data ?? []) as unknown as {
     id: string
