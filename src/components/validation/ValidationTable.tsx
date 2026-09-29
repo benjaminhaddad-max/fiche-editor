@@ -117,6 +117,7 @@ export function ValidationTable({
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [correction, setCorrection] = useState<(CorrectionResultat & { id: string }) | null>(null)
+  const [confier, setConfier] = useState<string | null>(null)
   const [transfert, transferer] = useActionState<TransfertResultat | null, FormData>(
     reattribuerMissions,
     null
@@ -408,6 +409,39 @@ export function ValidationTable({
                     </form>
                   )}
 
+                  {/* Le transfert au cas par cas : « cette ligne n'est pas
+                      pour moi ». Il vit sur la ligne parce que c'est là qu'on
+                      s'en aperçoit — la sélection multiple, elle, ne se montre
+                      qu'une fois qu'on a coché, donc ne se devine pas. */}
+                  {confier === m.id && managers.length > 0 && (
+                    <form action={transferer} className="mt-3 flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="mission_id" value={m.id} />
+                      <span className="text-xs text-navy/75">Confier cette prestation à</span>
+                      <select name="vers" className="field w-52 text-xs" required defaultValue="" aria-label="Nouveau manager">
+                        <option value="" disabled>
+                          Choisir…
+                        </option>
+                        {managers
+                          .filter((x) => x.id !== moi && x.id !== m.manager_id)
+                          .map((x) => (
+                            <option key={x.id} value={x.id}>
+                              {x.full_name}
+                            </option>
+                          ))}
+                      </select>
+                      <SubmitButton size="sm" variant="secondary" pendingLabel="…">
+                        Transférer
+                      </SubmitButton>
+                      <button
+                        type="button"
+                        onClick={() => setConfier(null)}
+                        className="cursor-pointer rounded-lg px-2 py-1 text-xs text-navy/70 hover:bg-cream-deep"
+                      >
+                        Annuler
+                      </button>
+                    </form>
+                  )}
+
                   {rejecting === m.id && (
                     <form action={rejectMission} className="mt-3 flex flex-col gap-2">
                       <input type="hidden" name="mission_id" value={m.id} />
@@ -465,10 +499,20 @@ export function ValidationTable({
                             : 'Bon à payer'}
                       </button>
                     </form>
+                    {managers.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setConfier(confier === m.id ? null : m.id)}
+                        title="Cette prestation n’est pas pour vous ? La confier à un autre manager"
+                        className="cursor-pointer rounded-lg border border-line p-1.5 text-navy/60 transition-colors hover:border-gold/50 hover:text-navy"
+                      >
+                        <ArrowRightLeft size={14} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setEditing(editing === m.id ? null : m.id)}
-                      title="Corriger la quantité ou le montant"
+                      title="Corriger la désignation, la quantité ou le montant"
                       className="inline-flex cursor-pointer items-center rounded-lg border border-line p-1.5 text-navy/70 hover:bg-cream-muted"
                     >
                       <Pencil size={14} />
