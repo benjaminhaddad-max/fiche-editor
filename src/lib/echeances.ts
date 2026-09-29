@@ -1,5 +1,4 @@
 import { PROGRAMME_LABEL } from '@/lib/contracts'
-import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { brandScope, getBrandId } from '@/lib/brand'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'

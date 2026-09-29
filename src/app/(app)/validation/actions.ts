@@ -12,7 +12,7 @@ import { notifyMissionRejected, notifyReadyToInvoice } from '@/lib/email/notify'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { managerCanEdit } from '@/lib/cycle'
-import { formatDateLong, round2 } from '@/lib/format'
+import { formatDateLong, money, round2 } from '@/lib/format'
 import { getBrandId } from '@/lib/brand'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
@@ -478,4 +478,104 @@ export async function basculerAbattement(formData: FormData): Promise<void> {
     payload: { avant: Number(m.abatement_rate ?? 0), apres: taux, brut },
   })
   revalidatePath('/validation')
+}
+
+export interface TransfertResultat {
+  message?: string
+  error?: string
+}
+
+/**
+ * Confier un paquet de prestations à un autre manager.
+ *
+ * Un manager s'absente — arrêt, congés, départ — et ses prestations restent
+ * bloquées derrière lui : personne d'autre ne les voit dans sa liste, et le
+ * bordereau part sans elles. Les réattribuer une par une par le formulaire
+ * de correction supposait de retaper la désignation, la quantité et le
+ * montant de chaque ligne.
+ *
+ * Celui qui les reçoit validera en son nom : c'est lui qui répond de ce
+ * qu'il approuve, et l'historique garde trace du transfert.
+ */
+export async function reattribuerMissions(
+  _prev: TransfertResultat | null,
+  formData: FormData
+): Promise<TransfertResultat> {
+  const user = await requireRole('admin')
+  const ids = [...new Set(formData.getAll('mission_id').map(String).filter(Boolean))]
+  const vers = String(formData.get('vers') ?? '')
+  if (!ids.length) return { error: 'Choisissez au moins une prestation.' }
+  if (!vers) return { error: 'Choisissez la personne à qui les confier.' }
+
+  const db = createServiceClient()
+  const { data: cible } = await db
+    .from('inv_users')
+    .select('id, full_name, email, email_unreachable_reason')
+    .eq('id', vers)
+    .eq('brand', getBrandId())
+    .in('role', ['manager', 'admin'])
+    .eq('is_active', true)
+    .maybeSingle()
+  if (!cible) return { error: 'Cette personne n’encadre pas, ou n’est plus en poste.' }
+
+  // Une prestation déjà facturée ou partie en paie ne change plus de main.
+  const { data: lignes } = await db
+    .from('inv_missions')
+    .select('id, manager_id, total_ht')
+    .in('id', ids)
+    .eq('brand', getBrandId())
+    .in('status', ['submitted', 'manager_approved'])
+    .is('invoice_id', null)
+    .is('payroll_batch_id', null)
+  if (!lignes?.length) return { error: 'Aucune de ces prestations ne peut être transférée.' }
+
+  const aBouger = lignes.filter((l) => l.manager_id !== cible.id)
+  if (!aBouger.length) return { error: `Ces prestations sont déjà confiées à ${cible.full_name}.` }
+
+  // Le transfert rouvre la validation : celui qui reçoit doit se prononcer
+  // lui-même, sinon on lui ferait endosser l'accord de quelqu'un d'autre.
+  await db
+    .from('inv_missions')
+    .update({
+      manager_id: cible.id,
+      status: 'submitted',
+      manager_approved_at: null,
+      manager_approved_by: null,
+    })
+    .in('id', aBouger.map((l) => l.id))
+
+  const total = round2(aBouger.reduce((s, l) => s + Number(l.total_ht), 0))
+  if (!cible.email_unreachable_reason) {
+    const cycle = cycleForDate(todayParis())
+    await deliver({
+      to: { email: cible.email as string, name: cible.full_name as string },
+      ...templates.reviewReminder({
+        name: cible.full_name as string,
+        count: aBouger.length,
+        total,
+        reviewEnd: cycle.reviewEnd,
+        label: cycle.label,
+      }),
+      template: 'review_reminder',
+      entityType: 'user',
+      entityId: cible.id as string,
+    })
+  }
+
+  await logAudit(db, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: cible.id as string,
+    action: 'prestations_reattribuees',
+    payload: { vers: cible.full_name, lignes: aBouger.length, total },
+  })
+  revalidatePath('/validation')
+
+  return {
+    message:
+      `${aBouger.length} prestation${aBouger.length > 1 ? 's' : ''} (${money(total)} HT) confiée${aBouger.length > 1 ? 's' : ''} à ${cible.full_name}` +
+      (cible.email_unreachable_reason
+        ? ' — mais son adresse n’arrive pas, prévenez-le autrement.'
+        : ', qui vient d’être prévenu par mail.'),
+  }
 }

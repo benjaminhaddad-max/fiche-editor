@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, Pencil, X } from 'lucide-react'
+import { useActionState, useState } from 'react'
+import { ArrowRightLeft, Check, Pencil, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   approveMission,
   basculerAbattement,
   corrigerMission,
+  reattribuerMissions,
   rejectMission,
   type CorrectionResultat,
+  type TransfertResultat,
 } from '@/app/(app)/validation/actions'
 import { Card } from '@/components/ui/Page'
 import { cycleForDate, cycleForMonth } from '@/lib/cycle'
@@ -112,6 +114,10 @@ export function ValidationTable({
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [correction, setCorrection] = useState<(CorrectionResultat & { id: string }) | null>(null)
+  const [transfert, transferer] = useActionState<TransfertResultat | null, FormData>(
+    reattribuerMissions,
+    null
+  )
   const [selection, setSelection] = useState<Set<string>>(new Set())
   const [qui, setQui] = useState('')
 
@@ -144,6 +150,44 @@ export function ValidationTable({
 
   return (
     <>
+      {selection.size > 0 && managers.length > 0 && (
+        <form
+          action={transferer}
+          className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white px-5 py-3"
+        >
+          {[...selection].map((id) => (
+            <input key={id} type="hidden" name="mission_id" value={id} />
+          ))}
+          <span className="text-sm text-navy/75">
+            Confier ces {selection.size} prestation{selection.size > 1 ? 's' : ''} à
+          </span>
+          <select name="vers" className="field w-56 text-sm" aria-label="Nouveau manager" required defaultValue="">
+            <option value="" disabled>
+              Choisir…
+            </option>
+            {managers.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.full_name}
+              </option>
+            ))}
+          </select>
+          <SubmitButton size="sm" variant="secondary" pendingLabel="Transfert…">
+            <ArrowRightLeft size={14} />
+            Transférer
+          </SubmitButton>
+          <p className="w-full text-xs text-muted">
+            Elles repassent en attente de validation : c’est la personne qui les reçoit qui se
+            prononce, en son nom, et elle en est prévenue par mail.
+          </p>
+        </form>
+      )}
+      {transfert?.message && (
+        <p className="mb-3 rounded-lg bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{transfert.message}</p>
+      )}
+      {transfert?.error && (
+        <p className="mb-3 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700">{transfert.error}</p>
+      )}
+
       {selection.size > 0 && (
         <form
           action={approveMission}
