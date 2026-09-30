@@ -1,0 +1,16 @@
+-- Une entreprise aussi peut ne pas facturer de TVA.
+--
+-- Le régime n'offrait que deux cases : « franchise en base », étiquetée
+-- « auto-entrepreneur » à l'écran, et « assujetti 20 % ». Patrick Razon,
+-- professeur en société et exonéré de TVA, n'a trouvé aucune case pour le
+-- dire — et il l'a écrit à la main dans un mail. Ses factures seraient
+-- parties avec 20 % de TVA qu'il ne doit pas.
+--
+-- Deux situations distinctes se cachaient derrière une seule case :
+--   · la franchise en base (art. 293 B), qui tient au chiffre d'affaires et
+--     non au statut — une SASU sous le seuil y a droit comme un
+--     auto-entrepreneur ;
+--   · l'exonération de la formation professionnelle continue
+--     (art. 261-4-4° a), qui tient à l'activité, sans plafond.
+-- La mention légale n'est pas la même sur la facture : il faut les séparer.
+ALTER TYPE inv_vat_regime ADD VALUE IF NOT EXISTS 'exonere';

@@ -172,7 +172,11 @@ export function ProfileForm({
       {!salarie && (
         <>
         <Card className="p-6">
-          <h2 className="mb-5 text-sm font-semibold text-navy">TVA et règlement</h2>
+          <h2 className="mb-1 text-sm font-semibold text-navy">TVA et règlement</h2>
+          <p className="mb-5 text-xs text-muted">
+            Si vous ne facturez pas de TVA, choisissez « Sans TVA » : c’est le cas de la plupart
+            des intervenants, y compris en société.
+          </p>
           <div className="grid gap-5 sm:grid-cols-2">
             <Select
               id="vat_regime"
@@ -182,12 +186,17 @@ export function ProfileForm({
               onChange={(ev) => setVatRegime(ev.target.value as VatRegime)}
               hint={
                 vatRegime === 'franchise'
-                  ? 'Mention « TVA non applicable, art. 293 B du CGI ». Montant HT = montant à payer.'
+                  ? 'Quel que soit votre statut — auto-entrepreneur, EI, EURL, SASU. Mention « TVA non applicable, art. 293 B du CGI » sur vos factures ; le montant HT est le montant à payer.'
                   : 'TVA à 20 % ajoutée automatiquement sur vos factures.'
               }
             >
-              <option value="franchise">Franchise en base (auto-entrepreneur)</option>
-              <option value="normal">Assujetti — TVA 20 %</option>
+              {/* « Franchise en base (auto-entrepreneur) » : Patrick Razon,
+                  professeur en EURL et sans TVA, n'a pas reconnu son cas
+                  dans cette parenthèse et nous a écrit qu'il n'arrivait pas
+                  à déclarer son exonération. La franchise tient au chiffre
+                  d'affaires, pas au statut — l'intitulé le disait mal. */}
+              <option value="franchise">Sans TVA — franchise en base (art. 293 B)</option>
+              <option value="normal">Avec TVA — assujetti à 20 %</option>
             </Select>
             {vatRegime === 'normal' ? (
               <Input
