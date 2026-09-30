@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { AlertTriangle, Bell, MessageSquare, Send } from 'lucide-react'
+import { Send } from 'lucide-react'
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
-import { InvoiceStatusBadge } from '@/components/ui/Badge'
+import { LigneBordereau, type LigneDetail } from '@/components/bordereaux/LigneBordereau'
 import { Card, EmptyState, StatTile } from '@/components/ui/Page'
 import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 import { RecherchePrestataire } from '@/components/prestations/RecherchePrestataire'
@@ -17,12 +17,17 @@ import { envoyerMaintenant, relancer } from './actions'
 import { getBrandId } from '@/lib/brand'
 
 interface Ligne {
+  id: string
   provider_id: string
   manager_id: string
+  detail: string
+  start_date: string
   total_ht: number
   status: string
   statement_id: string | null
   provider: { legal_name: string; employment_type: Employment } | null
+  category: { name: string } | null
+  manager: { full_name: string } | null
 }
 
 export default async function BordereauxPage({
@@ -43,11 +48,17 @@ export default async function BordereauxPage({
   // Lignes du mois, tous statuts utiles : c'est la matière du bordereau.
   const { data: lData } = await db
     .from('inv_missions')
-    .select('provider_id, manager_id, total_ht, status, statement_id, provider:inv_providers(legal_name, employment_type)')
+    .select(
+      `id, provider_id, manager_id, detail, start_date, total_ht, status, statement_id,
+       provider:inv_providers(legal_name, employment_type),
+       category:inv_categories(name),
+       manager:inv_users!inv_missions_manager_id_fkey(full_name)`
+    )
     .eq('brand', getBrandId())
     .gte('start_date', cycle.periodStart)
     .lte('start_date', cycle.periodEnd)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])
+    .order('start_date')
   const lignes = (lData ?? []) as unknown as Ligne[]
 
   const { data: sData } = await db
@@ -71,7 +82,14 @@ export default async function BordereauxPage({
   // Un manager ne suit que les prestataires pour qui il a des lignes.
   const parPresta = new Map<
     string,
-    { nom: string; salarie: boolean; total: number; sienne: number; enAttente: number }
+    {
+      nom: string
+      salarie: boolean
+      total: number
+      sienne: number
+      enAttente: number
+      lignes: LigneDetail[]
+    }
   >()
   for (const l of lignes) {
     const c = parPresta.get(l.provider_id) ?? {
@@ -80,10 +98,23 @@ export default async function BordereauxPage({
       total: 0,
       sienne: 0,
       enAttente: 0,
+      lignes: [],
     }
     if (['approved', 'invoiced', 'manager_approved'].includes(l.status)) c.total += Number(l.total_ht)
     if (l.manager_id === user.id) c.sienne += Number(l.total_ht)
     if (l.status === 'submitted') c.enAttente++
+    // Un manager relit son mois : il voit tout le bordereau de la personne,
+    // et sait lesquelles sont les siennes.
+    c.lignes.push({
+      id: l.id,
+      detail: l.detail,
+      date: l.start_date,
+      categorie: l.category?.name ?? '—',
+      manager: l.manager?.full_name ?? '—',
+      sienne: l.manager_id === user.id,
+      montant: Number(l.total_ht),
+      status: l.status,
+    })
     parPresta.set(l.provider_id, c)
   }
   const visibles = [...parPresta.entries()]
@@ -183,63 +214,26 @@ export default async function BordereauxPage({
               </thead>
               <tbody className="divide-y divide-line/60">
                 {affiches.map(([id, v]) => {
-                  const s = bordereaux.get(id)
-                  const facture = s?.invoice
-                  const attendue = envoye && !v.salarie && (!facture || facture.status === 'issued')
+                  const st = bordereaux.get(id)
+                  const facture = st?.invoice ?? null
                   return (
-                    <tr key={id} className="align-top">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-navy">{v.nom}</p>
-                        {v.salarie && <p className="text-xs text-muted">Salarié — part à la paie</p>}
-                        {v.enAttente > 0 && (
-                          <p className="text-xs text-amber-700">{v.enAttente} ligne(s) encore à valider</p>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
-                        {money(s?.total_ht ?? v.total)}
-                      </td>
-                      {user.role === 'manager' && (
-                        <td className="whitespace-nowrap px-4 py-3 text-right text-navy/70">{money(v.sienne)}</td>
-                      )}
-                      <td className="px-4 py-3">
-                        {v.salarie ? (
-                          <span className="text-xs text-muted">—</span>
-                        ) : facture ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <InvoiceStatusBadge status={facture.status} />
-                            <span className="text-xs text-navy/70">{facture.number}</span>
-                            {facture.ai_check?.matches === false && (
-                              <span className="inline-flex items-center gap-1 text-xs text-amber-700" title={facture.ai_check.message ?? ''}>
-                                <AlertTriangle size={12} />
-                                écart de montant
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted">{envoye ? 'Pas encore reçue' : 'Bordereau pas encore envoyé'}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1.5">
-                          {attendue && s && (
-                            <form action={relancer}>
-                              <input type="hidden" name="statement_id" value={s.id} />
-                              <SubmitButton size="sm" variant="secondary" pendingLabel="…" title="Email + SMS">
-                                <Bell size={13} />
-                                Relancer{s.reminder_count ? ` (${s.reminder_count})` : ''}
-                              </SubmitButton>
-                            </form>
-                          )}
-                          <Link
-                            href={`/messages?nouveau&objet=${encodeURIComponent(`Bordereau de ${cycle.label}`)}`}
-                            title="Écrire au prestataire"
-                            className="inline-flex items-center rounded-lg border border-line px-2 py-1.5 text-navy/70 hover:bg-cream-muted"
-                          >
-                            <MessageSquare size={13} />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
+                    <LigneBordereau
+                      key={id}
+                      nom={v.nom}
+                      salarie={v.salarie}
+                      enAttente={v.enAttente}
+                      total={st?.total_ht ?? v.total}
+                      sienne={v.sienne}
+                      montrerSienne={user.role === 'manager'}
+                      lignes={v.lignes}
+                      facture={facture}
+                      statementId={st?.id ?? null}
+                      relanceCount={st?.reminder_count ?? 0}
+                      attendue={envoye && !v.salarie && (!facture || facture.status === 'issued')}
+                      envoye={envoye}
+                      objetMessage={`Bordereau de ${cycle.label}`}
+                      relancer={relancer}
+                    />
                   )
                 })}
               </tbody>
