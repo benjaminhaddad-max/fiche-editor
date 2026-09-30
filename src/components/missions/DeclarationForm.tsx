@@ -62,6 +62,8 @@ interface Props {
   employment?: Employment
   /** Ce que le contrat paie déjà, et qu'il ne faut donc pas redéclarer. */
   couvertures?: { categoryId: string; resume: string }[]
+  /** Sans TVA, « HT » ne veut rien dire : c'est le montant payé, point. */
+  sansTva?: boolean
   today: string
   deadlineText: string
 }
@@ -147,6 +149,10 @@ export function DeclarationForm(props: Props) {
       : (providers?.find((p) => p.id === providerId)?.employment ?? 'independant')
   const salarie = employment !== 'independant'
   const tarif = mode === 'prestataire' ? props.tarifs?.['moi'] : props.tarifs?.[providerId]
+  // Les 56 indépendants de l'école sont en franchise : aucun ne facture de
+  // TVA. « Total HT » les fait tous buter sur la même question — faut-il
+  // retirer quelque chose ? Non : c'est ce qu'ils touchent.
+  const sansTva = props.sansTva === true
   const couvertePar = (categoryId: string) =>
     props.couvertures?.find((c) => c.categoryId === categoryId)?.resume ?? null
 
@@ -624,7 +630,7 @@ export function DeclarationForm(props: Props) {
                       value={l.unit_amount_ht}
                       placeholder="0,00"
                       onChange={(e) => maj(l.cle, { unit_amount_ht: e.target.value })}
-                      aria-label="Prix unitaire HT"
+                      aria-label={sansTva ? 'Prix unitaire' : 'Prix unitaire HT'}
                     />
                     {salarie && (
                       <label className="mt-1.5 flex items-center gap-1.5 text-xs text-navy/70">
@@ -662,7 +668,8 @@ export function DeclarationForm(props: Props) {
                 </div>
 
                 <p className="mt-3 text-right text-sm text-navy">
-                  Total de la ligne : <strong className="font-display">{money(ligneTotal)}</strong> HT
+                  Total de la ligne : <strong className="font-display">{money(ligneTotal)}</strong>
+                  {!sansTva && ' HT'}
                 </p>
               </div>
             )
@@ -689,7 +696,14 @@ export function DeclarationForm(props: Props) {
             Ajouter une ligne
           </button>
           <p className="text-sm text-navy">
-            Total : <strong>{money(total)} HT</strong>
+            Total : <strong>{money(total)}</strong>
+            {sansTva ? (
+              <span className="ml-2 text-xs font-normal text-muted">
+                vous n’avez pas de TVA : c’est le montant qui vous sera payé
+              </span>
+            ) : (
+              ' HT'
+            )}
           </p>
         </div>
       </Card>

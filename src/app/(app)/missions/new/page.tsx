@@ -70,6 +70,7 @@ export default async function NewMissionPage({
         employment={provider.employment_type}
         tarifs={monTarif}
         couvertures={couvertures}
+        sansTva={provider.vat_regime === 'franchise'}
         today={today}
         deadlineText={texte}
       />
