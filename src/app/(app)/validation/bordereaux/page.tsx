@@ -14,6 +14,8 @@ import { formatDateLong, money, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { AiCheck, Employment, InvoiceStatus } from '@/lib/types'
 import { envoyerMaintenant, relancer } from './actions'
+import { porterEcheance } from '@/app/(app)/missions/actions'
+import { echeancesProposees } from '@/lib/echeances'
 import { getBrandId } from '@/lib/brand'
 
 interface Ligne {
@@ -131,6 +133,12 @@ export default async function BordereauxPage({
   // Les tuiles gardent le mois entier ; seule la liste suit la recherche.
   const affiches = visibles.filter(([, v]) => correspondPrestataire(v.nom, cherche))
 
+  // Ce que les contrats prévoient et que personne n'a porté sur le mois :
+  // une échéance oubliée, c'est quelqu'un qui n'est pas payé.
+  const aPorter = await echeancesProposees(today, {
+    managerId: user.role === 'manager' ? user.id : undefined,
+  })
+
   const prec = previousCycle(cycle)
   const suiv = nextCycle(cycle)
 
@@ -188,6 +196,42 @@ export default async function BordereauxPage({
           accent={recus === independants.length ? 'emerald' : 'amber'}
         />
       </div>
+
+      {aPorter.length > 0 && (
+        <Card className="mb-6 overflow-hidden">
+          <div className="border-b border-line bg-cream-muted px-4 py-3 sm:px-5">
+            <p className="text-sm font-semibold text-navy">
+              {aPorter.length} échéance{aPorter.length > 1 ? 's' : ''} de contrat à porter sur le mois
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              Elles ne s’ajoutent plus d’elles-mêmes, pour ne pas doubler ce que la personne a
+              déclaré de son côté. Vérifiez que le travail n’est pas déjà dans son bordereau, puis
+              ajoutez-la.
+            </p>
+          </div>
+          <ul className="divide-y divide-line/60">
+            {aPorter.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
+                <span className="min-w-0">
+                  <span className="text-sm font-medium text-navy">{e.providerNom}</span>
+                  <span className="block text-xs text-muted">
+                    {e.label} — échéance du {formatDateLong(e.dueDate)}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-3">
+                  <span className="text-sm font-semibold text-navy">{money(e.montant)}</span>
+                  <form action={porterEcheance}>
+                    <input type="hidden" name="instalment_id" value={e.id} />
+                    <SubmitButton size="sm" variant="secondary" pendingLabel="…">
+                      Ajouter
+                    </SubmitButton>
+                  </form>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {visibles.length > 0 && (
         <Suspense fallback={null}>

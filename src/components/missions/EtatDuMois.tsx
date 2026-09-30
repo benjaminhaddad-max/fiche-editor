@@ -3,6 +3,9 @@ import { ArrowRight, CalendarClock, CheckCircle2, PencilLine } from 'lucide-reac
 import { cycleForDate, cycleForMonth, providerCanDeclare, todayParis } from '@/lib/cycle'
 import { formatDate, formatDateLong, money, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
+import { echeancesProposees } from '@/lib/echeances'
+import { porterEcheance } from '@/app/(app)/missions/actions'
+import { SubmitButton } from '@/components/ui/SubmitButton'
 
 /** Le mois d'une date, en toutes lettres. */
 function moisDe(date: string): string {
@@ -48,6 +51,9 @@ export async function EtatDuMois({ providerId }: { providerId: string }) {
       .order('due_date')
       .limit(1),
   ])
+
+  // Ce que le contrat prévoit et que personne n'a encore porté sur le mois.
+  const aPorter = await echeancesProposees(today, { providerId })
 
   const payees = (factures ?? []).filter((f) => f.status === 'paid')
   const derniere = payees[0]
@@ -122,7 +128,32 @@ export async function EtatDuMois({ providerId }: { providerId: string }) {
           <CalendarClock size={13} className="text-navy/60" />
           Prochaine échéance
         </p>
-        {prochaine ? (
+        {aPorter.length > 0 ? (
+          /* Elle n'arrive plus toute seule : elle attend un clic. Ouverte
+             d'office, elle s'ajoutait à ce que la personne avait déclaré de
+             son côté, et le mois était payé deux fois. */
+          <>
+            <p className="font-display mt-2 text-[22px] font-semibold text-navy">
+              {money(aPorter.reduce((s, e) => s + e.montant, 0))}
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              {aPorter.map((e) => e.label).join(' · ')} — à porter sur ce mois.
+            </p>
+            <p className="mt-1.5 text-xs text-navy/70">
+              Ne l’ajoutez pas si vous l’avez déjà déclarée vous-même : elle compterait deux fois.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {aPorter.map((e) => (
+                <form key={e.id} action={porterEcheance}>
+                  <input type="hidden" name="instalment_id" value={e.id} />
+                  <SubmitButton size="sm" pendingLabel="…">
+                    Ajouter {money(e.montant)}
+                  </SubmitButton>
+                </form>
+              ))}
+            </div>
+          </>
+        ) : prochaine ? (
           <>
             <p className="font-display mt-2 text-[22px] font-semibold text-navy">
               {money(Number(prochaine.amount_ht))}
@@ -131,7 +162,7 @@ export async function EtatDuMois({ providerId }: { providerId: string }) {
               {prochaine.label} — {formatDateLong(prochaine.due_date)}.
             </p>
             <p className="mt-1.5 text-xs text-navy/70">
-              Prévue par votre contrat : elle s’ajoutera d’elle-même, sans rien saisir.
+              Prévue par votre contrat : elle vous sera proposée à cette date, à ajouter d’un clic.
             </p>
           </>
         ) : (

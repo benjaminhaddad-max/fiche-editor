@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { envoyerBordereaux } from '@/lib/bordereaux'
-import { ouvrirEcheances } from '@/lib/echeances'
 import { ouvrirForfaitsMensuels } from '@/lib/contracts/mensuel'
 import { rafraichirPaiements } from '@/lib/invoice/pennylane'
 import { cycleForDate, previousCycle, todayParis, type BillingCycle } from '@/lib/cycle'
@@ -72,7 +71,10 @@ export async function GET(request: Request) {
   // arrivés en cours de route donnent lieu à une régularisation, versée
   // avec le solde du semestre.
   fait.effectifs = await regulariserEffectifs(today, { appliquer: true })
-  fait.echeances = await ouvrirEcheances(today)
+  // Les échéances de contrat ne s'ouvrent plus d'elles-mêmes : elles sont
+  // proposées, au prestataire comme à son manager. Ouvertes d'office, elles
+  // s'ajoutaient à ce que la personne avait déclaré de son côté et le mois
+  // était payé deux fois.
   fait.forfaits = await ouvrirForfaitsMensuels(today)
 
   if (today === courant.periodStart) {

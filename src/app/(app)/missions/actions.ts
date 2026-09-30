@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
-import { requireProvider } from '@/lib/auth'
+import { getSessionUser, requireProvider } from '@/lib/auth'
+import { ouvrirUneEcheance } from '@/lib/echeances'
 import { logAudit } from '@/lib/audit'
 import { round2 } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
@@ -233,4 +234,31 @@ export async function deleteMission(formData: FormData): Promise<void> {
     .in('status', ['draft', 'submitted', 'rejected'])
 
   revalidatePath('/missions')
+}
+
+/**
+ * Porter une échéance de contrat sur le mois, à la demande.
+ *
+ * Elle n'arrive plus toute seule : celui qui clique sait s'il a déjà
+ * déclaré ce travail de son côté. Un prestataire ne peut porter que les
+ * siennes ; un manager ou un administrateur, celles de ses prestataires.
+ */
+export async function porterEcheance(formData: FormData): Promise<void> {
+  const user = await getSessionUser()
+  if (!user) return
+  const id = String(formData.get('instalment_id') ?? '')
+  if (!id) return
+
+  let providerId: string | undefined
+  if (user.role === 'prestataire') {
+    const supabase = await createServerSupabase()
+    const { data } = await supabase.from('inv_providers').select('id').eq('user_id', user.id).maybeSingle()
+    if (!data) return
+    providerId = data.id
+  }
+
+  await ouvrirUneEcheance(id, { providerId })
+  revalidatePath('/missions')
+  revalidatePath('/validation')
+  revalidatePath('/validation/bordereaux')
 }
