@@ -114,24 +114,38 @@ export async function GET(request: Request) {
   return NextResponse.json({ ok: true, ...fait })
 }
 
+/**
+ * Une étape, une fois par mois — et par école.
+ *
+ * Le journal des étapes est commun aux deux écoles : elles partagent une
+ * base. Les deux déploiements ayant chacun leur tâche quotidienne, le
+ * premier levé réservait l'étape pour tout le monde. Le 1er octobre à
+ * 6 h 00, Linova — qui n'a encore personne — a joué les bordereaux de
+ * septembre : zéro ligne, zéro bordereau. Diploma est passée juste après,
+ * a lu « déjà fait », et n'a rien envoyé. Deux cent seize prestations
+ * validées sont restées sans bordereau, et personne n'a pu facturer.
+ *
+ * L'école entre donc dans la clé de l'étape.
+ */
 async function uneFois(db: Db, mois: string, etape: string, faire: () => Promise<unknown>) {
+  const cle = `${getBrandId()}:${etape}`
   const { data: deja } = await db
     .from('inv_cycle_events')
     .select('created_at')
     .eq('cycle_month', mois)
-    .eq('event', etape)
+    .eq('event', cle)
     .maybeSingle()
   if (deja) return { deja: deja.created_at }
   // On réserve l'étape AVANT de la jouer : deux appels simultanés ne doivent
   // pas envoyer deux fois les mêmes emails.
-  const { error } = await db.from('inv_cycle_events').insert({ cycle_month: mois, event: etape })
+  const { error } = await db.from('inv_cycle_events').insert({ cycle_month: mois, event: cle })
   if (error) return { deja: 'en cours' }
   const resultat = await faire()
   await db
     .from('inv_cycle_events')
     .update({ detail: resultat ?? {} })
     .eq('cycle_month', mois)
-    .eq('event', etape)
+    .eq('event', cle)
   return resultat
 }
 
