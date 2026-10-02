@@ -11,7 +11,7 @@ interface Etape {
   quoi: string
 }
 
-function etapes(pour: Public, c: ReturnType<typeof activeCycle>): Etape[] {
+function etapes(pour: Public, c: ReturnType<typeof activeCycle>, limite: string): Etape[] {
   const du = (a: string, b: string) => `du ${formatDateLong(a)} au ${formatDateLong(b)}`
   const le = (a: string) => `le ${formatDateLong(a)}`
 
@@ -19,7 +19,7 @@ function etapes(pour: Public, c: ReturnType<typeof activeCycle>): Etape[] {
     return [
       { phase: 'declaration', quand: `jusqu’au ${formatDateLong(c.declarationDeadline)}`, quoi: 'Les prestataires déclarent. Vous pouvez déclarer pour eux et envoyer des bons de mission.' },
       { phase: 'verification', quand: du(c.reviewStart, c.reviewEnd), quoi: 'Vous vérifiez, corrigez et complétez les prestations de vos prestataires.' },
-      { phase: 'facturation', quand: le(c.statementDate), quoi: `Le bordereau global part à chaque prestataire. Factures attendues jusqu’au ${formatDateLong(c.invoiceDeadline)}.` },
+      { phase: 'facturation', quand: le(c.statementDate), quoi: `Le bordereau global part à chaque prestataire. Factures attendues jusqu’au ${formatDateLong(limite)}.` },
       { phase: 'paiement', quand: le(c.paymentDate), quoi: 'Paiement des factures reçues.' },
     ]
   }
@@ -33,7 +33,7 @@ function etapes(pour: Public, c: ReturnType<typeof activeCycle>): Etape[] {
   return [
     { phase: 'declaration', quand: `jusqu’au ${formatDateLong(c.declarationDeadline)}`, quoi: 'Déclarez vos prestations du mois. Passé cette date, vous pourrez encore en ajouter en cochant « déclaration tardive ».' },
     { phase: 'verification', quand: du(c.reviewStart, c.reviewEnd), quoi: 'Vos managers vérifient. Vous pouvez encore ajouter un oubli en cochant « déclaration tardive » sous sa date.' },
-    { phase: 'facturation', quand: `${le(c.statementDate)} → ${formatDateLong(c.invoiceDeadline)}`, quoi: 'Vous recevez votre bordereau : générez ou déposez votre facture sous 2 jours.' },
+    { phase: 'facturation', quand: `${le(c.statementDate)} → ${formatDateLong(limite)}`, quoi: 'Vous recevez votre bordereau : générez ou déposez votre facture avant cette date.' },
     { phase: 'paiement', quand: le(c.paymentDate), quoi: 'Paiement, par virement (le 3, ou le premier jour ouvré qui suit).' },
   ]
 }
@@ -41,7 +41,14 @@ function etapes(pour: Public, c: ReturnType<typeof activeCycle>): Etape[] {
 const ORDRE: CyclePhase[] = ['declaration', 'verification', 'facturation', 'paiement', 'termine']
 
 /** Les dates du mois, écrites en toutes lettres, avec l'étape du jour en évidence. */
-export function CalendrierMois({ pour }: { pour: Public }) {
+export function CalendrierMois({
+  pour,
+  limiteFacture,
+}: {
+  pour: Public
+  /** La date portée par le bordereau, quand il en existe un : c'est elle qui fait foi. */
+  limiteFacture?: string
+}) {
   const today = todayParis()
   const cycle = activeCycle(today)
   const actuelle = phaseOf(cycle, today)
@@ -56,7 +63,7 @@ export function CalendrierMois({ pour }: { pour: Public }) {
         </p>
       </div>
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {etapes(pour, cycle).map((e) => {
+        {etapes(pour, cycle, limiteFacture ?? cycle.invoiceDeadline).map((e) => {
           const i = ORDRE.indexOf(e.phase)
           const enCours = e.phase === actuelle
           const passee = i < rang

@@ -6,6 +6,7 @@ import { InvoiceStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
 import { requireProvider } from '@/lib/auth'
+import { limiteFacture } from '@/lib/limite-facture'
 import { cycleForMonth } from '@/lib/cycle'
 import { formatDate, formatDateLong, money } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
@@ -70,7 +71,7 @@ export default async function FacturationPage() {
         description="Le 1er de chaque mois, votre bordereau réunit toutes vos prestations validées, tous pôles confondus. Vous avez 2 jours pour transmettre la facture."
       />
 
-      <CalendrierMois pour="prestataire" />
+      <CalendrierMois pour="prestataire" limiteFacture={await limiteFacture(provider.id)} />
 
       {ouverts.map((b) => {
         const cycle = cycleForMonth(b.cycle_month)

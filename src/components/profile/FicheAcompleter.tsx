@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { activeCycle } from '@/lib/cycle'
+import { limiteFacture } from '@/lib/limite-facture'
 import { formatDateLong } from '@/lib/format'
 import { champsManquants } from '@/lib/profil'
 import { createServerSupabase } from '@/lib/supabase/server'
@@ -18,7 +19,7 @@ export async function FicheAcompleter({ userId }: { userId: string }) {
   const supabase = await createServerSupabase()
   const { data } = await supabase
     .from('inv_providers')
-    .select('employment_type, legal_name, siret, address_line1, postal_code, city, iban, phone')
+    .select('id, employment_type, legal_name, siret, address_line1, postal_code, city, iban, phone')
     .eq('user_id', userId)
     .maybeSingle()
   if (!data) return null
@@ -50,6 +51,9 @@ export async function FicheAcompleter({ userId }: { userId: string }) {
   // rappel, c'est un blocage. Il se lit en rouge, avec la date butoir.
   const bloquant = !data.siret?.trim() || !data.iban?.trim()
   const cycle = activeCycle()
+  // Le bordereau déjà émis porte la vraie date : annoncer le 2 octobre
+  // quand il dit le 4 ferait courir pour rien.
+  const limite = (await limiteFacture((data as { id: string }).id)) ?? cycle.invoiceDeadline
   const liste = manque.length === 1 ? manque[0] : `${manque.slice(0, -1).join(', ')} et ${manque.at(-1)}`
 
   return (
@@ -67,7 +71,7 @@ export async function FicheAcompleter({ userId }: { userId: string }) {
           {bloquant ? (
             <>
               <strong className="font-semibold">Vous ne pourrez pas facturer.</strong> Il manque {liste}. Sans ces
-              informations, votre facture du {formatDateLong(cycle.invoiceDeadline)} ne peut pas être émise, et le
+              informations, votre facture du {formatDateLong(limite)} ne peut pas être émise, et le
               virement du {formatDateLong(cycle.paymentDate)} ne partira pas.
             </>
           ) : (

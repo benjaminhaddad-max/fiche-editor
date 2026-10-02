@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
+import { limiteFacture } from '@/lib/limite-facture'
 import { EtatDuMois } from '@/components/missions/EtatDuMois'
 import { MissionRowActions } from '@/components/missions/MissionRowActions'
 import { OrderAnswer } from '@/components/orders/OrderAnswer'
@@ -117,7 +118,10 @@ export default async function MissionsPage({
       />
 
       {!salarie && <EtatDuMois providerId={provider.id} />}
-      <CalendrierMois pour={salarie ? 'salarie' : 'prestataire'} />
+      <CalendrierMois
+        pour={salarie ? 'salarie' : 'prestataire'}
+        limiteFacture={await limiteFacture(provider.id)}
+      />
 
       {aRepondre.length > 0 && courant !== 'bons' && (
         <Link
