@@ -27,6 +27,7 @@ export interface ReviewMission {
   detail: string
   formation: string | null
   regularisation: boolean
+  motifAbattement: 'contrat' | 'TVA'
   regul_period: string | null
   /** Sa fiche prévoit-elle un abattement ? Sinon, rien à lever. */
   abattable?: boolean
@@ -427,7 +428,7 @@ export function ValidationTable({
                       <>
                         {' = '}
                         <span className="line-through">{money(m.quantity * m.unit_amount_ht)}</span>
-                        {` − ${m.abatement_rate} % (contrat)`}
+                        {` − ${m.abatement_rate} % (${m.motifAbattement})`}
                       </>
                     )}
                     {/* Le levier au cas par cas : un remboursement de

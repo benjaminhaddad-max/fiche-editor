@@ -64,6 +64,10 @@ interface Props {
   couvertures?: { categoryId: string; resume: string }[]
   /** Sans TVA, « HT » ne veut rien dire : c'est le montant payé, point. */
   sansTva?: boolean
+  /** Ce qui est retenu sur le montant convenu, catégorie par catégorie. */
+  abattements?: Record<string, number>
+  /** Pourquoi on retient : les charges du contrat, ou la TVA du portage. */
+  motifAbattement?: 'contrat' | 'TVA'
   today: string
   deadlineText: string
 }
@@ -199,10 +203,19 @@ export function DeclarationForm(props: Props) {
   const maj = (cle: number, patch: Partial<Ligne>) =>
     setLignes((ls) => ls.map((l) => (l.cle === cle ? { ...l, ...patch } : l)))
 
-  const total = useMemo(
+  // Ce qui est convenu, et ce qui sera réellement porté : le formulaire
+  // n'affichait que le premier, et une retenue de 20 % n'apparaissait nulle
+  // part avant le récapitulatif. On déclare 3 200 € et on en voit 2 560 sur
+  // sa fiche de paie, sans jamais avoir vu passer le calcul.
+  const retenue = (categoryId: string) => props.abattements?.[categoryId] ?? 0
+  const verse = (l: Ligne) =>
+    round2((Number(l.quantity) || 0) * (Number(l.unit_amount_ht) || 0) * (1 - retenue(l.category_id) / 100))
+  const convenu = useMemo(
     () => round2(lignes.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unit_amount_ht) || 0), 0)),
     [lignes]
   )
+  const total = useMemo(() => round2(lignes.reduce((s, l) => s + verse(l), 0)), [lignes, props.abattements])
+  const motif = props.motifAbattement ?? 'contrat'
 
   const parPole = useMemo(() => {
     const g = new Map<Pole, DeclCategory[]>()
@@ -668,8 +681,18 @@ export function DeclarationForm(props: Props) {
                 </div>
 
                 <p className="mt-3 text-right text-sm text-navy">
-                  Total de la ligne : <strong className="font-display">{money(ligneTotal)}</strong>
-                  {!sansTva && ' HT'}
+                  {retenue(l.category_id) > 0 ? (
+                    <>
+                      <span className="text-muted">{money(ligneTotal)} convenus</span>
+                      {` − ${retenue(l.category_id)} % (${motif}) → `}
+                      <strong className="font-display">{money(verse(l))}</strong>
+                    </>
+                  ) : (
+                    <>
+                      Total de la ligne : <strong className="font-display">{money(ligneTotal)}</strong>
+                      {!sansTva && ' HT'}
+                    </>
+                  )}
                 </p>
               </div>
             )
@@ -697,7 +720,11 @@ export function DeclarationForm(props: Props) {
           </button>
           <p className="text-sm text-navy">
             Total : <strong>{money(total)}</strong>
-            {sansTva ? (
+            {convenu !== total ? (
+              <span className="ml-2 text-xs font-normal text-muted">
+                {money(convenu)} convenus, moins {motif === 'TVA' ? 'la TVA' : 'les charges du contrat'}
+              </span>
+            ) : sansTva ? (
               <span className="ml-2 text-xs font-normal text-muted">
                 vous n’avez pas de TVA : c’est le montant qui vous sera payé
               </span>

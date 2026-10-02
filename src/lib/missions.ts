@@ -10,7 +10,7 @@ export const MISSION_WITH_RELATIONS = `
   total_ht, abatement_rate, status, submitted_at, manager_approved_at, admin_approved_at,
   rejected_at, rejection_reason,
   category:inv_categories(name, provider_label),
-  provider:inv_providers(legal_name, employment_type, pay_abatement),
+  provider:inv_providers(legal_name, employment_type, pay_abatement, vat_regime),
   manager:inv_users!inv_missions_manager_id_fkey(full_name),
   valideur:inv_users!inv_missions_manager_approved_by_fkey(full_name)
 `
@@ -37,7 +37,12 @@ interface RawMission {
   total_ht: number
   manager_approved_at: string | null
   category: { name: string; provider_label: string | null } | null
-  provider: { legal_name: string; employment_type: string; pay_abatement: number } | null
+  provider: {
+    legal_name: string
+    employment_type: string
+    pay_abatement: number
+    vat_regime: string
+  } | null
   manager: { full_name: string } | null
   valideur: { full_name: string } | null
 }
@@ -68,6 +73,9 @@ export function toReviewMission(row: RawMission): ReviewMission {
     // On ne propose de lever un abattement que si sa fiche en prévoit un.
     abattable: Number(row.provider?.pay_abatement ?? 0) > 0,
     salarie: row.provider?.employment_type !== 'independant',
+    // Une retenue n'a pas la même raison selon qui la subit : les charges
+    // du contrat pour un salarié, la TVA pour qui passe par un portage.
+    motifAbattement: row.provider?.vat_regime === 'normal' ? ('TVA' as const) : ('contrat' as const),
     manager_name: row.manager?.full_name ?? '—',
     // Qui a validé, et quand. Sans ça, l'administration ne distinguait pas
     // une ligne déjà vue par son manager d'une ligne encore à voir : le

@@ -8,6 +8,7 @@ import { formatDateLong } from '@/lib/format'
 import { getCategoriesWithPole, getManagers } from '@/lib/queries'
 import { baremesParPrestataire } from '@/lib/contracts/baremes'
 import { couvertureParContrat } from '@/lib/contracts/couverture'
+import { tauxAbattement } from '@/lib/abattement'
 import { isSalaried, type Pole } from '@/lib/types'
 import { declarer } from '../../declarations/actions'
 
@@ -24,6 +25,12 @@ export default async function NewMissionPage({
     baremesParPrestataire(),
     couvertureParContrat(provider.id),
   ])
+  // Ce qui sera retenu, catégorie par catégorie : le taux dépend du métier,
+  // un accord pouvant exempter un pôle sans exempter les autres.
+  const abattements = Object.fromEntries(
+    categories.map((c) => [c.id, tauxAbattement(provider, c.pole)])
+  )
+
   // Le prestataire ne voit que le sien.
   const monTarif = tarifs[provider.id] ? { moi: tarifs[provider.id] } : undefined
 
@@ -71,6 +78,8 @@ export default async function NewMissionPage({
         tarifs={monTarif}
         couvertures={couvertures}
         sansTva={provider.vat_regime === 'franchise'}
+        abattements={abattements}
+        motifAbattement={provider.vat_regime === 'normal' ? 'TVA' : 'contrat'}
         today={today}
         deadlineText={texte}
       />
