@@ -28,7 +28,13 @@ export interface EnvoiBordereaux {
  * Idempotent : une prestation déjà rattachée à un bordereau ne l'est pas deux
  * fois, et un bordereau déjà facturé n'est pas rouvert.
  */
-export async function envoyerBordereaux(cycle: BillingCycle, auteurId?: string | null): Promise<EnvoiBordereaux> {
+export async function envoyerBordereaux(
+  cycle: BillingCycle,
+  auteurId?: string | null,
+  /** Une date limite repoussée, quand l'envoi lui-même a pris du retard. */
+  opts: { deadline?: string } = {}
+): Promise<EnvoiBordereaux> {
+  const limite = opts.deadline ?? cycle.invoiceDeadline
   const db = createServiceClient()
   const now = new Date().toISOString()
 
@@ -96,7 +102,7 @@ export async function envoyerBordereaux(cycle: BillingCycle, auteurId?: string |
             total: round2(total),
             lines: ids.length,
             label: cycle.label,
-            deadline: cycle.invoiceDeadline,
+            deadline: limite,
             paymentDate: cycle.paymentDate,
             salaried: true,
           }),
@@ -123,7 +129,7 @@ export async function envoyerBordereaux(cycle: BillingCycle, auteurId?: string |
       period_start: cycle.periodStart,
       period_end: cycle.periodEnd,
       statement_date: cycle.statementDate,
-      invoice_deadline: cycle.invoiceDeadline,
+      invoice_deadline: limite,
       payment_start: cycle.paymentDate,
       payment_end: cycle.paymentDate,
       status: 'sent',
@@ -160,7 +166,7 @@ export async function envoyerBordereaux(cycle: BillingCycle, auteurId?: string |
           total: round2(valeurs.total_ht),
           lines: ids.length,
           label: cycle.label,
-          deadline: cycle.invoiceDeadline,
+          deadline: limite,
           paymentDate: cycle.paymentDate,
           salaried: false,
         }),
