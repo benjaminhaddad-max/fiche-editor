@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { getBrandId } from '@/lib/brand'
 import { envoyerBordereaux } from '@/lib/bordereaux'
 import { cycleForMonth } from '@/lib/cycle'
 import { notifyStatementReminder } from '@/lib/email/notify'
@@ -35,9 +36,15 @@ export async function envoyerMaintenant(formData: FormData): Promise<void> {
   if (!/^\d{4}-\d{2}$/.test(mois)) return
 
   const resultat = await envoyerBordereaux(cycleForMonth(mois), user.id)
+  // La clé porte l'école, comme celles de la tâche quotidienne : le journal
+  // est commun aux deux, et une clé nue y vaut pour tout le monde.
   await createServiceClient()
     .from('inv_cycle_events')
-    .upsert({ cycle_month: mois, event: 'bordereaux', detail: { ...resultat, manuel: user.id } })
+    .upsert({
+      cycle_month: mois,
+      event: `${getBrandId()}:bordereaux`,
+      detail: { ...resultat, manuel: user.id },
+    })
   await logAudit(null, {
     actorId: user.id,
     entityType: 'user',
