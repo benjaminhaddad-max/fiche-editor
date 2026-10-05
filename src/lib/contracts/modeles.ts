@@ -39,6 +39,8 @@ export interface Parametres {
   debut: string
   fin: string | null
   montant: number | null
+  /** Un taux horaire se convient en net ou en brut : il faut le dire. */
+  base?: 'brut' | 'net' | null
   precisions: string | null
 }
 
@@ -47,6 +49,8 @@ export interface Modele {
   baremes?: { cle: string; nom: string; resume: string }[]
   /** Le modèle demande un lieu (fac, campus). */
   demandeLieu?: boolean
+  /** Le modèle demande si le taux est net ou brut. */
+  demandeBase?: boolean
   cle: string
   nom: string
   pole: Pole
@@ -179,7 +183,88 @@ function freelance(cle: string, nom: string, montant: number, heures: string): M
   }
 }
 
+/**
+ * L'enseignement, payé à l'heure.
+ *
+ * Il n'existait aucun modèle de professeur : la liste ne proposait que du
+ * commercial et de l'enregistrement, en tête « Freelance temps plein » et
+ * « Freelance temps partiel ». Shirel y a lu un choix de temps de travail,
+ * a pris le premier, et a envoyé un contrat commercial à un professeur.
+ *
+ * Le volume d'heures d'un professeur change d'un mois à l'autre : un forfait
+ * mensuel n'a pas de sens ici, c'est le taux horaire qui fait foi.
+ */
+function professeur(cle: string, nom: string, employment: Employment): Modele {
+  const salarie = employment !== 'independant'
+  return {
+    cle,
+    nom,
+    pole: 'professeur',
+    employment,
+    rateType: 'horaire',
+    rateAmount: null,
+    monthlyAuto: false,
+    signable: true,
+    demandeBase: salarie,
+    resume: salarie
+      ? 'Taux horaire, net ou brut selon ce qui a été convenu — vacation'
+      : 'Taux horaire hors taxes, déclaré séance par séance',
+    corps: (p) => {
+      const taux = p.montant ? euros(p.montant) : '… €'
+      const base = salarie ? (p.base === 'brut' ? ' brut' : ' net') : ' hors taxes'
+      return {
+        intitule: `Contrat d’enseignement — ${nom.toLowerCase()}`,
+        profil: nom,
+        resume: [
+          `Rémunération : ${taux}${base} de l’heure d’enseignement effectivement assurée.`,
+          'Les séances sont déclarées une à une : créneau, groupe, module et modalité.',
+          `Début : ${dateFr(p.debut)}${p.fin ? ` — fin : ${dateFr(p.fin)}.` : ' — sans terme fixé.'}`,
+        ],
+        articles: [
+          entete(p),
+          {
+            titre: 'Objet',
+            texte:
+              'La société confie à l’intervenant des enseignements : cours, travaux dirigés, colles, concours ' +
+              'blancs et l’accompagnement pédagogique qui s’y rattache. Le volume d’heures n’est pas garanti ; ' +
+              'il est arrêté au fil des besoins et des disponibilités de chacun.',
+          },
+          {
+            titre: 'Rémunération',
+            texte:
+              `La rémunération est de ${taux}${base} par heure d’enseignement effectivement assurée. Le temps de ` +
+              'préparation est compris dans ce taux, sauf accord écrit contraire. Les heures sont décomptées à la ' +
+              'séance, et non au forfait mensuel.',
+          },
+          {
+            titre: 'Déclaration des séances',
+            texte:
+              `Chaque séance est déclarée sur la plateforme ${brand().appTitle} avec son créneau horaire, le groupe ` +
+              'concerné, le module enseigné et la modalité (présentiel, distanciel ou hybride). Cette traçabilité ' +
+              'est exigée par la certification Qualiopi : un total d’heures mensuel ne suffit pas lors d’un audit.',
+          },
+          salarie
+            ? {
+                titre: 'Paie',
+                texte:
+                  'Les heures validées par le responsable pédagogique sont transmises au service paie et figurent ' +
+                  'sur le bulletin du mois. L’intervenant n’a pas de facture à établir.',
+              }
+            : FACTURATION,
+          ...(salarie ? [] : [INDEPENDANCE]),
+          CONFIDENTIALITE,
+          resiliation('un mois'),
+          LITIGES,
+          ...(p.precisions ? [{ titre: 'Dispositions particulières', texte: p.precisions }] : []),
+        ],
+      }
+    },
+  }
+}
+
 export const MODELES: Modele[] = [
+  professeur('professeur', 'Professeur indépendant', 'independant'),
+  professeur('professeur_vacataire', 'Professeur vacataire (salarié)', 'vacataire'),
   freelance('freelance_temps_plein', 'Freelance temps plein', 500, '25 heures par semaine'),
   freelance('freelance_temps_partiel', 'Freelance temps partiel', 250, '12 heures par semaine'),
   {

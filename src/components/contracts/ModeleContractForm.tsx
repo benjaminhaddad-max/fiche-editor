@@ -1,11 +1,12 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { creerDepuisModele, type ContractResult } from '@/app/(app)/admin/contrats/actions'
 import { Input, Select, Textarea } from '@/components/ui/Field'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { MODELES } from '@/lib/contracts/modeles'
+import { MODELES, type CorpsContrat } from '@/lib/contracts/modeles'
+import { POLE_LABEL } from '@/lib/labels'
 
 export function ModeleContractForm({
   providers,
@@ -20,15 +21,62 @@ export function ModeleContractForm({
   const [cle, setCle] = useState(MODELES[0].cle)
   const [qui, setQui] = useState('')
   const m = MODELES.find((x) => x.cle === cle)!
+  const [apercu, setApercu] = useState<CorpsContrat | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // Le texte se lit avant de partir, pas après. Shirel a découvert qu'elle
+  // avait envoyé un contrat commercial à un professeur en ouvrant le PDF
+  // reçu par le prestataire — il était déjà parti à la signature.
+  const previsualiser = () => {
+    const f = formRef.current
+    if (!f) return
+    const fd = new FormData(f)
+    const t = (k: string) => String(fd.get(k) ?? '').trim() || null
+    const nom =
+      t('new_name') ?? providers.find((p) => p.id === fd.get('provider_id'))?.name ?? 'Le prestataire'
+    setApercu(
+      m.corps({
+        bareme: t('bareme'),
+        lieu: t('lieu'),
+        nom,
+        email: t('new_email') ?? '',
+        telephone: t('new_phone'),
+        adresse: null,
+        siret: null,
+        debut: t('start_date') ?? today,
+        fin: t('end_date'),
+        montant: fd.get('rate_amount') ? Number(fd.get('rate_amount')) : m.rateAmount,
+        base: (t('base') as 'brut' | 'net' | null) ?? null,
+        precisions: t('precisions'),
+      })
+    )
+  }
+
+  // Les modèles rangés par métier : « Freelance temps plein » en tête d'une
+  // liste à plat se lit comme un choix de temps de travail, pas de métier.
+  const parPole = [...new Map(MODELES.map((x) => [x.pole, MODELES.filter((y) => y.pole === x.pole)])).entries()]
 
   return (
-    <form action={action} encType="multipart/form-data" className="flex flex-col gap-4">
+    <form ref={formRef} action={action} encType="multipart/form-data" className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select id="profile" name="profile" label="Modèle de contrat" value={cle} onChange={(e) => setCle(e.target.value)}>
-          {MODELES.map((x) => (
-            <option key={x.cle} value={x.cle}>
-              {x.nom}
-            </option>
+        <Select
+          id="profile"
+          name="profile"
+          label="Type de contrat"
+          value={cle}
+          onChange={(e) => {
+            setCle(e.target.value)
+            setApercu(null)
+          }}
+        >
+          {parPole.map(([pole, liste]) => (
+            <optgroup key={pole} label={POLE_LABEL[pole]}>
+              {liste.map((x) => (
+                <option key={x.cle} value={x.cle}>
+                  {x.nom}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </Select>
         <div className="rounded-lg bg-cream-muted px-4 py-3 text-sm">
@@ -133,11 +181,27 @@ export function ModeleContractForm({
           type="number"
           step="0.01"
           min="0"
-          label={m.rateType === 'mensuel' ? 'Forfait mensuel HT' : 'Tarif HT'}
+          label={
+            m.rateType === 'mensuel'
+              ? 'Forfait mensuel HT'
+              : m.rateType === 'horaire'
+                ? 'Taux horaire'
+                : 'Tarif HT'
+          }
           defaultValue={m.rateAmount ?? ''}
           key={cle}
-          hint="Laissez le montant du modèle, ou ajustez-le pour cette personne."
+          hint={
+            m.rateType === 'horaire'
+              ? 'Le volume d’heures change d’un mois à l’autre : c’est le taux qui est contractuel, pas un forfait.'
+              : 'Laissez le montant du modèle, ou ajustez-le pour cette personne.'
+          }
         />
+        {m.demandeBase && (
+          <Select id="base" name="base" label="Ce taux est" defaultValue="net" key={`base-${cle}`}>
+            <option value="net">Net — ce qu’il touche</option>
+            <option value="brut">Brut — avant charges</option>
+          </Select>
+        )}
         {m.baremes && (
           <Select id="bareme" name="bareme" label="Barème" defaultValue={m.baremes[0].cle} key={`b-${cle}`}>
             {m.baremes.map((b) => (
@@ -182,7 +246,47 @@ export function ModeleContractForm({
       {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
       {state.success && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{state.success}</p>}
 
+      {apercu && (
+        <div className="rounded-xl border border-line bg-white">
+          <div className="flex items-center justify-between border-b border-line bg-cream-muted px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-navy">{apercu.intitule}</p>
+              <p className="text-xs text-muted">{apercu.profil} — aperçu, rien n’est encore envoyé</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setApercu(null)}
+              className="cursor-pointer rounded-lg px-2 py-1 text-xs text-navy/70 hover:bg-cream-deep"
+            >
+              Fermer
+            </button>
+          </div>
+          <div className="max-h-96 overflow-y-auto px-4 py-3">
+            <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-navy/80">
+              {apercu.resume.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+            {apercu.articles.map((a, i) => (
+              <div key={i} className="mb-3">
+                <p className="text-sm font-semibold text-navy">
+                  Article {i + 1} — {a.titre}
+                </p>
+                <p className="mt-0.5 whitespace-pre-line text-xs leading-relaxed text-navy/75">{a.texte}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-end gap-3">
+        <button
+          type="button"
+          onClick={previsualiser}
+          className="cursor-pointer rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-navy hover:border-gold/50 hover:bg-cream-muted"
+        >
+          {apercu ? 'Actualiser l’aperçu' : 'Prévisualiser le contrat'}
+        </button>
         <SubmitButton name="envoyer" value="non" variant="secondary" pendingLabel="Enregistrement…">
           Enregistrer sans envoyer
         </SubmitButton>

@@ -195,6 +195,7 @@ const DepuisModele = z
     precisions: z.string().trim().max(3000).optional(),
     bareme: z.string().trim().max(40).optional(),
     lieu: z.string().trim().max(80).optional(),
+    base: z.union([z.enum(['brut', 'net']), z.literal('')]).optional(),
     envoyer: z.enum(['oui', 'non']).default('oui'),
   })
   .refine((v) => v.provider_id !== 'nouveau' || (v.new_name && v.new_email), {
@@ -254,6 +255,7 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
     debut: v.start_date,
     fin: v.end_date || null,
     montant,
+    base: v.base || null,
     precisions: v.precisions || null,
   })
   if (!corps) return { error: 'Modèle inconnu.' }
@@ -282,6 +284,7 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
       end_date: v.end_date || null,
       rate_type: m.rateType,
       rate_amount: montant,
+      pay_basis: v.base || null,
       total_ht: 0,
       monthly_auto: m.monthlyAuto && m.employment === 'independant',
       conditions: [m.resume, v.precisions].filter(Boolean).join('\n\n'),
