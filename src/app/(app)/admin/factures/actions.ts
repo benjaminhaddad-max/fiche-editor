@@ -58,6 +58,9 @@ export async function envoyerPennylane(_prev: LotResultat | null, fd: FormData):
       action: r.ok ? 'pennylane_sync' : 'pennylane_sync_failed',
       payload: r.ok ? { pennylane_invoice_id: r.pennylaneInvoiceId } : { error: r.error },
     })
+    // Un envoi, c'est un dépôt de PDF puis une création de facture : à
+    // trente-sept d'affilée, on dépasse le débit autorisé quoi qu'il arrive.
+    await new Promise((res) => setTimeout(res, 350))
     if (r.ok) out.ok++
     else {
       const { data } = await db.from('inv_invoices').select('number').eq('id', id).maybeSingle()

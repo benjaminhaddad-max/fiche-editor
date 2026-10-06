@@ -35,6 +35,25 @@ function token(): string {
   return t
 }
 
+/**
+ * Un appel qui attend son tour.
+ *
+ * Pennylane limite le débit et répond 429 « retry in 1 second ». Envoyer
+ * trente-sept factures d'affilée en faisait passer huit : les autres se
+ * faisaient refouler et ressortaient en erreur, alors qu'il suffisait
+ * d'attendre une seconde. On patiente, on réessaie, et on laisse souffler
+ * entre deux requêtes.
+ */
+async function appel(url: string, init?: RequestInit): Promise<Response> {
+  for (let essai = 0; ; essai++) {
+    const res = await appel(url, init)
+    if (res.status !== 429 || essai >= 5) return res
+    const entete = Number(res.headers.get('retry-after') ?? '')
+    const attente = Number.isFinite(entete) && entete > 0 ? entete * 1000 : 1000 * 2 ** essai
+    await new Promise((r) => setTimeout(r, Math.min(attente, 8000)))
+  }
+}
+
 async function parseError(res: Response): Promise<never> {
   let body: unknown
   const text = await res.text()
@@ -58,7 +77,7 @@ export async function uploadFileAttachment(
   const form = new FormData()
   form.append('file', new Blob([new Uint8Array(pdf)], { type: 'application/pdf' }), filename)
 
-  const res = await fetch(`${BASE_URL}/file_attachments`, {
+  const res = await appel(`${BASE_URL}/file_attachments`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token()}` },
     body: form,
@@ -103,7 +122,7 @@ export interface ImportSupplierInvoiceInput {
 export async function importSupplierInvoice(
   input: ImportSupplierInvoiceInput
 ): Promise<number> {
-  const res = await fetch(`${BASE_URL}/supplier_invoices/import`, {
+  const res = await appel(`${BASE_URL}/supplier_invoices/import`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token()}`,
@@ -133,7 +152,7 @@ export async function setSupplierInvoiceCategories(
   supplierInvoiceId: number,
   categories: PennylaneCategoryWeight[]
 ): Promise<void> {
-  const res = await fetch(
+  const res = await appel(
     `${BASE_URL}/supplier_invoices/${supplierInvoiceId}/categories`,
     {
       method: 'PUT',
@@ -177,7 +196,7 @@ export async function listSuppliers(): Promise<PennylaneSupplier[]> {
   let cursor: string | null = null
   for (let page = 0; page < 50; page++) {
     const url = `${BASE_URL}/suppliers?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token()}` } })
+    const res = await appel(url, { headers: { Authorization: `Bearer ${token()}` } })
     if (!res.ok) await parseError(res)
     const body = (await res.json()) as { items?: PennylaneSupplier[]; has_more?: boolean; next_cursor?: string }
     out.push(...(body.items ?? []))
@@ -200,7 +219,7 @@ export interface CreateSupplierInput {
 
 /** Crée un fournisseur (scope suppliers:all). Renvoie son id. */
 export async function createSupplier(input: CreateSupplierInput): Promise<number> {
-  const res = await fetch(`${BASE_URL}/suppliers`, {
+  const res = await appel(`${BASE_URL}/suppliers`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -238,7 +257,7 @@ export async function listSupplierInvoices(opts: { pages?: number } = {}): Promi
   let curseur: string | null = null
   for (let i = 0; i < (opts.pages ?? 3); i++) {
     const url = `${BASE_URL}/supplier_invoices?limit=100${curseur ? `&cursor=${encodeURIComponent(curseur)}` : ''}`
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token()}` } })
+    const res = await appel(url, { headers: { Authorization: `Bearer ${token()}` } })
     if (!res.ok) await parseError(res)
     const json = (await res.json()) as {
       items?: PennylaneInvoiceResume[]
@@ -267,7 +286,7 @@ export async function setSupplierInvoicePaymentStatus(
   id: number,
   statut: 'paid' | 'to_be_paid'
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/supplier_invoices/${id}/payment_status`, {
+  const res = await appel(`${BASE_URL}/supplier_invoices/${id}/payment_status`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ payment_status: statut }),
@@ -284,7 +303,7 @@ export interface PennylaneInvoiceState {
 
 /** État d'une facture d'achat : payée ou non, et ce qu'il reste à régler. */
 export async function getSupplierInvoice(id: number): Promise<PennylaneInvoiceState> {
-  const res = await fetch(`${BASE_URL}/supplier_invoices/${id}`, {
+  const res = await appel(`${BASE_URL}/supplier_invoices/${id}`, {
     headers: { Authorization: `Bearer ${token()}` },
   })
   if (!res.ok) await parseError(res)
