@@ -20,7 +20,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'bg-navy text-cream hover:bg-navy-light focus-visible:ring-gold': variant === 'primary',
           'border border-line bg-white text-navy hover:bg-cream-muted focus-visible:ring-gold':
             variant === 'secondary',
-          'text-navy/70 hover:bg-cream-deep focus-visible:ring-gold': variant === 'ghost',
+          'text-navy hover:bg-cream-deep focus-visible:ring-gold': variant === 'ghost',
           'bg-red-700 text-white hover:bg-red-800 focus-visible:ring-red-500': variant === 'danger',
           'bg-gold text-navy hover:bg-gold-dark hover:text-cream focus-visible:ring-gold':
             variant === 'success',

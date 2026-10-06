@@ -214,7 +214,12 @@ export function DeclarationForm(props: Props) {
     () => round2(lignes.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unit_amount_ht) || 0), 0)),
     [lignes]
   )
-  const total = useMemo(() => round2(lignes.reduce((s, l) => s + verse(l), 0)), [lignes, props.abattements])
+  // `verse` se reconstruit à chaque rendu : on dépend de ce qu'il lit.
+  const total = useMemo(
+    () => round2(lignes.reduce((s, l) => s + verse(l), 0)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lignes, props.abattements]
+  )
   const motif = props.motifAbattement ?? 'contrat'
 
   const parPole = useMemo(() => {

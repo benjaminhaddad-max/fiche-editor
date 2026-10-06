@@ -43,10 +43,13 @@ export function Tabs({
               sombre
                 ? actif
                   ? 'border-gold font-semibold text-cream'
-                  : 'border-transparent text-cream/55 hover:border-cream/25 hover:text-cream'
+                  : /* Un onglet inactif reste un lien qu'on doit pouvoir lire :
+                       à 55 % sur le bandeau sombre, il se devinait plus qu'il
+                       ne se lisait. */
+                    'border-transparent text-cream/80 hover:border-cream/40 hover:text-cream'
                 : actif
                   ? 'border-navy font-semibold text-navy'
-                  : 'border-transparent text-navy/60 hover:border-line hover:text-navy'
+                  : 'border-transparent text-navy/75 hover:border-line hover:text-navy'
             )}
           >
             {t.label}
@@ -57,10 +60,10 @@ export function Tabs({
                   sombre
                     ? actif
                       ? 'bg-gold text-navy'
-                      : 'bg-white/10 text-cream/70'
+                      : 'bg-white/20 text-cream'
                     : actif
                       ? 'bg-navy text-cream'
-                      : 'bg-cream-deep text-navy/70'
+                      : 'bg-cream-deep text-navy'
                 )}
               >
                 {t.count}

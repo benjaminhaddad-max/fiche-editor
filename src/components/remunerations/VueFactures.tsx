@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react'
 import { ARattacher } from '@/components/admin/ARattacher'
 import { InvoiceTable, type AdminInvoiceRow } from '@/components/admin/InvoiceTable'
 import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
-import { Card, EmptyState, StatTile } from '@/components/ui/Page'
+import { Card, EmptyState } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
 import { money } from '@/lib/format'
@@ -31,8 +31,16 @@ interface Row {
   apporteur: { full_name: string } | null
 }
 
+/**
+ * Les quatre temps d'une facture, dans l'ordre où on les traverse.
+ *
+ * L'écran en montrait trois mélangés — « transmises », « validées »,
+ * « payées » — avec l'état Pennylane dans une colonne à part, si bien qu'on
+ * ne savait pas ce qu'il restait à faire ni dans quel ordre. Les étapes sont
+ * numérotées, et chacune dit le geste qui la fait avancer.
+ */
 const ONGLETS = {
-  transmises: { label: 'Transmises', statuts: ['sent'] },
+  transmises: { label: 'Reçues', statuts: ['sent'] },
   validees: { label: 'Validées', statuts: ['validated'] },
   payees: { label: 'Payées', statuts: ['paid'] },
   attente: { label: 'En attente du PDF', statuts: ['issued'] },
@@ -102,36 +110,61 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          Les factures transmises arrivent ici. Validez-les, puis envoyez-les dans Pennylane. Ce qui y est payé
-          revient automatiquement.
-        </p>
-        <form action={actualiserPaiements}>
-          <SubmitButton variant="secondary" size="sm" pendingLabel="Relecture…">
-            <RefreshCw size={14} />
-            Actualiser depuis Pennylane
-          </SubmitButton>
-        </form>
-      </div>
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatTile label="À valider" value={String(transmises.length)} sub={money(transmises.reduce((s, r) => s + Number(r.total_ttc), 0))} accent="amber" />
-        <StatTile label="Validées, pas encore dans Pennylane" value={String(aEnvoyer.length)} sub={money(aEnvoyer.reduce((s, r) => s + Number(r.total_ttc), 0))} accent="brand" />
-        <StatTile
-          label="Restant à régler"
-          value={money(rows.filter((r) => ['sent', 'validated'].includes(r.status)).reduce((s, r) => s + Number(r.total_ttc), 0))}
-        />
+      {/* Ce qu'il faut faire maintenant, et ce que ça représente. Le reste
+          du mois se lit en dessous ; ici on ne dit qu'une chose. */}
+      <div className="mb-6 overflow-hidden rounded-xl border border-line bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-cream-muted px-5 py-4">
+          <div className="min-w-0">
+            <p className="ds-eyebrow">Prochaine étape</p>
+            <p className="mt-1 font-display text-lg text-navy">
+              {transmises.length > 0
+                ? `${transmises.length} facture${transmises.length > 1 ? 's' : ''} à vérifier et valider`
+                : aEnvoyer.length > 0
+                  ? `${aEnvoyer.length} facture${aEnvoyer.length > 1 ? 's' : ''} à envoyer en comptabilité`
+                  : 'Rien en attente de votre part'}
+            </p>
+            <p className="mt-0.5 text-sm text-muted">
+              {transmises.length > 0
+                ? `${money(transmises.reduce((s, r) => s + Number(r.total_ttc), 0))} — ouvrez-les si besoin, cochez, puis validez.`
+                : aEnvoyer.length > 0
+                  ? `${money(aEnvoyer.reduce((s, r) => s + Number(r.total_ttc), 0))} — cochez-les et envoyez-les dans Pennylane.`
+                  : 'Les paiements remontent tout seuls depuis Pennylane.'}
+            </p>
+          </div>
+          <form action={actualiserPaiements}>
+            <SubmitButton variant="secondary" pendingLabel="Relecture…">
+              <RefreshCw size={15} />
+              Actualiser les paiements
+            </SubmitButton>
+          </form>
+        </div>
+        <div className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {[
+            ['1 — Reçues, à valider', transmises],
+            ['2 — Validées, à passer en compta', aEnvoyer],
+            ['Reste à régler', rows.filter((r) => ['sent', 'validated'].includes(r.status))],
+          ].map(([label, lot]) => (
+            <div key={label as string} className="px-5 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted">{label as string}</p>
+              <p className="font-display mt-1 text-xl font-semibold text-navy">
+                {money((lot as AdminInvoiceRow[]).reduce((s, r) => s + Number(r.total_ttc), 0))}
+              </p>
+              <p className="text-xs text-muted">
+                {(lot as AdminInvoiceRow[]).length} facture{(lot as AdminInvoiceRow[]).length > 1 ? 's' : ''}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mb-5 flex flex-wrap gap-2">
         {(
           [
-            ['transmises', 'Transmises', transmises.length],
-            ['validees', 'Validées', aEnvoyer.length],
-            ['diverses', 'Factures diverses', 0],
-            ['payees', 'Payées', 0],
-            ['attente', 'En attente du PDF', par(['issued']).length],
+            ['transmises', '1 — Reçues', transmises.length],
+            ['validees', '2 — Validées', aEnvoyer.length],
+            ['payees', '3 — Payées', 0],
+            ['diverses', 'Factures fournisseurs', 0],
+            ['attente', 'En attente de leur PDF', par(['issued']).length],
           ] as const
         ).map(([cle, label, compte]) => (
           <Link

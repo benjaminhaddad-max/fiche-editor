@@ -209,6 +209,6 @@
 }
 
 .ds-header-action-ghost {
-  @apply inline-flex items-center gap-2 rounded-lg border border-cream/25 bg-white/5 px-4 py-2
-         text-sm font-medium text-cream transition-colors hover:bg-white/12;
+  @apply inline-flex items-center gap-2 rounded-lg border border-cream/45 bg-white/10 px-4 py-2
+         text-sm font-medium text-cream transition-colors hover:border-cream/70 hover:bg-white/20;
 }

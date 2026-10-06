@@ -3,7 +3,6 @@
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Download, Undo2 } from 'lucide-react'
-import { Badge, InvoiceStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import {
@@ -34,13 +33,17 @@ export interface AdminInvoiceRow {
   apportePar: string | null
 }
 
-const PENNYLANE: Record<PennylaneStatus, { label: string; style: string }> = {
-  not_synced: { label: 'À envoyer', style: 'bg-cream-deep text-navy/70 ring-line' },
-  synced: { label: 'Dans Pennylane', style: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  error: { label: 'Erreur', style: 'bg-red-50 text-red-700 ring-red-200' },
-}
-
 type Geste = 'valider' | 'pennylane' | 'payer'
+
+/** Où en est une facture, et ce qui la fera avancer. */
+function ETAPE(r: AdminInvoiceRow): { titre: string; suite: string } {
+  if (r.status === 'paid') return { titre: 'Payée', suite: 'Rien à faire.' }
+  if (r.status === 'issued') return { titre: 'En attente de son PDF', suite: 'Le prestataire doit le déposer.' }
+  if (r.pennylane_status === 'error') return { titre: 'Refusée par Pennylane', suite: 'À renvoyer après correction.' }
+  if (r.status === 'sent') return { titre: 'Reçue', suite: 'À vérifier, puis valider.' }
+  if (r.pennylane_status === 'synced') return { titre: 'En comptabilité', suite: 'En attente du règlement.' }
+  return { titre: 'Validée', suite: 'À envoyer dans Pennylane.' }
+}
 
 export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes: Geste[] }) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
@@ -60,7 +63,8 @@ export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes
   return (
     <>
       {selection.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-navy/20 bg-white px-5 py-3">
+        <div className="mb-3 rounded-xl border border-navy/20 bg-white px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-navy">
             <strong>{selection.size}</strong> facture{selection.size > 1 ? 's' : ''} —{' '}
             <strong>{money(choisis.reduce((s, r) => s + Number(r.total_ttc), 0))} TTC</strong>
@@ -87,6 +91,18 @@ export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes
               </form>
             )}
           </div>
+          </div>
+          {/* Les deux gestes se ressemblaient à l'écran alors qu'un seul
+              sort de la plateforme. On dit lequel fait quoi, là où on
+              clique. */}
+          <p className="mt-2 border-t border-line pt-2 text-xs text-muted">
+            <strong className="font-medium text-navy/80">Valider</strong> ne fait que marquer « j’ai vérifié » —
+            rien ne quitte la plateforme, et ce n’est pas obligatoire.{' '}
+            <strong className="font-medium text-navy/80">Envoyer dans Pennylane</strong> transfère vraiment la
+            facture et son PDF en comptabilité.{' '}
+            <strong className="font-medium text-navy/80">Marquer payées</strong> sert aux virements faits à la
+            main : sinon le paiement revient tout seul de Pennylane.
+          </p>
         </div>
       )}
 
@@ -119,8 +135,7 @@ export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes
                 <th className="px-4 py-3 font-medium">Numéro</th>
                 <th className="px-4 py-3 font-medium">Date</th>
                 <th className="px-4 py-3 text-right font-medium">TTC</th>
-                <th className="px-4 py-3 font-medium">Statut</th>
-                <th className="px-4 py-3 font-medium">Pennylane</th>
+                <th className="px-4 py-3 font-medium">Où ça en est</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -176,10 +191,11 @@ export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes
                   <td className="whitespace-nowrap px-4 py-3 text-navy/70">{formatDate(r.issue_date)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">{money(r.total_ttc)}</td>
                   <td className="px-4 py-3">
-                    <InvoiceStatusBadge status={r.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge className={PENNYLANE[r.pennylane_status].style}>{PENNYLANE[r.pennylane_status].label}</Badge>
+                    {/* Deux colonnes d'état côte à côte — le statut et
+                        Pennylane — obligeaient à les croiser de tête pour
+                        savoir ce qu'il restait à faire. Une seule phrase. */}
+                    <p className="text-sm font-medium text-navy">{ETAPE(r).titre}</p>
+                    <p className="mt-0.5 text-xs text-muted">{ETAPE(r).suite}</p>
                     {r.pennylane_error && <p className="mt-1 max-w-56 text-xs text-red-600">{r.pennylane_error}</p>}
                   </td>
                   <td className="px-4 py-3">
