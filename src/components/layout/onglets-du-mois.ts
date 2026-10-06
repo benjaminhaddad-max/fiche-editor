@@ -33,6 +33,7 @@ export function ongletsDuMois(role: Role, aValider: number, mois: string): TabIt
     { key: 'social', label: 'Au social', href: `/remunerations?vue=social&${m}` },
     { key: 'bulletins', label: 'Bulletins', href: `/remunerations?vue=bulletins&${m}` },
     { key: 'mois', label: 'Ce mois-ci', href: `/remunerations?${m}` },
+    { key: 'depenses', label: 'Dépenses', href: `/remunerations?vue=depenses&${m}` },
     { key: 'historique', label: 'Historique', href: '/validation/historique' },
   ]
 }

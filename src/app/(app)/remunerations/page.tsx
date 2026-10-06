@@ -5,6 +5,7 @@ import { VueBulletins, VueMois } from '@/components/remunerations/VueMois'
 import { VueElements } from '@/components/remunerations/VueElements'
 import { VueFactures } from '@/components/remunerations/VueFactures'
 import { VueSocial } from '@/components/remunerations/VueSocial'
+import { VueDepenses } from '@/components/remunerations/VueDepenses'
 import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
 import { Card } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
@@ -81,6 +82,7 @@ export default async function RemunerationsPage({
       {courant === 'elements' && <VueElements cycle={cycle} />}
       {courant === 'bulletins' && <VueBulletins cycle={cycle} />}
       {courant === 'social' && <VueSocial cycle={cycle} />}
+      {courant === 'depenses' && <VueDepenses cycle={cycle} />}
       {courant === 'deposer' && (
         <Card className="p-5">
           <MiscInvoiceUpload categories={cats ?? []} inboundAddress={process.env.DEPOT_FACTURES_EMAIL ?? null} />
