@@ -45,7 +45,16 @@ function ETAPE(r: AdminInvoiceRow): { titre: string; suite: string } {
   return { titre: 'Validée', suite: 'À envoyer dans Pennylane.' }
 }
 
-export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes: Geste[] }) {
+export function InvoiceTable({
+  rows,
+  gestes,
+  doublons = {},
+}: {
+  rows: AdminInvoiceRow[]
+  gestes: Geste[]
+  /** Factures déjà en comptabilité au même montant, par facture. */
+  doublons?: Record<string, { date: string; montant: number; libelle: string; payee: boolean }[]>
+}) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
   const [refus, setRefus] = useState<string | null>(null)
   const [lot, envoyer] = useActionState<LotResultat | null, FormData>(envoyerPennylane, null)
@@ -158,6 +167,21 @@ export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes
                       {r.sansCompte ? ' · sans compte' : ''}
                       {r.apportePar ? ` · via ${r.apportePar}` : ''}
                     </p>
+                    {doublons[r.id]?.length ? (
+                      /* Le même montant déjà passé en compta : c'est ainsi
+                         qu'on paie deux fois la même prestation, une fois par
+                         la plateforme et une fois en direct. */
+                      <div className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+                        <p className="font-semibold">Même montant déjà en comptabilité</p>
+                        {doublons[r.id].map((d, i) => (
+                          <p key={i} className="mt-0.5">
+                            {money(d.montant)} le {formatDate(d.date)} — {d.libelle}
+                            {d.payee ? ' · déjà réglée' : ''}
+                          </p>
+                        ))}
+                        <p className="mt-0.5 text-amber-800/80">Vérifiez qu’il ne s’agit pas de la même prestation.</p>
+                      </div>
+                    ) : null}
                     {r.ai_check?.matches === false && (
                       <p className="mt-1 flex items-start gap-1 text-xs text-amber-700">
                         <AlertTriangle size={12} className="mt-px shrink-0" />

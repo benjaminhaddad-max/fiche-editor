@@ -213,6 +213,44 @@ export async function createSupplier(input: CreateSupplierInput): Promise<number
   return json.id
 }
 
+export interface PennylaneInvoiceResume {
+  id: number
+  date: string
+  amount: string
+  label: string | null
+  invoice_number: string | null
+  payment_status: string | null
+  paid: boolean | null
+  supplier: { name?: string | null } | null
+}
+
+/**
+ * Les factures d'achat récentes, toutes origines confondues.
+ *
+ * On ne lit pas que les nôtres : une facture saisie directement dans
+ * Pennylane, ou déposée par un tiers, compte autant pour repérer un double
+ * règlement. La pagination est bornée — on cherche un doublon récent, pas
+ * l'historique.
+ */
+export async function listSupplierInvoices(opts: { pages?: number } = {}): Promise<PennylaneInvoiceResume[]> {
+  const out: PennylaneInvoiceResume[] = []
+  let curseur: string | null = null
+  for (let i = 0; i < (opts.pages ?? 3); i++) {
+    const url = `${BASE_URL}/supplier_invoices?limit=100${curseur ? `&cursor=${encodeURIComponent(curseur)}` : ''}`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token()}` } })
+    if (!res.ok) await parseError(res)
+    const json = (await res.json()) as {
+      items?: PennylaneInvoiceResume[]
+      has_more?: boolean
+      next_cursor?: string | null
+    }
+    out.push(...(json.items ?? []))
+    if (!json.has_more || !json.next_cursor) break
+    curseur = json.next_cursor
+  }
+  return out
+}
+
 export interface PennylaneInvoiceState {
   id: number
   paid?: boolean

@@ -14,7 +14,11 @@ import { createServiceClient } from '@/lib/supabase/service'
 const ids = (fd: FormData) => fd.getAll('invoice_id').map(String).filter(Boolean)
 
 function rafraichir() {
-  // « layout » : la liste et chaque page de facture.
+  // La liste a déménagé dans Rémunérations quand les onglets ont fusionné,
+  // mais on ne rafraîchissait toujours que l'ancienne adresse : on marquait
+  // une facture payée et elle restait là, jusqu'à ce qu'on recharge à la
+  // main. « layout » couvre la liste et chaque page de facture.
+  revalidatePath('/remunerations', 'layout')
   revalidatePath('/admin/factures', 'layout')
 }
 

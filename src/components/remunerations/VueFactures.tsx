@@ -7,6 +7,7 @@ import { Card, EmptyState } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
 import { money } from '@/lib/format'
+import { chercherDoublons } from '@/lib/invoice/doublons'
 import { getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
@@ -101,6 +102,11 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     }))
 
   const liste = courant === 'diverses' ? rows.filter((r) => r.kind === 'misc') : par(ONGLETS[courant].statuts)
+
+  // Avant de valider, on regarde si la comptabilité porte déjà ce montant.
+  const doublons = await chercherDoublons(
+    liste.filter((r) => r.status === 'sent').map((r) => ({ id: r.id, provider: r.provider, total_ttc: Number(r.total_ttc), issue_date: r.issue_date }))
+  )
   const gestes =
     courant === 'transmises'
       ? (['valider', 'pennylane', 'payer'] as const)
@@ -193,7 +199,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
       {liste.length === 0 ? (
         <EmptyState title="Aucune facture ici" />
       ) : (
-        <InvoiceTable rows={liste} gestes={[...gestes]} />
+        <InvoiceTable rows={liste} gestes={[...gestes]} doublons={Object.fromEntries(doublons)} />
       )}
     </>
   )

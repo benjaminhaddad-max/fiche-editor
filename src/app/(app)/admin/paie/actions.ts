@@ -59,6 +59,7 @@ export async function cloturerPaie(fd: FormData): Promise<void> {
     payload: { mois, lignes: lignes.length, total },
   })
   revalidatePath('/admin/paie')
+  revalidatePath('/remunerations', 'layout')
 }
 
 export interface DepotBulletinsResult {
@@ -95,6 +96,7 @@ export async function deposerBulletins(_prev: DepotBulletinsResult, fd: FormData
     })
   }
   revalidatePath('/admin/paie')
+  revalidatePath('/remunerations', 'layout')
   return {
     success: ranges.length ? `Classé : ${ranges.join(' · ')}` : undefined,
     error: ratees.length ? ratees.join(' · ') : undefined,
