@@ -42,11 +42,26 @@ interface Row {
  * ne savait pas ce qu'il restait à faire ni dans quel ordre. Les étapes sont
  * numérotées, et chacune dit le geste qui la fait avancer.
  */
+/**
+ * Les quatre temps d'une facture, dans l'ordre où on les traverse.
+ *
+ * L'étape dépend de deux choses : notre statut, et ce que la comptabilité
+ * en a fait. Les confondre donnait un onglet « En comptabilité » rempli de
+ * factures que Pennylane venait de refuser — et personne ne savait plus
+ * s'il fallait recliquer.
+ */
 const ONGLETS = {
-  transmises: { label: 'Reçues', statuts: ['sent'] },
-  validees: { label: 'En comptabilité', statuts: ['validated'] },
-  payees: { label: 'Payées', statuts: ['paid'] },
-  attente: { label: 'En attente du PDF', statuts: ['issued'] },
+  transmises: { label: 'Reçues', ou: (r: AdminInvoiceRow) => r.status === 'sent' },
+  echec: {
+    label: 'Envoi à refaire',
+    ou: (r: AdminInvoiceRow) => r.status === 'validated' && r.pennylane_status !== 'synced',
+  },
+  compta: {
+    label: 'En comptabilité',
+    ou: (r: AdminInvoiceRow) => r.status === 'validated' && r.pennylane_status === 'synced',
+  },
+  payees: { label: 'Payées', ou: (r: AdminInvoiceRow) => r.status === 'paid' },
+  attente: { label: 'En attente du PDF', ou: (r: AdminInvoiceRow) => r.status === 'issued' },
 } as const
 
 /** Les factures reçues, à valider puis à envoyer dans Pennylane. */
@@ -80,14 +95,20 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     apportePar: r.apporteur?.full_name ?? null,
   }))
 
-  const par = (s: readonly string[]) => rows.filter((r) => s.includes(r.status))
-  const courant = (onglet === 'diverses' ? 'diverses' : onglet && onglet in ONGLETS ? onglet : par(['sent']).length ? 'transmises' : 'validees') as
-    | keyof typeof ONGLETS
-    | 'diverses'
+  const par = (cle: keyof typeof ONGLETS) => rows.filter(ONGLETS[cle].ou)
+  const courant = (onglet === 'diverses'
+    ? 'diverses'
+    : onglet && onglet in ONGLETS
+      ? onglet
+      : par('transmises').length
+        ? 'transmises'
+        : par('echec').length
+          ? 'echec'
+          : 'compta') as keyof typeof ONGLETS | 'diverses'
 
-  const transmises = par(['sent'])
-  const validees = par(['validated'])
-  const aEnvoyer = validees.filter((r) => r.pennylane_status !== 'synced')
+  const transmises = par('transmises')
+  const aEnvoyer = par('echec')
+  const enCompta = par('compta')
   const inbound = process.env.DEPOT_FACTURES_EMAIL ?? null
 
   // Arrivées par email sans qu'on sache de qui : elles attendent un manager.
@@ -103,7 +124,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
       fournisseur: r.provider?.legal_name ?? '—',
     }))
 
-  const liste = courant === 'diverses' ? rows.filter((r) => r.kind === 'misc') : par(ONGLETS[courant].statuts)
+  const liste = courant === 'diverses' ? rows.filter((r) => r.kind === 'misc') : par(courant)
 
   // Avant de valider, on regarde si la comptabilité porte déjà ce montant.
   const doublons = await chercherDoublons(
@@ -120,9 +141,11 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     }
   )
   const gestes =
-    courant === 'transmises' || courant === 'validees' || courant === 'diverses'
+    courant === 'transmises' || courant === 'echec' || courant === 'diverses'
       ? (['pennylane', 'payer'] as const)
-      : ([] as const)
+      : courant === 'compta'
+        ? (['payer'] as const)
+        : ([] as const)
 
   return (
     <>
@@ -136,14 +159,14 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
               {transmises.length > 0
                 ? `${transmises.length} facture${transmises.length > 1 ? 's' : ''} à vérifier et envoyer en comptabilité`
                 : aEnvoyer.length > 0
-                  ? `${aEnvoyer.length} facture${aEnvoyer.length > 1 ? 's' : ''} à envoyer en comptabilité`
+                  ? `${aEnvoyer.length} envoi${aEnvoyer.length > 1 ? 's' : ''} à refaire`
                   : 'Rien en attente de votre part'}
             </p>
             <p className="mt-0.5 text-sm text-muted">
               {transmises.length > 0
                 ? `${money(transmises.reduce((s, r) => s + Number(r.total_ttc), 0))} — ouvrez-les si besoin, cochez, puis envoyez.`
                 : aEnvoyer.length > 0
-                  ? `${money(aEnvoyer.reduce((s, r) => s + Number(r.total_ttc), 0))} — cochez-les et envoyez-les dans Pennylane.`
+                  ? `${money(aEnvoyer.reduce((s, r) => s + Number(r.total_ttc), 0))} — Pennylane les a refusées, cochez-les et renvoyez-les.`
                   : 'Les paiements remontent tout seuls depuis Pennylane.'}
             </p>
           </div>
@@ -157,8 +180,8 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
         <div className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {[
             ['1 — Reçues, à vérifier', transmises],
-            ['2 — Vérifiées, envoi à relancer', aEnvoyer],
-            ['Reste à régler', rows.filter((r) => ['sent', 'validated'].includes(r.status))],
+            ['Envoi à refaire', aEnvoyer],
+            ['2 — En comptabilité', enCompta],
           ].map(([label, lot]) => (
             <div key={label as string} className="px-5 py-3">
               <p className="text-xs uppercase tracking-wide text-muted">{label as string}</p>
@@ -177,10 +200,11 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
         {(
           [
             ['transmises', '1 — Reçues', transmises.length],
-            ['validees', '2 — En comptabilité', aEnvoyer.length],
+            ['echec', 'Envoi à refaire', aEnvoyer.length],
+            ['compta', '2 — En comptabilité', enCompta.length],
             ['payees', '3 — Payées', 0],
             ['diverses', 'Factures fournisseurs', 0],
-            ['attente', 'En attente de leur PDF', par(['issued']).length],
+            ['attente', 'En attente de leur PDF', par('attente').length],
           ] as const
         ).map(([cle, label, compte]) => (
           <Link
