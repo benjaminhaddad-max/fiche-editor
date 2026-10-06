@@ -44,7 +44,7 @@ interface Row {
  */
 const ONGLETS = {
   transmises: { label: 'Reçues', statuts: ['sent'] },
-  validees: { label: 'Validées', statuts: ['validated'] },
+  validees: { label: 'En comptabilité', statuts: ['validated'] },
   payees: { label: 'Payées', statuts: ['paid'] },
   attente: { label: 'En attente du PDF', statuts: ['issued'] },
 } as const
@@ -120,11 +120,9 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     }
   )
   const gestes =
-    courant === 'transmises'
-      ? (['valider', 'pennylane', 'payer'] as const)
-      : courant === 'validees' || courant === 'diverses'
-        ? (['pennylane', 'payer'] as const)
-        : ([] as const)
+    courant === 'transmises' || courant === 'validees' || courant === 'diverses'
+      ? (['pennylane', 'payer'] as const)
+      : ([] as const)
 
   return (
     <>
@@ -136,14 +134,14 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
             <p className="ds-eyebrow">Prochaine étape</p>
             <p className="mt-1 font-display text-lg text-navy">
               {transmises.length > 0
-                ? `${transmises.length} facture${transmises.length > 1 ? 's' : ''} à vérifier et valider`
+                ? `${transmises.length} facture${transmises.length > 1 ? 's' : ''} à vérifier et envoyer en comptabilité`
                 : aEnvoyer.length > 0
                   ? `${aEnvoyer.length} facture${aEnvoyer.length > 1 ? 's' : ''} à envoyer en comptabilité`
                   : 'Rien en attente de votre part'}
             </p>
             <p className="mt-0.5 text-sm text-muted">
               {transmises.length > 0
-                ? `${money(transmises.reduce((s, r) => s + Number(r.total_ttc), 0))} — ouvrez-les si besoin, cochez, puis validez.`
+                ? `${money(transmises.reduce((s, r) => s + Number(r.total_ttc), 0))} — ouvrez-les si besoin, cochez, puis envoyez.`
                 : aEnvoyer.length > 0
                   ? `${money(aEnvoyer.reduce((s, r) => s + Number(r.total_ttc), 0))} — cochez-les et envoyez-les dans Pennylane.`
                   : 'Les paiements remontent tout seuls depuis Pennylane.'}
@@ -158,8 +156,8 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
         </div>
         <div className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {[
-            ['1 — Reçues, à valider', transmises],
-            ['2 — Validées, à passer en compta', aEnvoyer],
+            ['1 — Reçues, à vérifier', transmises],
+            ['2 — Vérifiées, envoi à relancer', aEnvoyer],
             ['Reste à régler', rows.filter((r) => ['sent', 'validated'].includes(r.status))],
           ].map(([label, lot]) => (
             <div key={label as string} className="px-5 py-3">
@@ -179,7 +177,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
         {(
           [
             ['transmises', '1 — Reçues', transmises.length],
-            ['validees', '2 — Validées', aEnvoyer.length],
+            ['validees', '2 — En comptabilité', aEnvoyer.length],
             ['payees', '3 — Payées', 0],
             ['diverses', 'Factures fournisseurs', 0],
             ['attente', 'En attente de leur PDF', par(['issued']).length],

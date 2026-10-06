@@ -9,7 +9,6 @@ import {
   demanderNouvelleFacture,
   envoyerPennylane,
   marquerPayees,
-  validerFactures,
   type LotResultat,
 } from '@/app/(app)/admin/factures/actions'
 import { formatDate, money } from '@/lib/format'
@@ -33,16 +32,16 @@ export interface AdminInvoiceRow {
   apportePar: string | null
 }
 
-type Geste = 'valider' | 'pennylane' | 'payer'
+type Geste = 'pennylane' | 'payer'
 
 /** Où en est une facture, et ce qui la fera avancer. */
 function ETAPE(r: AdminInvoiceRow): { titre: string; suite: string } {
   if (r.status === 'paid') return { titre: 'Payée', suite: 'Rien à faire.' }
   if (r.status === 'issued') return { titre: 'En attente de son PDF', suite: 'Le prestataire doit le déposer.' }
   if (r.pennylane_status === 'error') return { titre: 'Refusée par Pennylane', suite: 'À renvoyer après correction.' }
-  if (r.status === 'sent') return { titre: 'Reçue', suite: 'À vérifier, puis valider.' }
   if (r.pennylane_status === 'synced') return { titre: 'En comptabilité', suite: 'En attente du règlement.' }
-  return { titre: 'Validée', suite: 'À envoyer dans Pennylane.' }
+  if (r.status === 'sent') return { titre: 'Reçue', suite: 'À vérifier, puis envoyer en comptabilité.' }
+  return { titre: 'Vérifiée', suite: 'L’envoi en comptabilité a échoué — à relancer.' }
 }
 
 export function InvoiceTable({
@@ -79,17 +78,11 @@ export function InvoiceTable({
             <strong>{money(choisis.reduce((s, r) => s + Number(r.total_ttc), 0))} TTC</strong>
           </span>
           <div className="flex flex-wrap gap-2">
-            {gestes.includes('valider') && (
-              <form action={validerFactures}>
-                {caches}
-                <SubmitButton size="sm" pendingLabel="…">Valider</SubmitButton>
-              </form>
-            )}
             {gestes.includes('pennylane') && (
               <form action={envoyer}>
                 {caches}
-                <SubmitButton size="sm" variant="success" pendingLabel="Envoi dans Pennylane…">
-                  Envoyer dans Pennylane
+                <SubmitButton size="sm" pendingLabel="Envoi en comptabilité…">
+                  Envoyer en comptabilité
                 </SubmitButton>
               </form>
             )}
@@ -105,19 +98,17 @@ export function InvoiceTable({
               sort de la plateforme. On dit lequel fait quoi, là où on
               clique. */}
           <p className="mt-2 border-t border-line pt-2 text-xs text-muted">
-            <strong className="font-medium text-navy/80">Valider</strong> ne fait que marquer « j’ai vérifié » —
-            rien ne quitte la plateforme, et ce n’est pas obligatoire.{' '}
-            <strong className="font-medium text-navy/80">Envoyer dans Pennylane</strong> transfère vraiment la
-            facture et son PDF en comptabilité.{' '}
-            <strong className="font-medium text-navy/80">Marquer payées</strong> sert aux virements faits à la
-            main : sinon le paiement revient tout seul de Pennylane.
+            <strong className="font-medium text-navy/80">Envoyer en comptabilité</strong> transfère la facture et
+            son PDF dans Pennylane : c’est le seul geste qui compte.{' '}
+            <strong className="font-medium text-navy/80">Marquer payées</strong> ne sert qu’aux virements faits
+            hors Pennylane — sinon le règlement revient tout seul.
           </p>
         </div>
       )}
 
       {lot && (
         <div className={`mb-3 rounded-lg px-4 py-3 text-sm ${lot.erreurs.length ? 'bg-amber-50 text-amber-900' : 'bg-emerald-50 text-emerald-800'}`}>
-          {lot.ok} facture{lot.ok > 1 ? 's' : ''} envoyée{lot.ok > 1 ? 's' : ''} dans Pennylane.
+          {lot.ok} facture{lot.ok > 1 ? 's' : ''} envoyée{lot.ok > 1 ? 's' : ''} en comptabilité.
           {lot.erreurs.map((e) => (
             <p key={e.numero} className="mt-1 text-xs">
               {e.numero} : {e.message}

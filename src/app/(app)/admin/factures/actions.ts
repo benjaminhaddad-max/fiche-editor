@@ -23,31 +23,33 @@ function rafraichir() {
   revalidatePath('/admin/factures', 'layout')
 }
 
-/** Transmises → validées : elles partent dans la file Pennylane. */
-export async function validerFactures(fd: FormData): Promise<void> {
-  const user = await requireRole('admin')
-  const liste = ids(fd)
-  if (!liste.length) return
-  await createServiceClient()
-    .from('inv_invoices')
-    .update({ status: 'validated', validated_at: new Date().toISOString(), validated_by: user.id })
-    .in('id', liste)
-    .eq('status', 'sent')
-  for (const id of liste) await logAudit(null, { actorId: user.id, entityType: 'invoice', entityId: id, action: 'facture_validee' })
-  rafraichir()
-}
-
 export interface LotResultat {
   ok: number
   erreurs: { numero: string; message: string }[]
 }
 
-/** Envoie une sélection dans Pennylane, une par une (le débit est limité). */
+/**
+ * Envoie une sélection en comptabilité, une par une (le débit est limité).
+ *
+ * « Valider » était un bouton à part, qui ne faisait que poser un drapeau :
+ * rien ne quittait la plateforme, rien n'était bloqué sans lui, et personne
+ * ne comprenait ce qu'il apportait — à juste titre. Vérifier une facture et
+ * l'envoyer au comptable, c'est le même geste : on ne l'envoie pas sans
+ * l'avoir regardée. Le drapeau se pose donc tout seul, au moment de l'envoi.
+ */
 export async function envoyerPennylane(_prev: LotResultat | null, fd: FormData): Promise<LotResultat> {
   const user = await requireRole('admin')
   const db = createServiceClient()
   const out: LotResultat = { ok: 0, erreurs: [] }
-  for (const id of ids(fd)) {
+  const liste = ids(fd)
+  if (liste.length) {
+    await db
+      .from('inv_invoices')
+      .update({ status: 'validated', validated_at: new Date().toISOString(), validated_by: user.id })
+      .in('id', liste)
+      .eq('status', 'sent')
+  }
+  for (const id of liste) {
     const r = await syncInvoiceToPennylane(id)
     await logAudit(null, {
       actorId: user.id,

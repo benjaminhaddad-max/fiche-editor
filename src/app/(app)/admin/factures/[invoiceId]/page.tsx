@@ -11,7 +11,6 @@ import { isPennylaneConfigured } from '@/lib/pennylane/client'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Invoice, InvoiceLine } from '@/lib/types'
 import { markInvoicePaid, pushToPennylane } from '@/app/(app)/factures/actions'
-import { validerFactures } from '../actions'
 
 export default async function AdminInvoicePage({
   params,
@@ -74,17 +73,10 @@ export default async function AdminInvoicePage({
           >
             <RefreshCw size={16} />
             {invoice.pennylane_status === 'synced'
-              ? 'Resynchroniser Pennylane'
-              : 'Envoyer dans Pennylane'}
+              ? 'Renvoyer en comptabilité'
+              : 'Envoyer en comptabilité'}
           </SubmitButton>
         </form>
-
-        {invoice.status === 'sent' && (
-          <form action={validerFactures}>
-            <input type="hidden" name="invoice_id" value={invoice.id} />
-            <SubmitButton pendingLabel="…">Valider</SubmitButton>
-          </form>
-        )}
 
         {invoice.status !== 'paid' && (
           <form action={markInvoicePaid}>
