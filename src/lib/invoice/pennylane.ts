@@ -4,6 +4,7 @@ import {
   createSupplier,
   getSupplierInvoice,
   isPennylaneConfigured,
+  listSupplierInvoices,
   listSuppliers,
   importSupplierInvoice,
   setSupplierInvoiceCategories,
@@ -230,7 +231,29 @@ const PAYEE = new Set(['fully_paid', 'paid_offline'])
 export interface RetourPaiements {
   verifiees: number
   payees: { number: string; provider: string }[]
+  /** Reconnues dans la comptabilité sans y avoir été poussées. */
+  rapprochees: { number: string; provider: string; libelle: string; date: string }[]
   erreurs: string[]
+}
+
+const sansAccent = (s: string | null | undefined) =>
+  (s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\(label genere\)/g, '')
+    .replace(/^facture\s+/, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+const motsDe = (s: string) => sansAccent(s).split(' ').filter((m) => m.length >= 3)
+
+/** Le même nom, écrit dans l'autre sens ou suivi d'un numéro de pièce. */
+function memeNom(a: string, b: string): boolean {
+  const ma = motsDe(a)
+  const mb = motsDe(b)
+  if (ma.length === 0 || mb.length === 0) return false
+  return ma.filter((m) => mb.includes(m)).length >= Math.min(2, ma.length, mb.length)
 }
 
 /**
@@ -242,7 +265,7 @@ export interface RetourPaiements {
  * relances repartiraient pour des factures déjà réglées.
  */
 export async function rafraichirPaiements(): Promise<RetourPaiements> {
-  const out: RetourPaiements = { verifiees: 0, payees: [], erreurs: [] }
+  const out: RetourPaiements = { verifiees: 0, payees: [], rapprochees: [], erreurs: [] }
   if (!isPennylaneConfigured()) return out
 
   const supabase = createServiceClient()
@@ -279,5 +302,85 @@ export async function rafraichirPaiements(): Promise<RetourPaiements> {
       out.erreurs.push(`${f.number} : ${err instanceof Error ? err.message : String(err)}`)
     }
   }
+
+  await rapprocherSansPoussee(supabase, out)
   return out
+}
+
+/**
+ * Reconnaître dans la comptabilité une facture qu'on ne lui a jamais
+ * envoyée.
+ *
+ * La relecture ci-dessus suit l'identifiant Pennylane : elle ne voit que ce
+ * qu'on y a poussé. Or une facture peut très bien être réglée là-bas sans
+ * être jamais passée par ici — elle y arrive par la boîte de dépôt du
+ * cabinet, ou saisie à la main. Elle restait alors « à payer » chez nous
+ * indéfiniment, et il fallait cocher soi-même ce que la banque savait déjà.
+ *
+ * On la reconnaît au couple nom + montant, dans la même période. C'est le
+ * même critère que pour les doublons, et pour la même raison : un montant
+ * seul ne désigne personne.
+ */
+async function rapprocherSansPoussee(
+  supabase: ReturnType<typeof createServiceClient>,
+  out: RetourPaiements
+): Promise<void> {
+  const { data } = await supabase
+    .from('inv_invoices')
+    .select('id, number, issue_date, total_ttc, provider:inv_providers(legal_name)')
+    .eq('brand', getBrandId())
+    .in('status', ['sent', 'validated'])
+    .is('pennylane_invoice_id', null)
+    .limit(200)
+
+  const attente = (data ?? []) as unknown as {
+    id: string
+    number: string
+    issue_date: string
+    total_ttc: number
+    provider: { legal_name: string } | null
+  }[]
+  if (attente.length === 0) return
+
+  let comptables: Awaited<ReturnType<typeof listSupplierInvoices>>
+  try {
+    comptables = await listSupplierInvoices({ pages: 3 })
+  } catch (err) {
+    out.erreurs.push(`comptabilité illisible : ${err instanceof Error ? err.message : String(err)}`)
+    return
+  }
+
+  const reglees = comptables.filter(
+    (f) => f.paid === true || f.payment_status === 'paid' || f.payment_status === 'paid_offline' || f.payment_status === 'fully_paid'
+  )
+  const centimes = (n: number) => Math.round(Number(n) * 100)
+  const jour = (d: string) => new Date(`${d}T12:00:00Z`).getTime()
+
+  for (const f of attente) {
+    const nom = f.provider?.legal_name ?? ''
+    const trouvee = reglees.find(
+      (c) =>
+        centimes(Number(c.amount)) === centimes(f.total_ttc) &&
+        Math.abs(jour(c.date) - jour(f.issue_date)) <= 60 * 864e5 &&
+        memeNom(nom, c.supplier?.name ?? c.label ?? '')
+    )
+    if (!trouvee) continue
+
+    // On retient l'identifiant : la prochaine relecture passera par le
+    // chemin direct, sans avoir à redeviner.
+    const { data: maj } = await supabase
+      .from('inv_invoices')
+      .update({ status: 'paid', paid_at: new Date().toISOString(), pennylane_invoice_id: trouvee.id })
+      .eq('id', f.id)
+      .neq('status', 'paid')
+      .select('id')
+    if (maj?.length) {
+      out.rapprochees.push({
+        number: f.number,
+        provider: nom || '—',
+        libelle: (trouvee.supplier?.name ?? trouvee.label ?? '—').replace(/\s*\(label généré\)\s*$/, ''),
+        date: trouvee.date,
+      })
+    }
+  }
 }

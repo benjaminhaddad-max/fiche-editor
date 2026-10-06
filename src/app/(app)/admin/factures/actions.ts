@@ -226,7 +226,12 @@ export async function actualiserPaiements(): Promise<void> {
     entityType: 'invoice',
     entityId: user.id,
     action: 'paiements_actualises',
-    payload: { verifiees: r.verifiees, payees: r.payees.length, erreurs: r.erreurs.slice(0, 5) },
+    payload: {
+      verifiees: r.verifiees,
+      payees: r.payees.length,
+      rapprochees: r.rapprochees.length,
+      erreurs: r.erreurs.slice(0, 5),
+    },
   })
   rafraichir()
 }
