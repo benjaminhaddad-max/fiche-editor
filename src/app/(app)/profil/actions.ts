@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { estSiretMaison } from '@/lib/brand/config'
 import { requireProvider } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -77,6 +78,13 @@ const ProfileSchema = z
     (v) => v.vat_regime !== 'normal' || Boolean(v.vat_number),
     { message: 'Numéro de TVA obligatoire si vous êtes assujetti.', path: ['vat_number'] }
   )
+  // Deux personnes avaient recopié le SIRET de l'école sur leur fiche : leurs
+  // factures sortaient au nom de la société qui les paie, et la comptabilité
+  // les rattachait au mauvais fournisseur, avec le mauvais IBAN.
+  .refine((v) => !estSiretMaison(v.siret), {
+    message: 'Ce SIRET est celui de l’école, pas le vôtre. Indiquez celui de votre entreprise.',
+    path: ['siret'],
+  })
 
 /** Pour que le récapitulatif d'erreurs nomme le champ, pas seulement le défaut. */
 const LIBELLES: Record<string, string> = {

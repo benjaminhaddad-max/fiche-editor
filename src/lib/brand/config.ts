@@ -112,6 +112,27 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
 }
 
 /** Une valeur inconnue ne doit jamais ouvrir l'école voisine : on retombe sur Diploma. */
+/**
+ * Les SIRET de nos propres sociétés.
+ *
+ * Deux prestataires les avaient recopiés sur leur fiche — celui de Diploma
+ * Santé pour l'une, celui de Linova pour l'autre. Leurs factures sortaient
+ * au nom de la société qui les paie, et la comptabilité les rattachait au
+ * fournisseur qui porte ce SIREN : un autre que le leur, avec un autre IBAN.
+ * On ne peut pas être son propre fournisseur.
+ */
+export function siretsMaison(): string[] {
+  return Object.values(BRANDS)
+    .map((b) => (b.company.siret ?? '').replace(/\D/g, ''))
+    .filter((s) => s.length >= 9)
+}
+
+export const estSiretMaison = (siret: string | null | undefined): boolean => {
+  const s = (siret ?? '').replace(/\D/g, '')
+  if (s.length < 9) return false
+  return siretsMaison().some((m) => m.slice(0, 9) === s.slice(0, 9))
+}
+
 export function normalizeBrandId(v: string | undefined | null): BrandId {
   return v === 'linova' ? 'linova' : DEFAULT_BRAND
 }

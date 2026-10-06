@@ -18,6 +18,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { ibanValide, normaliserIban } from '@/lib/iban'
 import { COMPANY, type InvoiceLine } from '@/lib/types'
 import { getBrandId } from '@/lib/brand'
+import { estSiretMaison } from '@/lib/brand/config'
 
 export interface SyncResult {
   ok: boolean
@@ -94,6 +95,15 @@ async function resolveSupplier(
   }
 
   const siret = (p.siret ?? '').replace(/\s+/g, '')
+  // Un prestataire ne peut pas porter le SIRET d'une de nos sociétés : le
+  // rapprochement trouverait le fournisseur qui porte ce SIREN — un autre
+  // que lui, avec un autre IBAN — et la facture partirait au mauvais nom.
+  if (estSiretMaison(siret)) {
+    throw new PennylaneError(
+      `Le SIRET renseigné sur la fiche de ${p.legal_name} est celui de la société, pas le sien. ` +
+        'Corrigez-le avant d’envoyer sa facture en comptabilité.'
+    )
+  }
   const fournisseurs = await listSuppliers()
   const trouve =
     (/^\d{14}$/.test(siret) && fournisseurs.find((f) => f.establishment_no === siret)) ||
