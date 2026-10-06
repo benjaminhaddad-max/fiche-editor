@@ -76,6 +76,46 @@ const norm = (s: string | null | undefined) =>
  * résultat est mémorisé sur la fiche : la recherche n'a lieu qu'une fois.
  */
 /**
+ * Le fournisseur trouvé est-il bien cette personne ?
+ *
+ * Trois signes, et il en faut un.
+ *
+ *   · le nom concorde, mot à mot — « GALBOIS Salomé » vaut « Salomé Galbois » ;
+ *   · l'IBAN enregistré est le sien ;
+ *   · la comptabilité n'a pas d'IBAN du tout, donc rien à écraser.
+ *
+ * Sans aucun des trois, on s'arrête. Ella Benais s'est retrouvée rattachée à
+ * « ASSIA TALHAOUI » et Sousitra Manicome à « PACHIAUDI » : des fournisseurs
+ * réels, avec leur propre RIB. Écrire l'IBAN de nos prestataires dans ces
+ * comptes-là aurait détourné les virements de deux tiers, durablement et
+ * sans que rien ne le signale.
+ */
+function memeFournisseur(
+  pennylaneNom: string,
+  pennylaneIban: string | null | undefined,
+  fiche: { legal_name: string; iban: string | null }
+): boolean {
+  const mots = (x: string) =>
+    (x ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter((m) => m.length >= 3)
+  const a = mots(pennylaneNom)
+  const b = mots(fiche.legal_name)
+  const communs = a.filter((m) => b.includes(m)).length
+  if (a.length && b.length && communs >= Math.min(2, a.length, b.length)) return true
+
+  const net = (x: string | null | undefined) => (x ?? '').replace(/\s+/g, '').toUpperCase()
+  const chezEux = net(pennylaneIban)
+  if (!chezEux) return true
+  return chezEux === net(fiche.iban)
+}
+
+/**
  * L'IBAN de la fiche s'impose à la comptabilité.
  *
  * C'est lui qui dirige le virement, et c'est la personne elle-même qui l'a
@@ -85,22 +125,25 @@ const norm = (s: string | null | undefined) =>
  */
 async function alignerIban(
   supplierId: number,
-  iban: string | null,
-  nom: string
+  fiche: { legal_name: string; iban: string | null }
 ): Promise<void> {
-  if (!ibanValide(iban)) return
-  const voulu = normaliserIban(iban)
-  try {
-    const actuel = await getSupplier(supplierId)
-    const aPennylane = (actuel.iban ?? '').replace(/\s+/g, '').toUpperCase()
-    if (aPennylane === voulu) return
-    await updateSupplier(supplierId, { iban: voulu })
-    console.info('[pennylane] IBAN recalé pour', nom)
-  } catch (err) {
-    // Un IBAN qu'on n'a pas pu recaler ne doit pas bloquer la facture : on
-    // le signale, et le virement se vérifiera à la main.
-    console.error('[pennylane:iban]', nom, err)
+  const actuel = await getSupplier(supplierId)
+
+  // Avant d'écrire quoi que ce soit : est-ce bien lui ?
+  if (!memeFournisseur(actuel.name ?? '', actuel.iban, fiche)) {
+    throw new PennylaneError(
+      `Le fournisseur « ${actuel.name} » rattaché à ${fiche.legal_name} ne lui correspond pas : ` +
+        'ni le nom, ni l’IBAN. Vérifiez le rattachement avant d’envoyer cette facture — ' +
+        'écrire son IBAN ici détournerait les virements de quelqu’un d’autre.'
+    )
   }
+
+  if (!ibanValide(fiche.iban)) return
+  const voulu = normaliserIban(fiche.iban)
+  const aPennylane = (actuel.iban ?? '').replace(/\s+/g, '').toUpperCase()
+  if (aPennylane === voulu) return
+  await updateSupplier(supplierId, { iban: voulu })
+  console.info('[pennylane] IBAN recalé pour', fiche.legal_name)
 }
 
 async function resolveSupplier(
@@ -117,7 +160,7 @@ async function resolveSupplier(
     .maybeSingle()
   if (!p) throw new PennylaneError('Prestataire introuvable.')
   if (p.pennylane_supplier_id) {
-    await alignerIban(Number(p.pennylane_supplier_id), p.iban, p.legal_name)
+    await alignerIban(Number(p.pennylane_supplier_id), { legal_name: p.legal_name, iban: p.iban })
     return {
       id: Number(p.pennylane_supplier_id),
       ibanIgnore: Boolean(p.iban) && !ibanValide(p.iban),
@@ -143,6 +186,16 @@ async function resolveSupplier(
 
   let id: number
   if (trouve) {
+    // Un fournisseur trouvé par le SIREN n'est pas forcément la bonne
+    // personne : deux fiches peuvent porter le même numéro par erreur de
+    // saisie. On le vérifie avant de s'y attacher, pas après le virement.
+    const complet = await getSupplier(trouve.id)
+    if (!memeFournisseur(complet.name ?? trouve.name, complet.iban, p)) {
+      throw new PennylaneError(
+        `Le SIRET de ${p.legal_name} désigne « ${complet.name} » dans la comptabilité, ` +
+          'et ni le nom ni l’IBAN ne correspondent. Vérifiez le SIRET de sa fiche avant d’envoyer sa facture.'
+      )
+    }
     id = trouve.id
   } else {
     const email = p.contact_email ?? (p as unknown as { user: { email: string } | null }).user?.email
