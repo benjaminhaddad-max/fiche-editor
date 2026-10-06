@@ -251,6 +251,35 @@ export async function createSupplier(input: CreateSupplierInput): Promise<number
   return json.id
 }
 
+/**
+ * Met à jour un fournisseur : son IBAN, et son nom s'il est fautif.
+ *
+ * C'est l'IBAN qui compte — c'est lui qui dirige le virement. Celui de la
+ * fiche fait foi : la personne l'a saisi elle-même, et elle seule le
+ * connaît. Pennylane gardait le sien, parfois vieux de deux ans.
+ */
+/** Un fournisseur précis, pour comparer ce que la comptabilité a retenu. */
+export async function getSupplier(id: number): Promise<PennylaneSupplier & { iban?: string | null }> {
+  const res = await appel(`${BASE_URL}/suppliers/${id}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  })
+  if (!res.ok) await parseError(res)
+  return (await res.json()) as PennylaneSupplier & { iban?: string | null }
+}
+
+export async function updateSupplier(
+  id: number,
+  champs: { iban?: string; name?: string }
+): Promise<void> {
+  const res = await appel(`${BASE_URL}/suppliers/${id}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(champs),
+  })
+  if (!res.ok) await parseError(res)
+  cacheFournisseurs = null
+}
+
 export interface PennylaneInvoiceResume {
   id: number
   date: string

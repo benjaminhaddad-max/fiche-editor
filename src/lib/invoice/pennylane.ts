@@ -2,10 +2,12 @@ import {
   PennylaneError,
   amount,
   createSupplier,
+  getSupplier,
   getSupplierInvoice,
   isPennylaneConfigured,
   listSupplierInvoices,
   listSuppliers,
+  updateSupplier,
   importSupplierInvoice,
   setSupplierInvoiceCategories,
   uploadFileAttachment,
@@ -73,6 +75,34 @@ const norm = (s: string | null | undefined) =>
  * Par SIRET d'abord — c'est la seule clé sans ambiguïté —, puis par nom. Le
  * résultat est mémorisé sur la fiche : la recherche n'a lieu qu'une fois.
  */
+/**
+ * L'IBAN de la fiche s'impose à la comptabilité.
+ *
+ * C'est lui qui dirige le virement, et c'est la personne elle-même qui l'a
+ * saisi. Pennylane gardait le sien — celui d'une vieille facture, ou rien du
+ * tout — et personne ne voyait l'écart avant un virement parti au mauvais
+ * endroit. On le recale à chaque envoi, et seulement quand il diffère.
+ */
+async function alignerIban(
+  supplierId: number,
+  iban: string | null,
+  nom: string
+): Promise<void> {
+  if (!ibanValide(iban)) return
+  const voulu = normaliserIban(iban)
+  try {
+    const actuel = await getSupplier(supplierId)
+    const aPennylane = (actuel.iban ?? '').replace(/\s+/g, '').toUpperCase()
+    if (aPennylane === voulu) return
+    await updateSupplier(supplierId, { iban: voulu })
+    console.info('[pennylane] IBAN recalé pour', nom)
+  } catch (err) {
+    // Un IBAN qu'on n'a pas pu recaler ne doit pas bloquer la facture : on
+    // le signale, et le virement se vérifiera à la main.
+    console.error('[pennylane:iban]', nom, err)
+  }
+}
+
 async function resolveSupplier(
   providerId: string
 ): Promise<{ id: number; ibanIgnore: boolean; nom: string }> {
@@ -87,6 +117,7 @@ async function resolveSupplier(
     .maybeSingle()
   if (!p) throw new PennylaneError('Prestataire introuvable.')
   if (p.pennylane_supplier_id) {
+    await alignerIban(Number(p.pennylane_supplier_id), p.iban, p.legal_name)
     return {
       id: Number(p.pennylane_supplier_id),
       ibanIgnore: Boolean(p.iban) && !ibanValide(p.iban),
