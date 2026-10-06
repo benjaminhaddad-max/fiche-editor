@@ -105,7 +105,17 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
 
   // Avant de valider, on regarde si la comptabilité porte déjà ce montant.
   const doublons = await chercherDoublons(
-    liste.filter((r) => r.status === 'sent').map((r) => ({ id: r.id, provider: r.provider, total_ttc: Number(r.total_ttc), issue_date: r.issue_date }))
+    liste
+      .filter((r) => r.status === 'sent')
+      .map((r) => ({ id: r.id, provider: r.provider, total_ttc: Number(r.total_ttc), issue_date: r.issue_date })),
+    {
+      plateforme: rows.map((r) => ({
+        id: r.id,
+        provider: r.provider,
+        total_ttc: Number(r.total_ttc),
+        issue_date: r.issue_date,
+      })),
+    }
   )
   const gestes =
     courant === 'transmises'
