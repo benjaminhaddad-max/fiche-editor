@@ -88,7 +88,11 @@ export default async function MissionsPage({
     courant === 'tout' ? missions : missions.filter((m) => (m.category?.pole ?? 'autres') === courant)
 
   const enAttente = missions.filter((m) => ['submitted', 'manager_approved'].includes(m.status))
-  const facturables = missions.filter((m) => m.status === 'approved')
+  // Facturable veut dire « porté par un bordereau » : une ligne validée
+  // seule, avant l'envoi du mois, attend le bordereau comme les autres.
+  const facturables = missions.filter(
+    (m) => m.status === 'approved' && (m as { statement_id?: string | null }).statement_id
+  )
   const totalFacturable = facturables.reduce((s, m) => s + Number(m.total_ht), 0)
 
   // Regroupement par mois : c'est l'unité du bordereau.

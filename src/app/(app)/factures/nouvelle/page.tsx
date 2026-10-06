@@ -26,14 +26,23 @@ export default async function NewInvoicePage({
   if (isSalaried(provider.employment_type)) redirect('/missions')
   const supabase = await createServerSupabase()
 
-  // Depuis un bordereau, on facture exactement ses lignes ; sinon, tout ce
-  // qui est validé et pas encore facturé.
+  // On ne facture que ce qu'un bordereau porte.
+  //
+  // Une ligne validée « bon à payer » à l'unité devenait facturable sur
+  // l'instant, sans attendre le bordereau du mois : Pratchi a facturé deux
+  // préparations de tote bags le 1er octobre, puis ses six autres
+  // prestations le 2, à l'arrivée du bordereau. Deux factures pour un seul
+  // mois, et deux règlements à suivre, parce que quelqu'un avait coché deux
+  // lignes trois jours trop tôt.
+  //
+  // Le bordereau est le document qui dit ce qu'on facture : rien avant lui.
   let query = supabase
     .from('inv_missions')
     .select('id, detail, start_date, end_date, total_ht, category:inv_categories(name, provider_label)')
     .eq('provider_id', provider.id)
     .eq('status', 'approved')
     .is('invoice_id', null)
+    .not('statement_id', 'is', null)
     .order('start_date')
   if (bordereau) query = query.eq('statement_id', bordereau)
   const { data } = await query
