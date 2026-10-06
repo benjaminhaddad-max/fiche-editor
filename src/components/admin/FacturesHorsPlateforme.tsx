@@ -1,4 +1,6 @@
-import { ExternalLink } from 'lucide-react'
+import { Check, ExternalLink, Undo2 } from 'lucide-react'
+import { SubmitButton } from '@/components/ui/SubmitButton'
+import { reglerHorsPlateforme } from '@/app/(app)/admin/factures/actions'
 import { Card } from '@/components/ui/Page'
 import { formatDate, money } from '@/lib/format'
 import type { FactureHorsPlateforme } from '@/lib/invoice/hors-plateforme'
@@ -21,7 +23,7 @@ export function FacturesHorsPlateforme({ factures }: { factures: FactureHorsPlat
           {dues.length} facture{dues.length > 1 ? 's' : ''} à régler —{' '}
           <strong className="font-semibold text-navy">{money(dues.reduce((s, f) => s + f.montant, 0))}</strong>.
           Elles ne sont jamais passées par la plateforme : loyer, fournisseurs, abonnements, sociétés de
-          portage. Le règlement se fait dans Pennylane.
+          portage. Le virement part de votre banque ; le bouton met la comptabilité d’accord avec lui.
         </p>
       </div>
       <div className="max-h-[32rem] overflow-y-auto">
@@ -43,6 +45,25 @@ export function FacturesHorsPlateforme({ factures }: { factures: FactureHorsPlat
                   ) : (
                     <span className="text-amber-800">à régler</span>
                   )}
+                </td>
+                <td className="px-5 py-2.5">
+                  <form action={reglerHorsPlateforme}>
+                    <input type="hidden" name="pennylane_id" value={f.id} />
+                    <input type="hidden" name="statut" value={f.reglee ? 'to_be_paid' : 'paid'} />
+                    <SubmitButton size="sm" variant={f.reglee ? 'ghost' : 'secondary'} pendingLabel="…">
+                      {f.reglee ? (
+                        <>
+                          <Undo2 size={13} />
+                          Rouvrir
+                        </>
+                      ) : (
+                        <>
+                          <Check size={13} />
+                          Marquer réglée
+                        </>
+                      )}
+                    </SubmitButton>
+                  </form>
                 </td>
                 <td className="px-5 py-2.5 text-right">
                   {f.pdf && (

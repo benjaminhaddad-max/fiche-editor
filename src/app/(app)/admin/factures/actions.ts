@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { rafraichirPaiements, syncInvoiceToPennylane } from '@/lib/invoice/pennylane'
+import { isPennylaneConfigured, setSupplierInvoicePaymentStatus } from '@/lib/pennylane/client'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
 import { cycleForDate, todayParis } from '@/lib/cycle'
 import { relancerDeclarations } from '@/lib/relances'
@@ -69,12 +70,47 @@ export async function marquerPayees(fd: FormData): Promise<void> {
   const user = await requireRole('admin')
   const liste = ids(fd)
   if (!liste.length) return
-  await createServiceClient()
+  const db = createServiceClient()
+  const { data: majs } = await db
     .from('inv_invoices')
     .update({ status: 'paid', paid_at: new Date().toISOString() })
     .in('id', liste)
     .in('status', ['sent', 'validated'])
+    .select('id, pennylane_invoice_id')
+
+  // La comptabilité doit l'apprendre aussi, sinon elle réclame encore. Un
+  // refus de Pennylane ne défait pas ce qui est juste de notre côté : la
+  // facture reste payée ici, et le prochain « actualiser » retentera.
+  for (const m of (majs ?? []) as { id: string; pennylane_invoice_id: number | null }[]) {
+    if (!m.pennylane_invoice_id || !isPennylaneConfigured()) continue
+    try {
+      await setSupplierInvoicePaymentStatus(Number(m.pennylane_invoice_id), 'paid')
+    } catch (err) {
+      console.error('[pennylane:payment_status]', m.id, err)
+    }
+  }
+
   for (const id of liste) await logAudit(null, { actorId: user.id, entityType: 'invoice', entityId: id, action: 'mark_paid' })
+  rafraichir()
+}
+
+/**
+ * Marquer réglée une facture qui n'est jamais passée par la plateforme.
+ *
+ * Loyer, abonnements, société de portage : elles n'ont pas de ligne ici,
+ * seulement un identifiant en comptabilité. On écrit donc directement
+ * là-bas. L'argent, lui, part toujours de la banque.
+ */
+export async function reglerHorsPlateforme(fd: FormData): Promise<void> {
+  await requireRole('admin')
+  const id = Number(fd.get('pennylane_id') ?? 0)
+  if (!id || !isPennylaneConfigured()) return
+  const statut = fd.get('statut') === 'to_be_paid' ? 'to_be_paid' : 'paid'
+  try {
+    await setSupplierInvoicePaymentStatus(id, statut)
+  } catch (err) {
+    console.error('[pennylane:payment_status:hors-plateforme]', id, err)
+  }
   rafraichir()
 }
 

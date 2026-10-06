@@ -252,6 +252,29 @@ export async function listSupplierInvoices(opts: { pages?: number } = {}): Promi
   return out
 }
 
+/**
+ * Dire à la comptabilité qu'une facture est réglée — ou ne l'est plus.
+ *
+ * C'est tout ce que l'API permet : elle n'émet pas de virement. Il n'existe
+ * aucun endpoint de paiement sortant, et les « mandats » du compte pro sont
+ * des prélèvements SEPA, donc de l'argent qui entre. Le virement part de la
+ * banque ; ceci met les écritures d'accord avec lui.
+ *
+ * Pennylane ne rapproche pas automatiquement le mouvement bancaire : la
+ * facture est marquée payée, le lettrage reste à faire de leur côté.
+ */
+export async function setSupplierInvoicePaymentStatus(
+  id: number,
+  statut: 'paid' | 'to_be_paid'
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/supplier_invoices/${id}/payment_status`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payment_status: statut }),
+  })
+  if (!res.ok) await parseError(res)
+}
+
 export interface PennylaneInvoiceState {
   id: number
   paid?: boolean
