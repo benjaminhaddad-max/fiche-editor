@@ -80,7 +80,23 @@ export async function createInvoice(
     return { error: 'Sélectionnez au moins une prestation à facturer.' }
   }
 
+  // Rien ne se facture hors bordereau. Le formulaire ne propose déjà que les
+  // lignes qu'un bordereau porte ; on le vérifie aussi ici, parce que c'est
+  // ici que ça compte — trois personnes se sont retrouvées avec deux
+  // factures pour un même mois faute de ce garde-fou.
   const supabase = await createServerSupabase()
+  const { count: horsBordereau } = await supabase
+    .from('inv_missions')
+    .select('id', { count: 'exact', head: true })
+    .in('id', missionIds)
+    .is('statement_id', null)
+  if (horsBordereau) {
+    return {
+      error:
+        'Ces prestations ne sont pas encore portées par un bordereau. Il part le 1er du mois et réunit tout d’un coup — votre facture sera unique.',
+    }
+  }
+
   const { data: invoiceId, error } = await supabase.rpc('inv_create_invoice', {
     p_provider_id: provider.id,
     p_mission_ids: missionIds,

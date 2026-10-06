@@ -605,6 +605,8 @@ export const templates = {
     deadline: string
     paymentDate: string
     salaried: boolean
+    /** La plateforme a déjà produit la facture : il n'y a rien à faire. */
+    facturePrete?: boolean
   }) => ({
     subject: p.salaried
       ? `Vos éléments de ${p.label} sont transmis à la paie`
@@ -618,11 +620,19 @@ export const templates = {
         : `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
            <p style="margin:0 0 12px;">Votre bordereau de ${p.label} réunit <strong>${p.lines} prestation${p.lines > 1 ? 's' : ''}</strong>,
               tous pôles confondus, pour <strong>${money(p.total)} HT</strong>.</p>
-           <p style="margin:0 0 12px;">Générez votre facture en un clic, ou déposez la vôtre,
-              <strong>au plus tard le ${formatDateLong(p.deadline)}</strong>.</p>
-           <p style="margin:0;">Paiement le ${formatDateLong(p.paymentDate)}. Une facture reçue plus tard partira au cycle suivant.
+           ${
+             p.facturePrete
+               ? `<p style="margin:0 0 12px;"><strong>Votre facture est déjà établie</strong> à partir de ce bordereau :
+                    vous n'avez rien à faire. Vous pouvez la consulter et la télécharger depuis votre espace.</p>`
+               : `<p style="margin:0 0 12px;">Déposez votre facture
+                    <strong>au plus tard le ${formatDateLong(p.deadline)}</strong>.</p>`
+           }
+           <p style="margin:0;">Paiement le ${formatDateLong(p.paymentDate)}.
               Un point à discuter ? Écrivez à votre manager depuis votre bordereau.</p>`,
-      { label: p.salaried ? 'Voir mes prestations' : 'Établir ma facture', href: `${APP_URL}${p.salaried ? '/missions' : '/factures'}` }
+      {
+        label: p.salaried ? 'Voir mes prestations' : p.facturePrete ? 'Voir ma facture' : 'Déposer ma facture',
+        href: `${APP_URL}${p.salaried ? '/missions' : '/factures'}`,
+      }
     ),
   }),
 

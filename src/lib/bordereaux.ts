@@ -5,6 +5,9 @@ import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
 import { getBrandId } from '@/lib/brand'
+import { champsManquants } from '@/lib/profil'
+import { generateAndStorePdf } from '@/lib/invoice/store'
+import type { Provider } from '@/lib/types'
 
 export interface EnvoiBordereaux {
   bordereaux: number
@@ -28,6 +31,58 @@ export interface EnvoiBordereaux {
  * Idempotent : une prestation déjà rattachée à un bordereau ne l'est pas deux
  * fois, et un bordereau déjà facturé n'est pas rouvert.
  */
+/**
+ * Produit la facture d'un bordereau, quand c'est à nous de la produire.
+ *
+ * Elle n'est pas bloquante : un échec laisse le prestataire la générer
+ * lui-même depuis son espace, comme avant.
+ */
+async function facturerDepuisBordereau(
+  db: ReturnType<typeof createServiceClient>,
+  providerId: string,
+  statementId: string
+): Promise<boolean> {
+  const { data: fiche } = await db
+    .from('inv_providers')
+    .select('invoice_mode, employment_type, legal_name, siret, address_line1, postal_code, city, iban, phone')
+    .eq('id', providerId)
+    .maybeSingle()
+  if (!fiche || fiche.invoice_mode !== 'generated') return false
+  if (champsManquants(fiche as unknown as Provider).length > 0) return false
+
+  const { data: lignes } = await db
+    .from('inv_missions')
+    .select('id')
+    .eq('statement_id', statementId)
+    .is('invoice_id', null)
+  const ids = (lignes ?? []).map((l) => (l as { id: string }).id)
+  if (ids.length === 0) return false
+
+  try {
+    const { data: invoiceId, error } = await db.rpc('inv_create_invoice', {
+      p_provider_id: providerId,
+      p_mission_ids: ids,
+    })
+    if (error || !invoiceId) throw new Error(error?.message ?? 'création impossible')
+
+    const now = new Date().toISOString()
+    await db
+      .from('inv_invoices')
+      .update({ statement_id: statementId, status: 'sent', sent_at: now })
+      .eq('id', invoiceId as string)
+    await db.from('inv_statements').update({ invoice_id: invoiceId as string, status: 'invoiced' }).eq('id', statementId)
+    try {
+      await generateAndStorePdf(invoiceId as string)
+    } catch (err) {
+      console.error('[bordereaux:pdf]', invoiceId, err)
+    }
+    return true
+  } catch (err) {
+    console.error('[bordereaux:facture]', providerId, err)
+    return false
+  }
+}
+
 export async function envoyerBordereaux(
   cycle: BillingCycle,
   auteurId?: string | null,
@@ -146,6 +201,21 @@ export async function envoyerBordereaux(
 
     await db.from('inv_missions').update({ statement_id: bordereau.id }).in('id', ids)
 
+    // La facture se fabrique ici, pas chez le prestataire.
+    //
+    // Il recevait son bordereau, puis devait cliquer « générer et
+    // transmettre ». Entre les deux, rien ne garantissait qu'il prenne tout :
+    // Pratchi, Clara et Yunus se sont retrouvés avec deux factures pour un
+    // même mois. Le bordereau dit déjà quoi facturer, à l'euro près — il n'y
+    // a rien à décider, donc rien à cliquer.
+    //
+    // Seulement pour qui laisse la plateforme produire sa facture : celui
+    // qui dépose la sienne garde la main. Et seulement si sa fiche est
+    // complète, sinon on émettrait un document sans SIRET ni IBAN.
+    const facturePrete = isSalaried(employment)
+      ? false
+      : await facturerDepuisBordereau(db, providerId, bordereau.id)
+
     // Le total fait foi à partir des lignes réellement rattachées.
     const { data: rattachees } = await db
       .from('inv_missions')
@@ -169,6 +239,7 @@ export async function envoyerBordereaux(
           deadline: limite,
           paymentDate: cycle.paymentDate,
           salaried: false,
+          facturePrete,
         }),
         template: 'statement_sent',
         entityType: 'invoice',
