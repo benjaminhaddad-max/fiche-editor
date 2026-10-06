@@ -228,6 +228,53 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
 /** Statuts Pennylane qui valent « réglée ». */
 const PAYEE = new Set(['fully_paid', 'paid_offline'])
 
+export interface RetourEnvois {
+  tentees: number
+  envoyees: string[]
+  echecs: { numero: string; motif: string }[]
+}
+
+/**
+ * Pousse en comptabilité tout ce qui attend, et réessaie ce qui a échoué.
+ *
+ * L'envoi était un bouton : il fallait y penser, cocher trente-sept lignes,
+ * et recommencer quand Pennylane en refusait la moitié. Une facture vérifiée
+ * n'a aucune raison d'attendre un clic — elle part, et si la comptabilité
+ * est indisponible ce jour-là, elle repartira demain.
+ *
+ * On traite par lots raisonnables : le débit est limité, et une tâche qui
+ * s'éternise finit par être interrompue.
+ */
+export async function pousserEnAttente(max = 40): Promise<RetourEnvois> {
+  const out: RetourEnvois = { tentees: 0, envoyees: [], echecs: [] }
+  if (!isPennylaneConfigured()) return out
+
+  const db = createServiceClient()
+  const { data } = await db
+    .from('inv_invoices')
+    .select('id, number')
+    .eq('brand', getBrandId())
+    .in('status', ['sent', 'validated'])
+    .neq('pennylane_status', 'synced')
+    .order('issue_date')
+    .limit(max)
+
+  for (const f of (data ?? []) as { id: string; number: string }[]) {
+    out.tentees++
+    // L'envoi vaut vérification : on ne pousse que ce qu'on accepte de payer.
+    await db
+      .from('inv_invoices')
+      .update({ status: 'validated', validated_at: new Date().toISOString() })
+      .eq('id', f.id)
+      .eq('status', 'sent')
+    const r = await syncInvoiceToPennylane(f.id)
+    if (r.ok) out.envoyees.push(f.number)
+    else out.echecs.push({ numero: f.number, motif: r.error ?? 'erreur inconnue' })
+    await new Promise((res) => setTimeout(res, 300))
+  }
+  return out
+}
+
 export interface RetourPaiements {
   verifiees: number
   payees: { number: string; provider: string }[]

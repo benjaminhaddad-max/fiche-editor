@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { envoyerBordereaux } from '@/lib/bordereaux'
 import { ouvrirForfaitsMensuels } from '@/lib/contracts/mensuel'
-import { rafraichirPaiements } from '@/lib/invoice/pennylane'
+import { pousserEnAttente, rafraichirPaiements } from '@/lib/invoice/pennylane'
 import { cycleForDate, previousCycle, todayParis, type BillingCycle } from '@/lib/cycle'
 import { deliver, notifyStatementReminder } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
@@ -49,6 +49,12 @@ export async function GET(request: Request) {
   const precedent = previousCycle(courant)
   const db = createServiceClient()
   const fait: Record<string, unknown> = { date: today }
+
+  // Les factures vérifiées partent en comptabilité d'elles-mêmes. Tant que
+  // c'était un bouton, il fallait y penser, cocher trente-sept lignes, et
+  // recommencer quand la moitié se faisait refuser.
+  const envois = await pousserEnAttente()
+  fait.envois = { tentees: envois.tentees, envoyees: envois.envoyees.length, echecs: envois.echecs.slice(0, 5) }
 
   // Ce qui a été payé dans Pennylane doit cesser d'apparaître comme dû ici.
   const paiements = await rafraichirPaiements()

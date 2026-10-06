@@ -156,18 +156,14 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
           <div className="min-w-0">
             <p className="ds-eyebrow">Prochaine étape</p>
             <p className="mt-1 font-display text-lg text-navy">
-              {transmises.length > 0
-                ? `${transmises.length} facture${transmises.length > 1 ? 's' : ''} à vérifier et envoyer en comptabilité`
-                : aEnvoyer.length > 0
-                  ? `${aEnvoyer.length} envoi${aEnvoyer.length > 1 ? 's' : ''} à refaire`
-                  : 'Rien en attente de votre part'}
+              {transmises.length + aEnvoyer.length > 0
+                ? `${transmises.length + aEnvoyer.length} facture${transmises.length + aEnvoyer.length > 1 ? 's' : ''} en route vers la comptabilité`
+                : 'Rien en attente de votre part'}
             </p>
             <p className="mt-0.5 text-sm text-muted">
-              {transmises.length > 0
-                ? `${money(transmises.reduce((s, r) => s + Number(r.total_ttc), 0))} — ouvrez-les si besoin, cochez, puis envoyez.`
-                : aEnvoyer.length > 0
-                  ? `${money(aEnvoyer.reduce((s, r) => s + Number(r.total_ttc), 0))} — Pennylane les a refusées, cochez-les et renvoyez-les.`
-                  : 'Les paiements remontent tout seuls depuis Pennylane.'}
+              {transmises.length > 0 || aEnvoyer.length > 0
+                ? `${money([...transmises, ...aEnvoyer].reduce((s, r) => s + Number(r.total_ttc), 0))} — elles partent en comptabilité demain matin toutes seules. Le bouton ne sert qu’à ne pas attendre.`
+                : 'Tout est en comptabilité. Les paiements remontent ensuite tout seuls.'}
             </p>
           </div>
           <form action={actualiserPaiements}>
