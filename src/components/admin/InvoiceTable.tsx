@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Download } from 'lucide-react'
+import { AlertTriangle, Download, Undo2 } from 'lucide-react'
 import { Badge, InvoiceStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -185,12 +185,18 @@ export function InvoiceTable({ rows, gestes }: { rows: AdminInvoiceRow[]; gestes
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       {r.kind === 'platform' && r.pdf_source === 'uploaded' && ['sent', 'validated'].includes(r.status) && (
+                        /* « À refaire » se lisait comme un verdict, aligné
+                           qu'il était sur les pastilles d'état : Benjamin a
+                           cru que trois factures posaient problème. C'est une
+                           action, et elle s'énonce comme telle. */
                         <button
                           type="button"
                           onClick={() => setRefus(refus === r.id ? null : r.id)}
-                          className="cursor-pointer whitespace-nowrap rounded-lg px-2 py-1 text-xs text-navy/70 hover:bg-cream-deep"
+                          title="Renvoyer cette facture à son auteur pour correction"
+                          className="inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg border border-line px-2 py-1 text-xs text-navy/70 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                         >
-                          À refaire
+                          <Undo2 size={13} />
+                          Demander une correction
                         </button>
                       )}
                       <a
