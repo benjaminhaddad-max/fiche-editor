@@ -222,6 +222,7 @@ export interface PennylaneInvoiceResume {
   payment_status: string | null
   paid: boolean | null
   supplier: { name?: string | null } | null
+  public_file_url?: string | null
 }
 
 /**

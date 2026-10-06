@@ -3,6 +3,8 @@ import { RefreshCw } from 'lucide-react'
 import { ARattacher } from '@/components/admin/ARattacher'
 import { InvoiceTable, type AdminInvoiceRow } from '@/components/admin/InvoiceTable'
 import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
+import { FacturesHorsPlateforme } from '@/components/admin/FacturesHorsPlateforme'
+import { facturesHorsPlateforme } from '@/lib/invoice/hors-plateforme'
 import { Card, EmptyState } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
@@ -201,9 +203,12 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
       <ARattacher factures={aRattacher} managers={managers} />
 
       {courant === 'diverses' && (
-        <Card className="mb-6 p-5">
-          <MiscInvoiceUpload categories={cats ?? []} inboundAddress={inbound} />
-        </Card>
+        <>
+          <Card className="mb-6 p-5">
+            <MiscInvoiceUpload categories={cats ?? []} inboundAddress={inbound} />
+          </Card>
+          <FacturesHorsPlateforme factures={await facturesHorsPlateforme()} />
+        </>
       )}
 
       {liste.length === 0 ? (
