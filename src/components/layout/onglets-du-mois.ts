@@ -20,20 +20,21 @@ export function ongletsDuMois(role: Role, aValider: number, mois: string): TabIt
     return [
       { key: 'a-valider', label: 'À valider', href: '/validation', count: aValider },
       { key: 'bordereaux', label: 'Bordereaux', href: '/validation/bordereaux' },
-      { key: 'elements', label: 'Éléments de paie', href: `/remunerations?vue=elements&${m}` },
+      { key: 'paie', label: 'Paie', href: `/remunerations?vue=paie&${m}` },
       { key: 'historique', label: 'Historique', href: '/validation/historique' },
     ]
   }
 
+  // Les salariés tenaient trois onglets — éléments variables, envoi au
+  // social, bulletins — alors que c'est un seul sujet suivi dans le temps.
+  // Ils tiennent en un, avec ses étapes à l'intérieur.
   return [
     { key: 'a-valider', label: 'À valider', href: '/validation', count: aValider },
     { key: 'bordereaux', label: 'Bordereaux', href: '/validation/bordereaux' },
     { key: 'factures', label: 'Factures', href: `/remunerations?vue=factures&${m}` },
-    { key: 'elements', label: 'Éléments de paie', href: `/remunerations?vue=elements&${m}` },
-    { key: 'social', label: 'Au social', href: `/remunerations?vue=social&${m}` },
-    { key: 'bulletins', label: 'Bulletins', href: `/remunerations?vue=bulletins&${m}` },
-    { key: 'mois', label: 'Ce mois-ci', href: `/remunerations?${m}` },
+    { key: 'paie', label: 'Paie', href: `/remunerations?vue=paie&${m}` },
     { key: 'depenses', label: 'Dépenses', href: `/remunerations?vue=depenses&${m}` },
+    { key: 'mois', label: 'Ce mois-ci', href: `/remunerations?${m}` },
     { key: 'historique', label: 'Historique', href: '/validation/historique' },
   ]
 }

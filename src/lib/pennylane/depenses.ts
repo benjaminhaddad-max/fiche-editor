@@ -1,5 +1,32 @@
 import { isPennylaneConfigured } from '@/lib/pennylane/client'
 
+/**
+ * Les mouvements dont aucune facture n'existera jamais.
+ *
+ * Un virement d'approvisionnement entre nos propres comptes, un prélèvement
+ * URSSAF, une échéance de prêt : il n'y a pas de pièce à réclamer, et les
+ * compter parmi les justificatifs manquants noyait les vrais oublis. Sur
+ * l'exercice, ils font à eux seuls mille deux cents lignes sur mille quatre
+ * cent soixante-quatre.
+ */
+const SANS_PIECE_ATTENDUE = [
+  /\bVIR\b/i,
+  /VIREMENT/i,
+  /PRELEVEMENT EUROPEEN/i,
+  /\bPRLV\b/i,
+  /URSSAF/i,
+  /ECHEANCE PRET/i,
+  /\bDGFIP\b/i,
+  /IMPOT/i,
+  /COTISATION/i,
+  /REMISE CHEQUE/i,
+  /FRAIS BANCAIRES/i,
+  /COMMISSION D INTERVENTION/i,
+]
+
+export const pieceAttendue = (libelle: string): boolean =>
+  !SANS_PIECE_ATTENDUE.some((r) => r.test(libelle))
+
 export interface Depense {
   id: number
   date: string
@@ -9,10 +36,22 @@ export interface Depense {
   fournisseur: string | null
   /** Pennylane réclame un justificatif et n'en a pas reçu. */
   justificatifManquant: boolean
+  /** Un virement interne ou une cotisation n'a pas de facture à produire. */
+  pieceAttendue: boolean
+}
+
+/** Un émetteur qui revient : la même facture manque dix fois, pas une. */
+export interface SourceRecurrente {
+  cle: string
+  nombre: number
+  total: number
+  categorie: string | null
 }
 
 export interface MoisDepenses {
   lignes: Depense[]
+  /** Les émetteurs dont il manque le justificatif, du plus fréquent au moins. */
+  sources: SourceRecurrente[]
   total: number
   parCategorie: { label: string; total: number; nombre: number }[]
   sansCategorie: number
@@ -48,6 +87,7 @@ interface Brute {
 export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
   const vide: MoisDepenses = {
     lignes: [],
+    sources: [],
     total: 0,
     parCategorie: [],
     sansCategorie: 0,
@@ -89,7 +129,8 @@ export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
           montant: -montant,
           categorie: t.categories?.[0]?.label ?? null,
           fournisseur: t.supplier?.name ?? null,
-          justificatifManquant: t.attachment_required === true,
+          justificatifManquant: t.attachment_required === true && pieceAttendue(t.label ?? ''),
+          pieceAttendue: pieceAttendue(t.label ?? ''),
         })
       }
       if (!json.has_more || !json.next_cursor) break
@@ -97,6 +138,17 @@ export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
     }
   } catch {
     return vide
+  }
+
+  // Un libellé bancaire porte le nom de l'émetteur puis une référence qui
+  // change à chaque fois : on regroupe sur les deux premiers mots.
+  const emetteur = (l: string) =>
+    l.toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 2).join(' ') || '—'
+  const sourcesMap = new Map<string, SourceRecurrente>()
+  for (const l of lignes.filter((x) => x.justificatifManquant)) {
+    const k = emetteur(l.libelle)
+    const c = sourcesMap.get(k) ?? { cle: k, nombre: 0, total: 0, categorie: l.categorie }
+    sourcesMap.set(k, { ...c, nombre: c.nombre + 1, total: c.total + l.montant, categorie: c.categorie ?? l.categorie })
   }
 
   const par = new Map<string, { total: number; nombre: number }>()
@@ -108,6 +160,7 @@ export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
 
   return {
     lignes: lignes.sort((a, b) => b.date.localeCompare(a.date) || b.montant - a.montant),
+    sources: [...sourcesMap.values()].sort((a, b) => b.nombre - a.nombre || b.total - a.total),
     total: lignes.reduce((s, l) => s + l.montant, 0),
     parCategorie: [...par.entries()]
       .map(([label, v]) => ({ label, ...v }))

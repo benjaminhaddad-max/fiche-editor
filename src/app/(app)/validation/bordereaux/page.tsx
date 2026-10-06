@@ -239,7 +239,16 @@ export default async function BordereauxPage({
         </Suspense>
       )}
 
-      {visibles.length === 0 ? (
+      {!envoye ? (
+        /* Avant le 1er, il n'y a pas de bordereau : seulement des gens qui
+           déclarent, et ils ont déjà leur onglet. Lister ici Clémence et
+           Diane parce qu'elles ont saisi deux lignes laissait croire qu'un
+           bordereau existait pour octobre. */
+        <EmptyState
+          title={`Aucun bordereau pour ${cycle.label}`}
+          description={`Les bordereaux partent le ${formatDateLong(cycle.statementDate)}. D'ici là, les prestations se suivent dans « À valider » — ${visibles.length} personne(s) ont déjà déclaré, pour ${money(round2(visibles.reduce((s, [, v]) => s + v.total, 0)))}.`}
+        />
+      ) : visibles.length === 0 ? (
         <EmptyState title="Aucune prestation sur ce mois" />
       ) : affiches.length === 0 ? (
         <EmptyState title={`Personne ne correspond à « ${cherche} » sur ce mois`} />

@@ -28,7 +28,8 @@ export async function VueDepenses({ cycle }: { cycle: BillingCycle }) {
     return <EmptyState title={`Aucune sortie enregistrée sur ${cycle.label}`} />
   }
 
-  const aCompleter = d.lignes.filter((l) => l.justificatifManquant || !l.categorie)
+  const aCompleter = d.lignes.filter((l) => l.justificatifManquant || (!l.categorie && l.pieceAttendue))
+  const sansPiece = d.lignes.filter((l) => !l.pieceAttendue)
 
   return (
     <>
@@ -46,7 +47,11 @@ export async function VueDepenses({ cycle }: { cycle: BillingCycle }) {
         <div className="rounded-xl border border-line bg-white p-4">
           <p className="ds-eyebrow">Justificatif manquant</p>
           <p className="font-display mt-1 text-2xl font-semibold text-navy">{d.sansJustificatif}</p>
-          <p className="text-xs text-muted">mouvement(s) sans facture rattachée</p>
+          <p className="text-xs text-muted">
+            {sansPiece.length > 0
+              ? `${sansPiece.length} virement(s) et cotisation(s) écartés : rien à produire`
+              : 'mouvement(s) sans facture rattachée'}
+          </p>
         </div>
       </div>
 
@@ -66,6 +71,32 @@ export async function VueDepenses({ cycle }: { cycle: BillingCycle }) {
           ))}
         </ul>
       </Card>
+
+      {d.sources.length > 0 && (
+        <Card className="mb-6 overflow-hidden">
+          <div className="border-b border-line bg-cream-muted px-5 py-3">
+            <p className="text-sm font-semibold text-navy">D’où viennent les justificatifs manquants</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Les mêmes émetteurs reviennent : récupérer une fois leurs factures du mois règle des dizaines de
+              lignes d’un coup. C’est aussi là qu’il faudra nommer un responsable par poste.
+            </p>
+          </div>
+          <ul className="divide-y divide-line/60">
+            {d.sources.slice(0, 15).map((src) => (
+              <li key={src.cle} className="flex items-center justify-between gap-4 px-5 py-2.5 text-sm">
+                <span className="min-w-0">
+                  <span className="font-medium text-navy">{src.cle}</span>
+                  <span className="block text-xs text-muted">
+                    {src.nombre} mouvement{src.nombre > 1 ? 's' : ''}
+                    {src.categorie ? ` · ${src.categorie}` : ' · sans catégorie'}
+                  </span>
+                </span>
+                <span className="whitespace-nowrap font-semibold text-navy">{money(src.total)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {aCompleter.length > 0 && (
         <Card className="mb-6 overflow-hidden">

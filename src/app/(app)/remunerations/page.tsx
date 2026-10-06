@@ -1,11 +1,10 @@
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/Page'
 import type { TabItem } from '@/components/ui/Tabs'
-import { VueBulletins, VueMois } from '@/components/remunerations/VueMois'
-import { VueElements } from '@/components/remunerations/VueElements'
+import { VueMois } from '@/components/remunerations/VueMois'
 import { VueFactures } from '@/components/remunerations/VueFactures'
-import { VueSocial } from '@/components/remunerations/VueSocial'
 import { VueDepenses } from '@/components/remunerations/VueDepenses'
+import { VuePaie } from '@/components/remunerations/VuePaie'
 import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
 import { Card } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
@@ -24,10 +23,10 @@ export const maxDuration = 300
 export default async function RemunerationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vue?: string; mois?: string; onglet?: string }>
+  searchParams: Promise<{ vue?: string; mois?: string; onglet?: string; etape?: string }>
 }) {
   const user = await requireRole('manager', 'admin')
-  const { vue, mois, onglet } = await searchParams
+  const { vue, mois, onglet, etape } = await searchParams
   const cycle = mois && /^\d{4}-\d{2}$/.test(mois) ? cycleForMonth(mois) : activeCycle()
 
   // Les mêmes onglets que « Prestations » : c'est le même mois, vu plus
@@ -39,7 +38,7 @@ export default async function RemunerationsPage({
   }
 
   const connues = new Set(vues.map((v) => v.key))
-  const courant = vue && connues.has(vue) ? vue : user.role === 'admin' ? 'mois' : 'elements'
+  const courant = vue && connues.has(vue) ? vue : user.role === 'admin' ? 'mois' : 'paie'
   const { data: cats } =
     courant === 'deposer'
       ? await createServiceClient()
@@ -79,9 +78,7 @@ export default async function RemunerationsPage({
 
       {courant === 'mois' && <VueMois cycle={cycle} />}
       {courant === 'factures' && <VueFactures onglet={onglet} />}
-      {courant === 'elements' && <VueElements cycle={cycle} />}
-      {courant === 'bulletins' && <VueBulletins cycle={cycle} />}
-      {courant === 'social' && <VueSocial cycle={cycle} />}
+      {courant === 'paie' && <VuePaie cycle={cycle} etape={etape} role={user.role} />}
       {courant === 'depenses' && <VueDepenses cycle={cycle} />}
       {courant === 'deposer' && (
         <Card className="p-5">
