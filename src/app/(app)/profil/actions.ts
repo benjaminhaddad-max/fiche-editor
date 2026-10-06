@@ -64,17 +64,17 @@ const ProfileSchema = z
         .refine(ibanValide, 'IBAN invalide : vérifiez les deux chiffres qui suivent « FR », puis le reste du numéro.')
     ),
     bic: optional(z.string().trim().transform((v) => v.toUpperCase())),
-    vat_regime: z.enum(['franchise', 'normal']),
+    vat_regime: z.enum(['franchise', 'exonere', 'normal']),
     invoice_mode: z.enum(['generated', 'uploaded']),
   })
   .transform((v) => ({
     ...v,
     // La contrainte SQL impose 0 en franchise et > 0 sinon : on l'applique ici
     // pour ne pas dependre d'un champ saisi.
-    vat_rate: v.vat_regime === 'franchise' ? 0 : 20,
+    vat_rate: v.vat_regime === 'normal' ? 20 : 0,
   }))
   .refine(
-    (v) => v.vat_regime === 'franchise' || Boolean(v.vat_number),
+    (v) => v.vat_regime !== 'normal' || Boolean(v.vat_number),
     { message: 'Numéro de TVA obligatoire si vous êtes assujetti.', path: ['vat_number'] }
   )
 

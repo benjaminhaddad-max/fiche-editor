@@ -187,7 +187,9 @@ export function ProfileForm({
               hint={
                 vatRegime === 'franchise'
                   ? 'Quel que soit votre statut — auto-entrepreneur, EI, EURL, SASU. Mention « TVA non applicable, art. 293 B du CGI » sur vos factures ; le montant HT est le montant à payer.'
-                  : 'TVA à 20 % ajoutée automatiquement sur vos factures.'
+                  : vatRegime === 'exonere'
+                    ? 'Pour l’enseignement et la formation professionnelle continue. Mention « TVA non applicable, art. 261-4-4° a du CGI ». Aucun plafond de chiffre d’affaires.'
+                    : 'TVA à 20 % ajoutée automatiquement sur vos factures.'
               }
             >
               {/* « Franchise en base (auto-entrepreneur) » : Patrick Razon,
@@ -196,6 +198,7 @@ export function ProfileForm({
                   à déclarer son exonération. La franchise tient au chiffre
                   d'affaires, pas au statut — l'intitulé le disait mal. */}
               <option value="franchise">Sans TVA — franchise en base (art. 293 B)</option>
+              <option value="exonere">Sans TVA — exonéré, formation professionnelle (art. 261-4-4° a)</option>
               <option value="normal">Avec TVA — assujetti à 20 %</option>
             </Select>
             {vatRegime === 'normal' ? (

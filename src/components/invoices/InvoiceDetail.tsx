@@ -2,7 +2,7 @@ import { InvoiceStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { formatDate, formatPeriod, money } from '@/lib/format'
 import { PRICING_UNIT } from '@/lib/labels'
-import { COMPANY, type Invoice, type InvoiceLine } from '@/lib/types'
+import { COMPANY, mentionTva, type Invoice, type InvoiceLine } from '@/lib/types'
 
 /** Rendu HTML de la facture, miroir du PDF. */
 export function InvoiceDetail({
@@ -13,7 +13,8 @@ export function InvoiceDetail({
   lines: InvoiceLine[]
 }) {
   const issuer = invoice.issuer_snapshot
-  const isFranchise = issuer.vat_regime === 'franchise'
+  const mention = mentionTva(issuer.vat_regime)
+  const isFranchise = issuer.vat_regime !== 'normal'
 
   return (
     <Card className="overflow-hidden">
@@ -135,11 +136,7 @@ export function InvoiceDetail({
         </dl>
       </div>
 
-      {isFranchise && (
-        <p className="border-t border-line px-6 py-4 text-xs text-muted">
-          TVA non applicable, article 293 B du Code général des impôts.
-        </p>
-      )}
+      {mention && <p className="border-t border-line px-6 py-4 text-xs text-muted">{mention}</p>}
     </Card>
   )
 }

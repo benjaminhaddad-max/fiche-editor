@@ -76,7 +76,16 @@ export type ContractRateType = 'forfait' | 'mission' | 'horaire' | 'mensuel'
 
 export type InvoiceStatus = 'draft' | 'issued' | 'sent' | 'validated' | 'paid'
 export type InvoiceKind = 'platform' | 'misc'
-export type VatRegime = 'franchise' | 'normal'
+export type VatRegime = 'franchise' | 'exonere' | 'normal'
+
+/** La mention légale qui doit figurer sur la facture, selon le régime. */
+export function mentionTva(regime: string): string | null {
+  if (regime === 'franchise') return 'TVA non applicable, article 293 B du Code général des impôts.'
+  if (regime === 'exonere')
+    return 'TVA non applicable, article 261-4-4° a du Code général des impôts (formation professionnelle continue).'
+  return null
+}
+
 export type PennylaneStatus = 'not_synced' | 'synced' | 'error'
 /** Origine du PDF : produit par la plateforme, ou déposé par le prestataire. */
 export type InvoiceSource = 'generated' | 'uploaded'

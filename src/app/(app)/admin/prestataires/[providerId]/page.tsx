@@ -35,7 +35,14 @@ export default async function ProviderPage({
     ['Forme juridique', provider.legal_form],
     ['SIRET', provider.siret],
     ['N° TVA', provider.vat_number],
-    ['Régime TVA', provider.vat_regime === 'franchise' ? 'Sans TVA — franchise en base' : 'Assujetti 20 %'],
+    [
+      'Régime TVA',
+      provider.vat_regime === 'franchise'
+        ? 'Sans TVA — franchise en base'
+        : provider.vat_regime === 'exonere'
+          ? 'Sans TVA — exonéré (formation professionnelle)'
+          : 'Assujetti 20 %',
+    ],
     [
       'Adresse',
       [provider.address_line1, provider.postal_code, provider.city]

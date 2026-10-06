@@ -8,7 +8,7 @@ import {
 } from '@react-pdf/renderer'
 import { formatDate, formatPeriod, money } from '@/lib/format'
 import { PRICING_UNIT } from '@/lib/labels'
-import { COMPANY, type Invoice, type InvoiceLine } from '@/lib/types'
+import { COMPANY, mentionTva, type Invoice, type InvoiceLine } from '@/lib/types'
 
 // Helvetica est embarquee dans @react-pdf : pas d'appel reseau au rendu.
 const styles = StyleSheet.create({
@@ -146,7 +146,8 @@ export function InvoiceDocument({
   lines: InvoiceLine[]
 }) {
   const issuer = invoice.issuer_snapshot
-  const isFranchise = issuer.vat_regime === 'franchise'
+  const mention = mentionTva(issuer.vat_regime)
+  const isFranchise = issuer.vat_regime !== 'normal'
 
   return (
     <Document
@@ -267,9 +268,7 @@ export function InvoiceDocument({
         )}
 
         <View style={styles.mentions}>
-          {isFranchise && (
-            <Text>TVA non applicable, article 293 B du Code général des impôts.</Text>
-          )}
+          {mention && <Text>{mention}</Text>}
           <Text>
             Paiement à réception, au plus tard le {formatDate(invoice.due_date)}. En cas
             de retard de paiement, application de pénalités au taux de trois fois le taux
