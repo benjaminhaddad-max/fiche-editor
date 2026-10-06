@@ -46,7 +46,9 @@ function token(): string {
  */
 async function appel(url: string, init?: RequestInit): Promise<Response> {
   for (let essai = 0; ; essai++) {
-    const res = await appel(url, init)
+    // globalThis.fetch, et non `appel` : s'appeler soi-même ici, c'est une
+    // récursion infinie — elle a fait tomber vingt-neuf envois sur trente.
+    const res = await globalThis.fetch(url, init)
     if (res.status !== 429 || essai >= 5) return res
     const entete = Number(res.headers.get('retry-after') ?? '')
     const attente = Number.isFinite(entete) && entete > 0 ? entete * 1000 : 1000 * 2 ** essai
@@ -190,8 +192,23 @@ export interface PennylaneSupplier {
   vat_number?: string | null
 }
 
+/**
+ * La liste des fournisseurs, gardée une minute.
+ *
+ * Elle est relue pour chaque facture envoyée, et elle se pagine sur
+ * plusieurs centaines de lignes : à trente-sept factures d'affilée, c'est
+ * elle qui déclenchait la limite de débit, pas l'envoi lui-même. Elle ne
+ * bouge pas pendant un envoi groupé — sauf quand on vient d'y créer
+ * quelqu'un, et dans ce cas on l'oublie exprès.
+ */
+let cacheFournisseurs: { a: number; liste: PennylaneSupplier[] } | null = null
+export const oublierFournisseurs = () => {
+  cacheFournisseurs = null
+}
+
 /** Tous les fournisseurs, en suivant la pagination par curseur. */
 export async function listSuppliers(): Promise<PennylaneSupplier[]> {
+  if (cacheFournisseurs && Date.now() - cacheFournisseurs.a < 60_000) return cacheFournisseurs.liste
   const out: PennylaneSupplier[] = []
   let cursor: string | null = null
   for (let page = 0; page < 50; page++) {
@@ -203,6 +220,7 @@ export async function listSuppliers(): Promise<PennylaneSupplier[]> {
     if (!body.has_more || !body.next_cursor) break
     cursor = body.next_cursor
   }
+  cacheFournisseurs = { a: Date.now(), liste: out }
   return out
 }
 
@@ -219,6 +237,7 @@ export interface CreateSupplierInput {
 
 /** Crée un fournisseur (scope suppliers:all). Renvoie son id. */
 export async function createSupplier(input: CreateSupplierInput): Promise<number> {
+  cacheFournisseurs = null
   const res = await appel(`${BASE_URL}/suppliers`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
