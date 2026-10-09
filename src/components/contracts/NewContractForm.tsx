@@ -83,6 +83,18 @@ export function NewContractForm({
           />
           <p className="field-hint">La personne pourra le consulter depuis « Mes contrats ». 4 Mo au plus.</p>
         </div>
+        {/* Un contrat conclu ailleurs est déjà signé : sans sa date, il
+            traînerait dans la liste comme un brouillon en attente. */}
+        <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+          <Input
+            id="signe_le"
+            name="signe_le"
+            type="date"
+            label="Déjà signé le (facultatif)"
+            hint="Pour un contrat conclu hors plateforme : il entre au dossier comme signé."
+          />
+          <Input id="signataire" name="signataire" label="Signé par" placeholder="Nom du signataire" />
+        </div>
         <div className="sm:col-span-2">
           <Textarea id="conditions" name="conditions" label="Conditions" rows={3} placeholder="Missions couvertes, volume, modalités…" />
         </div>

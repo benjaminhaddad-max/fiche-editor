@@ -41,6 +41,8 @@ export interface Parametres {
   montant: number | null
   /** Un taux horaire se convient en net ou en brut : il faut le dire. */
   base?: 'brut' | 'net' | null
+  /** Pour un indépendant : le taux s'entend HT, TTC, ou hors champ de TVA. */
+  tva?: 'ht' | 'ttc' | 'exonere' | null
   precisions: string | null
 }
 
@@ -51,6 +53,8 @@ export interface Modele {
   demandeLieu?: boolean
   /** Le modèle demande si le taux est net ou brut. */
   demandeBase?: boolean
+  /** Le modèle demande comment le taux se lit au regard de la TVA. */
+  demandeTva?: boolean
   cle: string
   nom: string
   pole: Pole
@@ -206,12 +210,42 @@ function professeur(cle: string, nom: string, employment: Employment): Modele {
     monthlyAuto: false,
     signable: true,
     demandeBase: salarie,
+    demandeTva: !salarie,
     resume: salarie
       ? 'Taux horaire, net ou brut selon ce qui a été convenu — vacation'
-      : 'Taux horaire hors taxes, déclaré séance par séance',
+      : 'Taux horaire, déclaré séance par séance',
     corps: (p) => {
       const taux = p.montant ? euros(p.montant) : '… €'
-      const base = salarie ? (p.base === 'brut' ? ' brut' : ' net') : ' hors taxes'
+      // Beaucoup de professeurs exercent en société avec un numéro de
+      // déclaration d'activité : leur enseignement est exonéré de TVA, et la
+      // facture doit porter l'article qui le dit. « Hors taxes » partout
+      // laissait croire à une TVA simplement non facturée.
+      const base = salarie
+        ? p.base === 'brut'
+          ? ' brut'
+          : ' net'
+        : p.tva === 'ttc'
+          ? ' toutes taxes comprises'
+          : p.tva === 'exonere'
+            ? ', exonéré de TVA'
+            : ' hors taxes'
+      const mentionTva =
+        p.tva === 'exonere'
+          ? {
+              titre: 'Taxe sur la valeur ajoutée',
+              texte:
+                'Les prestations d’enseignement objet du présent contrat sont exonérées de taxe sur la ' +
+                'valeur ajoutée en application de l’article 261-4-4° a du Code général des impôts. Les ' +
+                'factures portent cette mention et ne font apparaître aucune TVA.',
+            }
+          : p.tva === 'ttc'
+            ? {
+                titre: 'Taxe sur la valeur ajoutée',
+                texte:
+                  'Le taux convenu s’entend toutes taxes comprises : la taxe éventuellement applicable est ' +
+                  'comprise dans ce montant et n’est pas ajoutée à la facture.',
+              }
+            : null
       return {
         intitule: `Contrat d’enseignement — ${nom.toLowerCase()}`,
         profil: nom,
@@ -241,7 +275,8 @@ function professeur(cle: string, nom: string, employment: Employment): Modele {
             texte:
               `Chaque séance est déclarée sur la plateforme ${brand().appTitle} avec son créneau horaire, le groupe ` +
               'concerné, le module enseigné et la modalité (présentiel, distanciel ou hybride). Cette traçabilité ' +
-              'est exigée par la certification Qualiopi : un total d’heures mensuel ne suffit pas lors d’un audit.',
+              'conditionne le paiement : un total d’heures mensuel ne dit ni quand la séance a eu lieu, ni ' +
+              'devant quel groupe.',
           },
           salarie
             ? {
@@ -251,6 +286,7 @@ function professeur(cle: string, nom: string, employment: Employment): Modele {
                   'sur le bulletin du mois. L’intervenant n’a pas de facture à établir.',
               }
             : FACTURATION,
+          ...(mentionTva ? [mentionTva] : []),
           ...(salarie ? [] : [INDEPENDANCE]),
           CONFIDENTIALITE,
           resiliation('un mois'),

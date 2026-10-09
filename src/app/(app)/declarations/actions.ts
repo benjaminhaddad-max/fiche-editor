@@ -37,7 +37,7 @@ const Ligne = z.object({
   pricing_type: z.enum(['forfait_mission', 'forfait_horaire', 'forfait_journalier']),
   quantity: z.coerce.number<number>().positive('Quantité supérieure à 0.').max(10000),
   unit_amount_ht: z.coerce.number<number>().nonnegative('Montant invalide.').max(1000000),
-  /** Le créneau réel de la séance, et ce qu'elle couvre — exigences Qualiopi. */
+  /** Le créneau réel de la séance, et ce qu'elle couvre. */
   start_time: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal('')]).optional(),
   end_time: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal('')]).optional(),
   groupe: z.string().trim().max(120).optional(),
@@ -126,7 +126,7 @@ export async function declarer(
   const encadre = new Set((encadrants ?? []).map((e) => e.id as string))
   if (!encadre.has(managerId)) return { error: 'Ce manager n’est plus en poste, choisissez-en un autre.' }
 
-  // Les enseignements soumis à Qualiopi : leur déclaration doit porter le
+  // Les enseignements déclarés séance par séance : leur déclaration doit porter le
   // créneau, le groupe, le module et la modalité. Une ligne incomplète est
   // refusée ici plutôt que découverte le jour de l'audit.
   const { data: cats } = await db

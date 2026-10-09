@@ -36,7 +36,7 @@ export interface ReviewMission {
   /** Qui a posé la validation manager, et quand. Vide si personne encore. */
   manager_approved_at?: string | null
   valide_par?: string | null
-  /** Détail de séance, quand l'enseignement est soumis à Qualiopi. */
+  /** Détail de séance, quand l'enseignement se déclare séance par séance. */
   start_time?: string | null
   end_time?: string | null
   groupe?: string | null
@@ -407,7 +407,7 @@ export function ValidationTable({
                   <td />
                   <td colSpan={showManager ? 6 : 5} className="px-3 pb-3 pt-0">
                     <div className="max-w-3xl">
-                  {/* La preuve Qualiopi se lit ici : sans le créneau et le
+                  {/* La preuve de la séance se lit ici : sans le créneau et le
                       groupe sous les yeux, un manager valide un total d'heures
                       sans savoir ce qu'il valide. */}
                   {m.start_time && (

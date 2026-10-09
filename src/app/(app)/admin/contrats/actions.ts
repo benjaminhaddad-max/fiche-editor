@@ -39,6 +39,11 @@ const Contrat = z
     rate_amount: z.union([z.coerce.number<number>().nonnegative(), z.literal('')]).optional(),
     total_ht: z.union([z.coerce.number<number>().nonnegative(), z.literal('')]).optional(),
     conditions: z.string().trim().max(5000).optional(),
+    // Un contrat signé ailleurs arrive déjà conclu : on ne va pas le faire
+    // re-signer en ligne, mais la date et le signataire doivent être au
+    // dossier, sinon il ressemble à un brouillon en attente.
+    signe_le: z.union([z.iso.date(), z.literal('')]).optional(),
+    signataire: z.string().trim().max(120).optional(),
   })
   .refine((v) => !v.end_date || v.end_date >= v.start_date, { message: 'La fin doit suivre le début.', path: ['end_date'] })
 
@@ -100,6 +105,9 @@ export async function creerContrat(_prev: ContractResult, fd: FormData): Promise
       total_ht: total,
       conditions: v.conditions || null,
       status: 'active',
+      ...(v.signe_le
+        ? { signed_at: new Date(`${v.signe_le}T12:00:00Z`).toISOString(), signer_name: v.signataire || null }
+        : {}),
     })
     .select('id')
     .single()
@@ -196,6 +204,7 @@ const DepuisModele = z
     bareme: z.string().trim().max(40).optional(),
     lieu: z.string().trim().max(80).optional(),
     base: z.union([z.enum(['brut', 'net']), z.literal('')]).optional(),
+    tva: z.union([z.enum(['ht', 'ttc', 'exonere']), z.literal('')]).optional(),
     envoyer: z.enum(['oui', 'non']).default('oui'),
   })
   .refine((v) => v.provider_id !== 'nouveau' || (v.new_name && v.new_email), {
@@ -256,6 +265,7 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
     fin: v.end_date || null,
     montant,
     base: v.base || null,
+    tva: v.tva || null,
     precisions: v.precisions || null,
   })
   if (!corps) return { error: 'Modèle inconnu.' }

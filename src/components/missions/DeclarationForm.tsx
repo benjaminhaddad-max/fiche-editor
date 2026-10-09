@@ -17,7 +17,7 @@ export interface DeclCategory {
   id: string
   label: string
   pole: Pole
-  /** Enseignement soumis à Qualiopi : la déclaration se fait séance par séance. */
+  /** Enseignement dont la déclaration se fait séance par séance. */
   requiresSession?: boolean
 }
 
@@ -35,7 +35,7 @@ interface Ligne {
   pricing_type: PricingType
   quantity: string
   unit_amount_ht: string
-  /** Le créneau réel de la séance, et ce qu'elle couvre — exigences Qualiopi. */
+  /** Le créneau réel de la séance, et ce qu'elle couvre. */
   start_time: string
   end_time: string
   groupe: string
@@ -528,8 +528,8 @@ export function DeclarationForm(props: Props) {
                         <p className="mb-1 text-xs font-semibold text-navy">Détail de la séance</p>
                         <p className="mb-3 text-xs text-muted">
                           Une ligne par séance. Le créneau, le groupe, le module et la modalité sont
-                          demandés par Qualiopi pour prouver que la séance a bien eu lieu : un total
-                          d’heures sur le mois ne suffit pas lors d’un audit.
+                          demandés pour prouver que la séance a bien eu lieu : un total d’heures sur
+                          le mois ne dit ni quand, ni devant qui.
                         </p>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
                           <Champ label="Début" className="lg:col-span-2">

@@ -70,8 +70,12 @@ export default async function ContratsPage({
           {user.role === 'admin' && (
             <details className="mt-6 border-t border-line pt-4">
               <summary className="cursor-pointer text-sm font-medium text-navy">
-                Saisir un contrat à la main (hors modèle)
+                Importer un contrat signé ailleurs, ou le saisir à la main
               </summary>
+              <p className="mt-1 text-xs text-muted">
+                Un contrat édité et signé hors de la plateforme se range ici avec son PDF et sa date de
+                signature : une seule base, quelle que soit la façon dont il a été fait.
+              </p>
               <div className="mt-4">
                 <NewContractForm providers={providers} managers={managers} defaultPole={courant === 'tous' ? 'professeur' : courant} />
               </div>

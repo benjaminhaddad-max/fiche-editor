@@ -105,7 +105,7 @@ function CategoryForm({
         </label>
       </div>
 
-      {/* Qualiopi demande de prouver chaque séance, pas un total d'heures
+      {/* Une séance se prouve une par une, pas en total d'heures
           mensuel. Cochée, cette case impose au prestataire le créneau, le
           groupe, le module et la modalité — une ligne par séance. */}
       <label className="flex cursor-pointer items-start gap-2 text-sm text-navy/80 sm:col-span-2">
@@ -118,7 +118,7 @@ function CategoryForm({
         <span>
           Déclaration séance par séance
           <span className="block text-xs text-muted">
-            Pour les enseignements soumis à Qualiopi : créneau horaire, groupe, module et modalité
+            Pour les enseignements à tracer séance par séance : créneau horaire, groupe, module et modalité
             deviennent obligatoires, une ligne par séance.
           </span>
         </span>

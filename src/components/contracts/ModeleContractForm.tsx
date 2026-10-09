@@ -47,6 +47,7 @@ export function ModeleContractForm({
         fin: t('end_date'),
         montant: fd.get('rate_amount') ? Number(fd.get('rate_amount')) : m.rateAmount,
         base: (t('base') as 'brut' | 'net' | null) ?? null,
+        tva: (t('tva') as 'ht' | 'ttc' | 'exonere' | null) ?? null,
         precisions: t('precisions'),
       })
     )
@@ -200,6 +201,20 @@ export function ModeleContractForm({
           <Select id="base" name="base" label="Ce taux est" defaultValue="net" key={`base-${cle}`}>
             <option value="net">Net — ce qu’il touche</option>
             <option value="brut">Brut — avant charges</option>
+          </Select>
+        )}
+        {m.demandeTva && (
+          <Select
+            id="tva"
+            name="tva"
+            label="Ce taux s’entend"
+            defaultValue="ht"
+            key={`tva-${cle}`}
+            hint="Beaucoup de professeurs en société sont exonérés : le contrat porte alors l’article 261-4-4° a."
+          >
+            <option value="ht">Hors taxes — TVA ajoutée s’il y a lieu</option>
+            <option value="exonere">Exonéré de TVA — enseignement (art. 261-4-4° a)</option>
+            <option value="ttc">Toutes taxes comprises</option>
           </Select>
         )}
         {m.baremes && (

@@ -198,7 +198,7 @@ const CategorySchema = z.object({
   pole: z.enum(['coaching', 'professeur', 'referent', 'commercial', 'marketing', 'autres']),
   visible_to_provider: z.coerce.boolean<boolean>(),
   is_active: z.coerce.boolean<boolean>(),
-  /** Enseignement soumis à Qualiopi : déclaration séance par séance. */
+  /** Enseignement déclaré séance par séance plutôt qu'en total d'heures. */
   requires_session: z.coerce.boolean<boolean>(),
 })
 
