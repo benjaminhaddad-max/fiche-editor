@@ -29,7 +29,7 @@ export interface LigneContrat {
 const SIGNATURE: Record<EtatSignature, { label: string; classe: string; icone: typeof CheckCircle2 }> = {
   signe: { label: 'Signé', classe: 'text-emerald-700', icone: CheckCircle2 },
   envoye: { label: 'En attente', classe: 'text-amber-700', icone: Clock },
-  depose: { label: 'Déposé', classe: 'text-navy/70', icone: FileText },
+  depose: { label: 'Signé (papier)', classe: 'text-emerald-700', icone: FileText },
   manquant: { label: 'À signer', classe: 'text-red-700', icone: Clock },
 }
 

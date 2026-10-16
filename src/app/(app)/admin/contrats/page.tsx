@@ -108,14 +108,18 @@ export default async function ContratsPage({
 /** Ce qu'une ligne de la liste montre d'un contrat, et rien de plus. */
 function enLigne(c: ContractRow): LigneContrat {
   const echeances = c.instalments ?? []
-  const signature = c.signed_at ? 'signe' : c.sent_at ? 'envoye' : c.document_path ? 'depose' : 'manquant'
+  // Le contrat signé déposé prime sur l'envoi : parti en signature en ligne
+  // puis signé sur papier et rangé ici, il est signé — pas « en attente ».
+  const signature = c.signed_at
+    ? 'signe'
+    : c.document_path
+      ? 'depose'
+      : c.sent_at
+        ? 'envoye'
+        : 'manquant'
   // Une seule précision par ligne, et seulement quand elle apprend quelque
-  // chose : « Déposé » se suffit à lui-même, une date de signature non.
-  const detail = c.signed_at
-    ? formatDate(c.signed_at)
-    : c.sent_at
-      ? `le ${formatDate(c.sent_at)}`
-      : ''
+  // chose : la date d'envoi n'a de sens que tant qu'on attend la signature.
+  const detail = c.signed_at ? formatDate(c.signed_at) : signature === 'envoye' ? `le ${formatDate(c.sent_at)}` : ''
 
   return {
     id: c.id,

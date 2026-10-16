@@ -175,12 +175,23 @@ export async function deposerDocumentContrat(_prev: ContractResult, fd: FormData
   return { success: 'Contrat signé enregistré.' }
 }
 
+/**
+ * Clôt ou réactive un contrat.
+ *
+ * Un manager le fait pour les contrats dont il est responsable : ce sont les
+ * seuls que la liste lui montre. Lui afficher le bouton puis le réserver à
+ * l'administration le renvoyait sur /validation sans un mot, et le contrat
+ * restait ouvert.
+ */
 export async function changerStatutContrat(fd: FormData): Promise<void> {
-  const user = await requireRole('admin')
+  const user = await requireRole('manager', 'admin')
   const id = String(fd.get('contract_id') ?? '')
   const statut = String(fd.get('status') ?? '')
   if (!id || !['active', 'ended', 'cancelled'].includes(statut)) return
-  await createServiceClient().from('inv_coaching_contracts').update({ status: statut }).eq('id', id)
+  const db = createServiceClient()
+  const { data: c } = await db.from('inv_coaching_contracts').select('manager_id').eq('id', id).maybeSingle()
+  if (!c || (user.role === 'manager' && c.manager_id !== user.id)) return
+  await db.from('inv_coaching_contracts').update({ status: statut }).eq('id', id)
   await logAudit(null, { actorId: user.id, entityType: 'provider', entityId: id, action: `contrat_${statut}` })
   revalidatePath('/admin/contrats', 'layout')
 }
