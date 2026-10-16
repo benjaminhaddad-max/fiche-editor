@@ -96,6 +96,7 @@ export default async function ContractPage({
         <ContractSignature
           id={c.id}
           signable={Boolean(c.profile) && !c.profile?.startsWith('alternant')}
+          hasDocument={Boolean(c.document_path)}
           sentAt={c.sent_at}
           signedAt={c.signed_at}
           signerName={c.signer_name}

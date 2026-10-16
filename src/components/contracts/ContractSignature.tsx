@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/format'
 export function ContractSignature({
   id,
   signable,
+  hasDocument,
   sentAt,
   signedAt,
   signerName,
@@ -14,6 +15,7 @@ export function ContractSignature({
 }: {
   id: string
   signable: boolean
+  hasDocument: boolean
   sentAt: string | null
   signedAt: string | null
   signerName: string | null
@@ -25,6 +27,16 @@ export function ContractSignature({
         <CheckCircle2 size={14} />
         Signé par {signerName} le {formatDate(signedAt)}
         {reference ? ` · réf. ${reference}` : ''}
+      </span>
+    )
+  }
+  // Le PDF signé déposé vaut signature : inutile de continuer à réclamer
+  // celle qu'on a déjà en main, et à la compter comme manquante.
+  if (hasDocument) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+        <CheckCircle2 size={14} />
+        Signé sur papier — PDF déposé
       </span>
     )
   }
