@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service'
+import { BRANDS, marqueFacturable, normalizeBrandId } from '@/lib/brand'
 import { renderInvoicePdf } from '@/lib/invoice/pdf'
 import type { Invoice, InvoiceLine } from '@/lib/types'
 
@@ -45,6 +46,18 @@ export async function loadInvoiceForRender(
 export async function generateAndStorePdf(invoiceId: string): Promise<Buffer> {
   const loaded = await loadInvoiceForRender(invoiceId)
   if (!loaded) throw new Error('Facture introuvable.')
+
+  // Les mentions légales de l'émetteur sont obligatoires sur une facture.
+  // Une marque dont la société n'est pas renseignée s'arrête ici : mieux
+  // vaut un traitement qui échoue bruyamment qu'un PDF sans SIRET parti
+  // chez le prestataire, puis chez le comptable.
+  const m = normalizeBrandId(loaded.invoice.brand)
+  if (!marqueFacturable(m)) {
+    throw new Error(
+      `Les mentions légales de ${BRANDS[m].name} ne sont pas renseignées : ` +
+        'complétez la société dans src/lib/brand/config.ts avant d’émettre des factures.'
+    )
+  }
 
   const pdf = await renderInvoicePdf(loaded.invoice, loaded.lines)
   const path = invoicePdfPath(loaded.invoice)

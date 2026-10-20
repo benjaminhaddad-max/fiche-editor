@@ -131,12 +131,15 @@ function initiales(nom: string): string {
 
 export function AppShell({
   user,
+  selecteurMarque,
   banner,
   salarie = false,
   unread = 0,
   children,
 }: {
   user: { full_name: string; email: string; role: Role }
+  /** Le choix d'école, pour une direction qui en suit plusieurs. */
+  selecteurMarque?: React.ReactNode
   banner?: React.ReactNode
   salarie?: boolean
   unread?: number
@@ -202,6 +205,8 @@ export function AppShell({
             </button>
           </div>
         </div>
+
+        {selecteurMarque}
 
         <nav className="ds-rail-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
           {navFor(user.role, salarie, unread).map((groupe) => (

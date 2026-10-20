@@ -1,5 +1,7 @@
 import { AppShell } from '@/components/layout/AppShell'
 import { MarqueProvider } from '@/components/brand/MarqueProvider'
+import { SelecteurMarque } from '@/components/brand/SelecteurMarque'
+import { BRANDS, estMultiMarque, servedBrandIds } from '@/lib/brand'
 import { activeBrand } from '@/lib/brand/actif'
 import { FicheAcompleter } from '@/components/profile/FicheAcompleter'
 import { ImpersonationBanner } from '@/components/layout/ImpersonationBanner'
@@ -25,10 +27,20 @@ export default async function AppLayout({
   }
   const unread = await countUnread(user.id)
   const marque = await activeBrand()
+  // Le sélecteur ne s'affiche que s'il y a vraiment un choix à faire.
+  const peutChoisir = user.brand === 'all' && estMultiMarque()
 
   return (
     <MarqueProvider valeur={marque}>
     <AppShell
+      selecteurMarque={
+        peutChoisir ? (
+          <SelecteurMarque
+            marques={servedBrandIds().map((id) => ({ id, nom: BRANDS[id].name }))}
+            active={marque.id}
+          />
+        ) : undefined
+      }
       user={{ full_name: user.full_name, email: user.email, role: user.role }}
       salarie={salarie}
       unread={unread}

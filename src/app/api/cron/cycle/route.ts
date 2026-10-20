@@ -12,7 +12,8 @@ import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
-import { activeBrand, activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandId, sousMarque } from '@/lib/brand/actif'
+import { servedBrandIds } from '@/lib/brand'
 
 export const maxDuration = 300
 
@@ -48,7 +49,26 @@ export async function GET(request: Request) {
   const courant = cycleForDate(today)
   const precedent = previousCycle(courant)
   const db = createServiceClient()
-  const fait: Record<string, unknown> = { date: today }
+
+  // Un déploiement peut servir plusieurs écoles. Le cycle se joue alors une
+  // fois par école, chacune sous sa propre marque : sans cette boucle, seule
+  // celle du déploiement recevrait ses bordereaux et ses relances.
+  const marques: Record<string, unknown> = {}
+  for (const id of servedBrandIds()) {
+    marques[id] = await sousMarque(id, () => cycleDUneMarque(db, today, courant, precedent))
+  }
+
+  return NextResponse.json({ ok: true, date: today, marques })
+}
+
+/** Le cycle du jour, pour la marque active. */
+async function cycleDUneMarque(
+  db: Db,
+  today: string,
+  courant: BillingCycle,
+  precedent: BillingCycle
+): Promise<Record<string, unknown>> {
+  const fait: Record<string, unknown> = {}
 
   // Les factures vérifiées partent en comptabilité d'elles-mêmes. Tant que
   // c'était un bouton, il fallait y penser, cocher trente-sept lignes, et
@@ -117,7 +137,7 @@ export async function GET(request: Request) {
   }
   fait.bonsEchus = await rappelerBonsEchus(db, today)
 
-  return NextResponse.json({ ok: true, ...fait })
+  return fait
 }
 
 /**
