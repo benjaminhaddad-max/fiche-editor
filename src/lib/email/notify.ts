@@ -4,7 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createInvitation } from '@/lib/invitation'
 import { sendSms } from '@/lib/email/sms'
 import { formatDate, money } from '@/lib/format'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 /**
  * Envoie un email et le journalise. Ne leve jamais : une notification qui
@@ -77,8 +77,8 @@ export async function sendInvitation(
   const renewed = options?.renewed ?? false
   const tpl =
     user.role === 'prestataire'
-      ? templates.invitation({ fullName: user.full_name, link: href, renewed })
-      : templates.invitationStaff({
+      ? (await templates()).invitation({ fullName: user.full_name, link: href, renewed })
+      : (await templates()).invitationStaff({
           fullName: user.full_name,
           link: href,
           isAdmin: user.role === 'admin',
@@ -122,7 +122,7 @@ export async function renewAccess(email: string): Promise<RenouvellementEtat> {
   const { data: user } = await supabase
     .from('inv_users')
     .select('id, is_active')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .ilike('email', propre)
     .maybeSingle()
 
@@ -165,7 +165,7 @@ export async function notifyMissionRejected(missionId: string): Promise<void> {
   const email = row?.provider?.user?.email
   if (!email) return
 
-  const tpl = templates.missionRejected({
+  const tpl = (await templates()).missionRejected({
     providerName: row.provider?.user?.full_name ?? row.provider?.legal_name ?? '',
     detail: row.detail,
     reason: row.rejection_reason ?? 'non précisé',
@@ -204,7 +204,7 @@ export async function notifyReadyToInvoice(providerId: string): Promise<void> {
   const user = (provider as unknown as { user: { email: string; full_name: string } | null } | null)?.user
   if (!user?.email) return
 
-  const tpl = templates.readyToInvoice({
+  const tpl = (await templates()).readyToInvoice({
     providerName: user.full_name,
     count: missions.length,
     total: missions.reduce((s, m) => s + Number(m.total_ht), 0),
@@ -248,7 +248,7 @@ export async function notifyStatementReminder(statementId: string): Promise<bool
     Math.ceil((new Date(`${deadline}T12:00:00Z`).getTime() - Date.now()) / 864e5)
   )
 
-  const tpl = templates.statementReminder({
+  const tpl = (await templates()).statementReminder({
     providerName: user.full_name,
     total: Number(row!.total_ht),
     deadline,
@@ -312,12 +312,12 @@ export async function notifyInvoiceReceived(invoiceId: string): Promise<void> {
   const { data: admins } = await supabase
     .from('inv_users')
     .select('email, full_name')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('role', 'admin')
     .eq('is_active', true)
 
   for (const admin of admins ?? []) {
-    const tpl = templates.invoiceReceived({
+    const tpl = (await templates()).invoiceReceived({
       adminName: admin.full_name,
       providerName: invoice.provider?.legal_name ?? 'un prestataire',
       number: invoice.number,

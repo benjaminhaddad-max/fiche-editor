@@ -1,6 +1,6 @@
 import { Badge, MissionStatusBadge } from '@/components/ui/Badge'
 import { BoutonsSocial } from '@/components/remunerations/BoutonsSocial'
-import { brand } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 import { Card, EmptyState, StatTile } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { cloturerPaie } from '@/app/(app)/admin/paie/actions'
@@ -38,7 +38,7 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
         mois={cycle.month}
         pretes={pretes.length}
         enAttente={enCours.length}
-        contact={brand().payrollContact?.name ?? null}
+        contact={(await activeBrand()).payrollContact?.name ?? null}
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

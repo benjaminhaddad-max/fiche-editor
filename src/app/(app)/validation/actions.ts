@@ -13,7 +13,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { managerCanEdit } from '@/lib/cycle'
 import { formatDateLong, money, round2 } from '@/lib/format'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
 
@@ -317,9 +317,9 @@ export async function ajouterPrestataire(
       const cycle = cycleForDate(todayParis())
       await deliver({
         to: { email, name: nom },
-        ...templates.monthCalendar({ name: nom, public: 'prestataire', cycle }),
+        ...(await templates()).monthCalendar({ name: nom, public: 'prestataire', cycle }),
         template: 'month_calendar',
-        attachments: [{ name: guideNom('prestataire'), content: (await guidePdf('prestataire', cycle)).toString('base64') }],
+        attachments: [{ name: await guideNom('prestataire'), content: (await guidePdf('prestataire', cycle)).toString('base64') }],
         entityType: 'user',
         entityId: trouve.userId,
       })
@@ -367,7 +367,7 @@ export async function relancerVerification(): Promise<RelanceVerification> {
   const { data: enAttente } = await db
     .from('inv_missions')
     .select('manager_id, total_ht')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('status', 'submitted')
     .lte('start_date', cycle.periodEnd)
 
@@ -381,7 +381,7 @@ export async function relancerVerification(): Promise<RelanceVerification> {
   const { data: encadrants } = await db
     .from('inv_users')
     .select('id, email, full_name, email_unreachable_reason')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
     .in('id', [...parManager.keys()])
@@ -396,7 +396,7 @@ export async function relancerVerification(): Promise<RelanceVerification> {
     const c = parManager.get(m.id as string)!
     await deliver({
       to: { email: m.email as string, name: m.full_name as string },
-      ...templates.reviewReminder({
+      ...(await templates()).reviewReminder({
         name: m.full_name as string,
         count: c.n,
         total: round2(c.total),
@@ -447,7 +447,7 @@ export async function basculerAbattement(formData: FormData): Promise<void> {
     .from('inv_missions')
     .select('id, quantity, unit_amount_ht, abatement_rate, provider_id, category_id, invoice_id, status')
     .eq('id', id)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .maybeSingle()
   if (!m || m.invoice_id) return
   if (!['submitted', 'manager_approved', 'approved'].includes(m.status)) return
@@ -516,7 +516,7 @@ export async function reattribuerMissions(
     .from('inv_users')
     .select('id, full_name, email, email_unreachable_reason')
     .eq('id', vers)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
     .maybeSingle()
@@ -527,7 +527,7 @@ export async function reattribuerMissions(
     .from('inv_missions')
     .select('id, manager_id, total_ht')
     .in('id', ids)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('status', ['submitted', 'manager_approved'])
     .is('invoice_id', null)
     .is('payroll_batch_id', null)
@@ -563,7 +563,7 @@ export async function reattribuerMissions(
     const cycle = cycleForDate(todayParis())
     await deliver({
       to: { email: cible.email as string, name: cible.full_name as string },
-      ...templates.reviewReminder({
+      ...(await templates()).reviewReminder({
         name: cible.full_name as string,
         count: aBouger.length,
         total,

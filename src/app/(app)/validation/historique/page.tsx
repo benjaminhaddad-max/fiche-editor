@@ -10,7 +10,7 @@ import { formatDate, formatPeriod, money } from '@/lib/format'
 import { MISSION_WITH_RELATIONS } from '@/lib/missions'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { MissionStatus } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 interface Row {
   id: string
@@ -54,14 +54,14 @@ export default async function HistoriquePage({
     const { data: provs } = await supabase
       .from('inv_providers')
       .select('id, legal_name')
-      .eq('brand', getBrandId())
+      .eq('brand', (await activeBrandId()))
     trouves = (provs ?? []).filter((p) => correspondPrestataire(p.legal_name, cherche)).map((p) => p.id)
   }
 
   let query = supabase
     .from('inv_missions')
     .select(MISSION_WITH_RELATIONS)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('status', ['manager_approved', 'approved', 'rejected', 'invoiced'])
     .order('start_date', { ascending: false })
     .limit(200)

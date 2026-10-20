@@ -9,7 +9,7 @@ import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import { formatPeriod, money } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { MissionStatus } from '@/lib/types'
-import { brandScope, getBrandId } from '@/lib/brand'
+import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 
 type Origin = 'contract' | 'manager' | 'provider' | 'order'
 
@@ -44,7 +44,7 @@ export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefi
   const { data: provs } = await supabase
     .from('inv_providers')
     .select('id, legal_name')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .order('legal_name')
   const trouves = cherche
     ? (provs ?? []).filter((p) => correspondPrestataire(p.legal_name, cherche)).map((p) => p.id)
@@ -58,7 +58,7 @@ export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefi
        provider:inv_providers(id, legal_name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .order('start_date', { ascending: false })
 
   // « facturable » n'est pas un statut mais la question qu'on se pose le plus :
@@ -72,7 +72,7 @@ export async function HistoriqueAdmin({ f }: { f: Record<string, string | undefi
 
   const [{ data }, { data: cats }] = await Promise.all([
     query,
-    supabase.from('inv_categories').select('id, name').in('brand', brandScope()).order('sort_order'),
+    supabase.from('inv_categories').select('id, name').in('brand', (await activeBrandScope())).order('sort_order'),
   ])
 
   const missions = (data ?? []) as unknown as Row[]

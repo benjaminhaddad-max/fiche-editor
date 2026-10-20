@@ -18,8 +18,8 @@ import {
 import { getInvoicePdf, loadInvoiceForRender } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ibanValide, normaliserIban } from '@/lib/iban'
-import { COMPANY, type InvoiceLine } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { societeDe, type InvoiceLine } from '@/lib/types'
+import { activeBrandId } from '@/lib/brand/actif'
 import { estSiretMaison } from '@/lib/brand/config'
 
 export interface SyncResult {
@@ -274,7 +274,7 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
       currency_amount_before_tax: amount(invoice.subtotal_ht),
       currency_tax: amount(invoice.vat_amount),
       currency_amount: amount(invoice.total_ttc),
-      label: `${invoice.issuer_snapshot.legal_name} — ${COMPANY.name}`,
+      label: `${invoice.issuer_snapshot.legal_name} — ${societeDe(invoice.brand).name}`,
       external_reference: invoice.id,
       invoice_lines: pennylaneLines,
     })
@@ -347,7 +347,7 @@ export async function pousserEnAttente(max = 40): Promise<RetourEnvois> {
   const { data } = await db
     .from('inv_invoices')
     .select('id, number')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('status', ['sent', 'validated'])
     .neq('pennylane_status', 'synced')
     .order('issue_date')
@@ -413,7 +413,7 @@ export async function rafraichirPaiements(): Promise<RetourPaiements> {
   const { data } = await supabase
     .from('inv_invoices')
     .select('id, number, pennylane_invoice_id, provider:inv_providers(legal_name)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('pennylane_status', 'synced')
     .not('pennylane_invoice_id', 'is', null)
     .neq('status', 'paid')
@@ -469,7 +469,7 @@ async function rapprocherSansPoussee(
   const { data } = await supabase
     .from('inv_invoices')
     .select('id, number, issue_date, total_ttc, provider:inv_providers(legal_name)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('status', ['sent', 'validated'])
     .is('pennylane_invoice_id', null)
     .limit(200)

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { modele, type CorpsContrat, type Parametres } from '@/lib/contracts/modeles'
 import { renderContratPdf, type Signature } from '@/lib/contracts/pdf'
+import type { BrandConfig } from '@/lib/brand'
 import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
 
@@ -33,9 +34,10 @@ export async function rangerPdf(
   providerId: string,
   contractId: string,
   corps: CorpsContrat,
-  signature: Signature | null
+  signature: Signature | null,
+  marque: BrandConfig
 ): Promise<{ chemin: string; empreinte: string }> {
-  const pdf = await renderContratPdf(corps, signature)
+  const pdf = await renderContratPdf(corps, signature, marque)
   const chemin = cheminContrat(providerId, contractId)
   const db = createServiceClient()
   const { error } = await db.storage

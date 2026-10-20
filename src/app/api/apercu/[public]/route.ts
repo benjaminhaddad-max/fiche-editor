@@ -20,6 +20,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ publ
   }
 
   const nom = new URL(request.url).searchParams.get('nom') ?? 'Camille Durand'
-  const { html } = templates.monthCalendar({ name: nom, public: pour as Public, cycle: activeCycle() })
+  const { html } = (await templates()).monthCalendar({ name: nom, public: pour as Public, cycle: activeCycle() })
   return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }

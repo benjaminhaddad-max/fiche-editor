@@ -11,7 +11,7 @@
  * que rien ne le signale.
  */
 
-export type BrandId = 'diploma' | 'linova'
+export type BrandId = 'diploma' | 'linova' | 'medibox'
 
 export const DEFAULT_BRAND: BrandId = 'diploma'
 
@@ -109,6 +109,52 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     // bouton d'envoi se désactive plutôt que d'écrire à l'aveugle.
     payrollContact: null,
   },
+  medibox: {
+    id: 'medibox',
+    name: 'Medibox',
+    appTitle: 'Medibox Invoice',
+    description:
+      'Déclarez vos prestations, suivez vos factures et vos paiements.',
+    siteUrl: 'https://facturation.medibox.fr',
+    themeColor: '#0f3d4c',
+    // Pas encore de logotype Medibox dans public/ : la marque neutre évite
+    // d'afficher le logo d'une autre école en attendant le vrai fichier.
+    logos: { cream: '/logo-mark.svg', navy: '/logo-mark.svg' },
+    // Teintes provisoires, à remplacer par la charte Medibox.
+    palette: { dark: '#0f3d4c', accent: '#4bb3a7', light: '#f4f8f8', ink: '#13262c' },
+    // À RENSEIGNER : ces lignes s'impriment sur les factures des prestataires.
+    // Tant qu'elles sont vides, marqueFacturable() refuse l'émission plutôt
+    // que de sortir une facture sans mentions légales.
+    company: {
+      name: 'Medibox',
+      legalForm: '',
+      address: '',
+      postalCode: '',
+      city: '',
+      siret: '',
+      vatNumber: '',
+    },
+    email: {
+      senderName: 'Facturation Medibox',
+      senderEmail: 'facturation@medibox.fr',
+    },
+    inboundEmail: null,
+    // À renseigner quand Medibox aura son interlocuteur paie.
+    payrollContact: null,
+  },
+}
+
+/**
+ * Une marque peut-elle émettre des factures ?
+ *
+ * Les mentions légales de l'émetteur sont obligatoires sur une facture. Une
+ * marque dont la société n'est pas renseignée se monte, s'administre et
+ * reçoit des déclarations, mais n'émet rien : mieux vaut un bouton bloqué
+ * qu'une facture fausse à rattraper chez le comptable.
+ */
+export function marqueFacturable(id: BrandId): boolean {
+  const c = BRANDS[id].company
+  return Boolean(c.name && c.address && c.postalCode && c.city && c.siret)
 }
 
 /** Une valeur inconnue ne doit jamais ouvrir l'école voisine : on retombe sur Diploma. */
@@ -134,5 +180,33 @@ export const estSiretMaison = (siret: string | null | undefined): boolean => {
 }
 
 export function normalizeBrandId(v: string | undefined | null): BrandId {
-  return v === 'linova' ? 'linova' : DEFAULT_BRAND
+  // hasOwn et non `in` : `'constructor' in BRANDS` vaut vrai et ferait
+  // passer n'importe quoi pour une marque.
+  return v != null && Object.hasOwn(BRANDS, v) ? (v as BrandId) : DEFAULT_BRAND
+}
+
+/** La marque de ce déploiement : celle figée dans NEXT_PUBLIC_BRAND. */
+export function deploymentBrandId(): BrandId {
+  return normalizeBrandId(process.env.NEXT_PUBLIC_BRAND)
+}
+
+/**
+ * Les marques que ce déploiement accepte.
+ *
+ * Par défaut la sienne, et elle seule : Linova Invoice reste Linova Invoice.
+ * Diploma Invoice en sert plusieurs — `BRANDS_SERVIES=diploma,medibox` — et
+ * c'est là que le sélecteur de marque a un sens. Un déploiement qui ne sert
+ * qu'une marque n'a pas de sélecteur et ne change pour personne.
+ */
+export function servedBrandIds(): BrandId[] {
+  const brut = (process.env.NEXT_PUBLIC_BRANDS_SERVIES ?? '').trim()
+  const deploiement = deploymentBrandId()
+  if (!brut) return [deploiement]
+  const ids = brut
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => Object.hasOwn(BRANDS, s)) as BrandId[]
+  // La marque du déploiement en tête, et jamais absente : une variable mal
+  // tapée ne doit pas fermer la porte à ceux qui entrent ici tous les jours.
+  return [deploiement, ...ids.filter((id) => id !== deploiement)]
 }

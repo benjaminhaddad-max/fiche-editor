@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { brand } from '@/lib/brand'
+import { useMarque } from '@/components/brand/MarqueProvider'
 import { LogoLinova } from '@/components/ui/LogoLinova'
 
 /**
@@ -40,7 +40,7 @@ export function Logo({
   size?: 'sm' | 'md' | 'rail' | 'lg'
 }) {
   const hauteur = { sm: 32, md: 48, rail: 60, lg: 92 }[size]
-  const marque = brand()
+  const marque = useMarque()
 
   if (marque.id === 'linova') {
     return (

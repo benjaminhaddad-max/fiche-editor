@@ -1,10 +1,17 @@
+import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { portalAccepts } from '@/lib/brand'
 import type { AppUser, Provider, Role } from '@/lib/types'
 
-/** Utilisateur applicatif courant, ou null si non connecte / desactive. */
-export async function getSessionUser(): Promise<AppUser | null> {
+/**
+ * Utilisateur applicatif courant, ou null si non connecte / desactive.
+ *
+ * Mémorisé le temps d'une requête : la résolution de la marque active
+ * l'interroge à chaque lecture, et sans ce cache une page paierait deux
+ * allers-retours par appel.
+ */
+export const getSessionUser = cache(async (): Promise<AppUser | null> => {
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -26,7 +33,7 @@ export async function getSessionUser(): Promise<AppUser | null> {
   if (!portalAccepts((data as { brand?: string }).brand)) return null
 
   return data as AppUser
-}
+})
 
 export async function requireUser(): Promise<AppUser> {
   const user = await getSessionUser()

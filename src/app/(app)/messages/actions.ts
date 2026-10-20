@@ -10,7 +10,7 @@ import { sendSms } from '@/lib/email/sms'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { AppUser } from '@/lib/types'
-import { brand } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 
 export interface MessageResult {
   error?: string
@@ -51,7 +51,7 @@ async function prevenir(
     if (!m) return
     await deliver({
       to: { email: m.email, name: m.full_name },
-      ...templates.messageReceived({ recipientName: m.full_name, authorName: auteur.full_name, subject: fil.subject, excerpt: extrait, href }),
+      ...(await templates()).messageReceived({ recipientName: m.full_name, authorName: auteur.full_name, subject: fil.subject, excerpt: extrait, href }),
       template: 'message_received',
       entityType: 'thread',
       entityId: fil.id,
@@ -59,7 +59,7 @@ async function prevenir(
     })
     const sms = await sendSms(
       m.phone,
-      `${brand().appTitle} — ${auteur.full_name} vous a écrit (${fil.subject}) : « ${corps.slice(0, 120)}${corps.length > 120 ? '…' : ''} » Répondre : ${process.env.NEXT_PUBLIC_APP_URL ?? ''}${href}`
+      `${(await activeBrand()).appTitle} — ${auteur.full_name} vous a écrit (${fil.subject}) : « ${corps.slice(0, 120)}${corps.length > 120 ? '…' : ''} » Répondre : ${process.env.NEXT_PUBLIC_APP_URL ?? ''}${href}`
     )
     await db.from('inv_email_log').insert({
       to_email: m.phone ?? '(sans numéro)',
@@ -80,7 +80,7 @@ async function prevenir(
   if (!p) return
   await deliver({
     to: { email: p.email, name: p.full_name },
-    ...templates.messageReceived({ recipientName: p.full_name, authorName: auteur.full_name, subject: fil.subject, excerpt: extrait, href }),
+    ...(await templates()).messageReceived({ recipientName: p.full_name, authorName: auteur.full_name, subject: fil.subject, excerpt: extrait, href }),
     template: 'message_received',
     entityType: 'thread',
     entityId: fil.id,

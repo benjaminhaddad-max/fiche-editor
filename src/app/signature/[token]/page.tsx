@@ -4,9 +4,12 @@ import { SignatureForm } from '@/components/contracts/SignatureForm'
 import type { CorpsContrat } from '@/lib/contracts/modeles'
 import { formatDateLong } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
-import { brand } from '@/lib/brand'
+import { BRANDS, deploymentBrandId } from '@/lib/brand'
 
-export const metadata = { title: `Signer mon contrat — ${brand().appTitle}` }
+// Page publique, ouverte sans compte : la marque est forcément celle du
+// déploiement. On ne passe pas par la marque active, qui lirait la session
+// et les cookies — indisponibles quand Next calcule les métadonnées.
+export const metadata = { title: `Signer mon contrat — ${BRANDS[deploymentBrandId()].appTitle}` }
 
 /**
  * Page publique de signature : la personne arrive par le lien reçu, sans

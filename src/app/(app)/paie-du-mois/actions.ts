@@ -8,7 +8,7 @@ import { deliver } from '@/lib/email/notify'
 import { sendSms } from '@/lib/email/sms'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
-import { brand } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 
 /**
  * Relance les salariés qui n'ont pas encore renseigné leurs éléments.
@@ -37,7 +37,7 @@ export async function relancerElements(fd: FormData): Promise<void> {
     if (!f.user) continue
     await deliver({
       to: { email: f.user.email, name: f.user.full_name },
-      ...templates.payrollInputsRequest({
+      ...(await templates()).payrollInputsRequest({
         name: f.user.full_name,
         label: cycle.label,
         deadline: cycle.declarationDeadline,
@@ -50,7 +50,7 @@ export async function relancerElements(fd: FormData): Promise<void> {
     })
     await sendSms(
       f.phone,
-      `${brand().company.name} : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${app}/elements-paie`
+      `${(await activeBrand()).company.name} : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${app}/elements-paie`
     )
     await db.from('inv_payroll_inputs').upsert(
       { provider_id: f.id, period: mois, reminded_at: new Date().toISOString() },

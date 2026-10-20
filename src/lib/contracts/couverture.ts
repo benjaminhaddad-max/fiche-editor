@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 import { formatDateLong, money } from '@/lib/format'
 
 /** Une catégorie que le contrat couvre déjà, et de quoi le dire. */
@@ -26,7 +26,7 @@ export async function couvertureParContrat(providerId: string): Promise<Couvertu
     .from('inv_coaching_contracts')
     .select('id, category_id, total_ht')
     .eq('provider_id', providerId)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('status', 'active')
     .not('category_id', 'is', null)
   if (!contrats?.length) return []

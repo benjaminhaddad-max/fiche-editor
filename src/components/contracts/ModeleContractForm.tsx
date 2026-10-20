@@ -1,5 +1,6 @@
 'use client'
 
+import { useMarque } from '@/components/brand/MarqueProvider'
 import { useActionState, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { creerDepuisModele, type ContractResult } from '@/app/(app)/admin/contrats/actions'
@@ -21,6 +22,7 @@ export function ModeleContractForm({
   const [cle, setCle] = useState(MODELES[0].cle)
   const [qui, setQui] = useState('')
   const m = MODELES.find((x) => x.cle === cle)!
+  const marque = useMarque()
   const [apercu, setApercu] = useState<CorpsContrat | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -36,6 +38,7 @@ export function ModeleContractForm({
       t('new_name') ?? providers.find((p) => p.id === fd.get('provider_id'))?.name ?? 'Le prestataire'
     setApercu(
       m.corps({
+        marque,
         bareme: t('bareme'),
         lieu: t('lieu'),
         nom,

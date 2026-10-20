@@ -4,7 +4,7 @@ import { templates } from '@/lib/email/templates'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
 import { classerDocument, enregistrerBulletin } from '@/lib/paie/bulletins'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 export interface Courriel {
   /** Adresses pouvant être celle du manager (From, Reply-To, en-têtes de transfert). */
@@ -36,7 +36,7 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
   const { data: equipe } = await db
     .from('inv_users')
     .select('id, email, full_name, role')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
   const { auteur, via, raison } = await identifierExpediteur(adresses, c.sujet, equipe ?? [])
@@ -49,7 +49,7 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
     if (!auteur) return
     await deliver({
       to: { email: auteur.email, name: auteur.full_name },
-      ...templates.inboundRefused({ reason: motif }),
+      ...(await templates()).inboundRefused({ reason: motif }),
       template: 'inbound_refused',
       entityType: 'user',
       entityId: auteur.id,
@@ -89,7 +89,7 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
       if (b.ok) {
         await deliver({
           to: { email: auteur.email, name: auteur.full_name },
-          ...templates.payslipFiled({ name: auteur.full_name, personne: b.personne!, periode: b.periode! }),
+          ...(await templates()).payslipFiled({ name: auteur.full_name, personne: b.personne!, periode: b.periode! }),
           template: 'payslip_filed',
           entityType: 'provider',
           entityId: b.documentId!,
@@ -116,7 +116,7 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
     if (!auteur) continue
     await deliver({
       to: { email: auteur.email, name: auteur.full_name },
-      ...templates.miscInvoiceFiled({
+      ...(await templates()).miscInvoiceFiled({
         name: auteur.full_name,
         supplier: r.fournisseur!,
         number: r.numero!,

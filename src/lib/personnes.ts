@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 type Db = ReturnType<typeof createServiceClient>
 
@@ -32,7 +32,7 @@ export async function trouverOuCreerPrestataire(
   const { data: existant } = await db
     .from('inv_users')
     .select('id, role, is_active, provider:inv_providers!inv_providers_user_id_fkey(id)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .ilike('email', email)
     .maybeSingle()
 
@@ -56,7 +56,7 @@ export async function trouverOuCreerPrestataire(
       full_name: p.nom,
       role: 'prestataire',
       phone: p.telephone || null,
-      brand: getBrandId(),
+      brand: (await activeBrandId()),
     })
     .select('id')
     .single()
@@ -69,7 +69,7 @@ export async function trouverOuCreerPrestataire(
     .from('inv_providers')
     .insert({
       user_id: user.id,
-      brand: getBrandId(),
+      brand: (await activeBrandId()),
       legal_name: p.nom,
       invoice_prefix: 'FACT',
       phone: p.telephone || null,

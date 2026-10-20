@@ -2,7 +2,7 @@ import type { ReviewMission } from '@/components/validation/ValidationTable'
 import type { MissionStatus } from '@/lib/types'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { getContractContext } from '@/lib/contract-context'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 export const MISSION_WITH_RELATIONS = `
   id, detail, formation, regularisation, regul_period, manager_id, start_date, end_date, pricing_type, quantity, unit_amount_ht,
@@ -94,7 +94,7 @@ export async function getMissionsByStatus(
   let query = supabase
     .from('inv_missions')
     .select(MISSION_WITH_RELATIONS)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('status', statuses)
     .order('start_date', { ascending: true })
 

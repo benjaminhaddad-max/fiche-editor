@@ -14,7 +14,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createInvitation } from '@/lib/invitation'
 import { sendSms, normalizePhone } from '@/lib/email/sms'
 import type { PricingType } from '@/lib/types'
-import { brand, getBrandId } from '@/lib/brand'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 export interface OrderResult {
   error?: string
@@ -47,7 +47,7 @@ async function prestatairePour(
   const { data: existant } = await db
     .from('inv_users')
     .select('id, role, is_active, provider:inv_providers!inv_providers_user_id_fkey(id)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .ilike('email', v.new_email)
     .maybeSingle()
   if (existant) {
@@ -69,7 +69,7 @@ async function prestatairePour(
       full_name: v.new_name,
       role: 'prestataire',
       phone: v.new_phone || null,
-      brand: getBrandId(),
+      brand: (await activeBrandId()),
     })
     .select('id')
     .single()
@@ -82,7 +82,7 @@ async function prestatairePour(
     .from('inv_providers')
     .insert({
       user_id: user.id,
-      brand: getBrandId(),
+      brand: (await activeBrandId()),
       legal_name: v.new_name,
       invoice_prefix: 'FACT',
       phone: v.new_phone || null,
@@ -164,7 +164,7 @@ export async function creerBon(_prev: OrderResult, formData: FormData): Promise<
     const lien = `${app}/bienvenue?invitation=${jeton}&suite=${encodeURIComponent('/missions?onglet=bons')}`
     await deliver({
       to: { email: nouveau.email, name: nouveau.name },
-      ...templates.orderInvitation({
+      ...(await templates()).orderInvitation({
         name: nouveau.name,
         managerName: user.full_name,
         title: v.title,
@@ -182,7 +182,7 @@ export async function creerBon(_prev: OrderResult, formData: FormData): Promise<
     })
     const sms = await sendSms(
       nouveau.phone,
-      `${brand().company.name} : ${user.full_name} vous propose une mission (${v.title}, ${money(total)} HT). Créez votre compte et répondez ici : ${lien}`
+      `${(await activeBrand()).company.name} : ${user.full_name} vous propose une mission (${v.title}, ${money(total)} HT). Créez votre compte et répondez ici : ${lien}`
     )
     await db.from('inv_email_log').insert({
       to_email: nouveau.phone ?? '(sans numéro)',
@@ -215,7 +215,7 @@ export async function creerBon(_prev: OrderResult, formData: FormData): Promise<
   if (dest) {
     await deliver({
       to: { email: dest.email, name: dest.full_name },
-      ...templates.orderSent({
+      ...(await templates()).orderSent({
         providerName: dest.full_name,
         managerName: user.full_name,
         title: v.title,
@@ -260,7 +260,7 @@ export async function repondreBon(formData: FormData): Promise<void> {
   if (manager) {
     await deliver({
       to: { email: manager.email, name: manager.full_name },
-      ...templates.orderAnswered({
+      ...(await templates()).orderAnswered({
         managerName: manager.full_name,
         providerName: user.full_name,
         title: bon.title,

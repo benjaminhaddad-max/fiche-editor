@@ -1,6 +1,6 @@
 import { EmptyState, PageHeader } from '@/components/ui/Page'
 import { requireUser } from '@/lib/auth'
-import { brand } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 
 export default async function ProfilIncompletPage() {
   const user = await requireUser()
@@ -10,7 +10,7 @@ export default async function ProfilIncompletPage() {
       <PageHeader title="Compte en cours de configuration" />
       <EmptyState
         title="Votre fiche prestataire n’est pas encore créée"
-        description={`Votre compte (${user.email}) existe, mais l’administration ${brand().company.name} doit encore créer votre fiche de facturation. Contactez votre interlocuteur habituel : cela prend une minute de son côté.`}
+        description={`Votre compte (${user.email}) existe, mais l’administration ${(await activeBrand()).company.name} doit encore créer votre fiche de facturation. Contactez votre interlocuteur habituel : cela prend une minute de son côté.`}
       />
     </>
   )

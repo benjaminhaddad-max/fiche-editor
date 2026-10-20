@@ -8,7 +8,7 @@ import { logAudit } from '@/lib/audit'
 import { cycleForDate, enVerification, managerCanEdit, providerCanDeclare } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
-import { brandScope, getBrandId } from '@/lib/brand'
+import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
 
@@ -108,7 +108,7 @@ export async function declarer(
     .from('inv_providers')
     .select('id, legal_name, employment_type, pay_abatement, abatement_exempt_poles, brand')
     .eq('id', providerId)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .maybeSingle()
   if (!provider) return { error: 'Prestataire introuvable.' }
 
@@ -120,7 +120,7 @@ export async function declarer(
   const { data: encadrants } = await db
     .from('inv_users')
     .select('id')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
   const encadre = new Set((encadrants ?? []).map((e) => e.id as string))
@@ -132,7 +132,7 @@ export async function declarer(
   const { data: cats } = await db
     .from('inv_categories')
     .select('id, pole, requires_session')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
   const exigeSeance = new Set(
     (cats ?? []).filter((c) => c.requires_session).map((c) => c.id as string)
   )

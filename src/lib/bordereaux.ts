@@ -4,7 +4,7 @@ import type { BillingCycle } from '@/lib/cycle'
 import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 import { champsManquants } from '@/lib/profil'
 import { generateAndStorePdf } from '@/lib/invoice/store'
 import type { Provider } from '@/lib/types'
@@ -97,7 +97,7 @@ export async function envoyerBordereaux(
   // La borne d'école n'est pas décorative ici : sans elle, cette mise à jour
   // valide d'un coup les prestations des deux écoles, et le regroupement qui
   // suit les mêle dans un même bordereau.
-  const ecole = getBrandId()
+  const ecole = (await activeBrandId())
   const { data: promues } = await db
     .from('inv_missions')
     .update({ status: 'approved', admin_approved_at: now, admin_approved_by: auteurId ?? null })
@@ -152,7 +152,7 @@ export async function envoyerBordereaux(
       if (dest?.is_active) {
         await deliver({
           to: { email: dest.email, name: dest.full_name },
-          ...templates.statementSent({
+          ...(await templates()).statementSent({
             providerName: dest.full_name,
             total: round2(total),
             lines: ids.length,
@@ -231,7 +231,7 @@ export async function envoyerBordereaux(
     if (dest?.is_active) {
       await deliver({
         to: { email: dest.email, name: dest.full_name },
-        ...templates.statementSent({
+        ...(await templates()).statementSent({
           providerName: dest.full_name,
           total: round2(valeurs.total_ht),
           lines: ids.length,

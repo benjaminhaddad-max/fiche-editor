@@ -1,7 +1,7 @@
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer'
 import type { CorpsContrat } from '@/lib/contracts/modeles'
-import { COMPANY } from '@/lib/types'
-import { brand } from '@/lib/brand'
+import type { BrandConfig } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 
 export interface Signature {
   nom: string
@@ -49,12 +49,12 @@ const s = StyleSheet.create({
 })
 
 /** Le contrat, prêt à lire et à signer. */
-function Contrat({ corps, signature }: { corps: CorpsContrat; signature: Signature | null }) {
+function Contrat({ corps, signature, m }: { corps: CorpsContrat; signature: Signature | null; m: BrandConfig }) {
   return (
-    <Document title={corps.intitule} author={COMPANY.name}>
+    <Document title={corps.intitule} author={m.company.name}>
       <Page size="A4" style={s.page}>
         <View style={s.entete}>
-          <Text style={s.societe}>{COMPANY.name.toUpperCase()}</Text>
+          <Text style={s.societe}>{m.company.name.toUpperCase()}</Text>
           <Text style={s.titre}>{corps.intitule}</Text>
           <View style={s.trait} />
           <Text style={s.profil}>{corps.profil}</Text>
@@ -79,9 +79,9 @@ function Contrat({ corps, signature }: { corps: CorpsContrat; signature: Signatu
 
         <View style={s.signatures} wrap={false}>
           <View style={s.case}>
-            <Text style={s.caseLabel}>POUR {COMPANY.name.toUpperCase()}</Text>
-            <Text style={s.signe}>{COMPANY.name}</Text>
-            <Text style={s.preuve}>Contrat émis depuis {brand().appTitle}.</Text>
+            <Text style={s.caseLabel}>POUR {m.company.name.toUpperCase()}</Text>
+            <Text style={s.signe}>{m.company.name}</Text>
+            <Text style={s.preuve}>Contrat émis depuis {m.appTitle}.</Text>
           </View>
           <View style={s.case}>
             <Text style={s.caseLabel}>LE PRESTATAIRE</Text>
@@ -105,7 +105,7 @@ function Contrat({ corps, signature }: { corps: CorpsContrat; signature: Signatu
         </View>
 
         <Text style={s.pied} fixed>
-          {COMPANY.name} — {COMPANY.address}, {COMPANY.postalCode} {COMPANY.city} — SIRET {COMPANY.siret}
+          {m.company.name} — {m.company.address}, {m.company.postalCode} {m.company.city} — SIRET {m.company.siret}
           {signature ? ` · Document signé, référence ${signature.reference}` : ' · Projet de contrat, non signé'}
         </Text>
       </Page>
@@ -113,6 +113,6 @@ function Contrat({ corps, signature }: { corps: CorpsContrat; signature: Signatu
   )
 }
 
-export function renderContratPdf(corps: CorpsContrat, signature: Signature | null): Promise<Buffer> {
-  return renderToBuffer(<Contrat corps={corps} signature={signature} />)
+export function renderContratPdf(corps: CorpsContrat, signature: Signature | null, m: BrandConfig): Promise<Buffer> {
+  return renderToBuffer(<Contrat corps={corps} signature={signature} m={m} />)
 }

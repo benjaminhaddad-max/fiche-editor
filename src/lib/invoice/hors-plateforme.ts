@@ -1,6 +1,6 @@
 import { isPennylaneConfigured, listSupplierInvoices } from '@/lib/pennylane/client'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 /** Une facture arrivée directement en comptabilité, sans passer par ici. */
 export interface FactureHorsPlateforme {
@@ -33,7 +33,7 @@ export async function facturesHorsPlateforme(): Promise<FactureHorsPlateforme[]>
   const { data } = await createServiceClient()
     .from('inv_invoices')
     .select('pennylane_invoice_id')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .not('pennylane_invoice_id', 'is', null)
   const nôtres = new Set((data ?? []).map((x) => Number((x as { pennylane_invoice_id: number }).pennylane_invoice_id)))
 

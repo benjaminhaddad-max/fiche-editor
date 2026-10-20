@@ -2,7 +2,7 @@ import { InvoiceStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { formatDate, formatPeriod, money } from '@/lib/format'
 import { PRICING_UNIT } from '@/lib/labels'
-import { COMPANY, mentionTva, type Invoice, type InvoiceLine } from '@/lib/types'
+import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 
 /** Rendu HTML de la facture, miroir du PDF. */
 export function InvoiceDetail({
@@ -13,6 +13,7 @@ export function InvoiceDetail({
   lines: InvoiceLine[]
 }) {
   const issuer = invoice.issuer_snapshot
+  const societe = societeDe(invoice.brand)
   const mention = mentionTva(issuer.vat_regime)
   const isFranchise = issuer.vat_regime !== 'normal'
 
@@ -69,11 +70,11 @@ export function InvoiceDetail({
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
             Facturé à
           </p>
-          <p className="font-semibold text-navy">{COMPANY.name}</p>
+          <p className="font-semibold text-navy">{societe.name}</p>
           <div className="mt-1 space-y-0.5 text-sm text-navy/70">
-            {COMPANY.address && <p>{COMPANY.address}</p>}
-            <p>{[COMPANY.postalCode, COMPANY.city].filter(Boolean).join(' ')}</p>
-            {COMPANY.siret && <p>SIRET : {COMPANY.siret}</p>}
+            {societe.address && <p>{societe.address}</p>}
+            <p>{[societe.postalCode, societe.city].filter(Boolean).join(' ')}</p>
+            {societe.siret && <p>SIRET : {societe.siret}</p>}
           </div>
         </div>
       </div>

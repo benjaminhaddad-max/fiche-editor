@@ -12,7 +12,7 @@ import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
-import { brand, getBrandId } from '@/lib/brand'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 export const maxDuration = 300
 
@@ -134,7 +134,7 @@ export async function GET(request: Request) {
  * L'école entre donc dans la clé de l'étape.
  */
 async function uneFois(db: Db, mois: string, etape: string, faire: () => Promise<unknown>) {
-  const cle = `${getBrandId()}:${etape}`
+  const cle = `${(await activeBrandId())}:${etape}`
   const { data: deja } = await db
     .from('inv_cycle_events')
     .select('created_at')
@@ -159,7 +159,7 @@ async function destinataires(db: Db) {
   const { data } = await db
     .from('inv_users')
     .select('id, email, full_name, role, provider:inv_providers!inv_providers_user_id_fkey(employment_type)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('is_active', true)
   return (data ?? []) as unknown as {
     id: string
@@ -180,7 +180,7 @@ async function envoyerCalendrier(db: Db, cycle: BillingCycle) {
     const pub = u.role === 'manager' ? 'manager' : isSalaried(statut(u.provider)) ? 'salarie' : 'prestataire'
     await deliver({
       to: { email: u.email, name: u.full_name },
-      ...templates.monthCalendar({ name: u.full_name, public: pub, cycle }),
+      ...(await templates()).monthCalendar({ name: u.full_name, public: pub, cycle }),
       template: 'month_calendar',
       entityType: 'user',
       entityId: u.id,
@@ -194,7 +194,7 @@ async function rappelerVerification(db: Db, cycle: BillingCycle) {
   const { data } = await db
     .from('inv_missions')
     .select('manager_id, total_ht')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('status', 'submitted')
     .lte('start_date', cycle.periodEnd)
   const parManager = new Map<string, { n: number; total: number }>()
@@ -209,7 +209,7 @@ async function rappelerVerification(db: Db, cycle: BillingCycle) {
     if (!c) continue
     await deliver({
       to: { email: u.email, name: u.full_name },
-      ...templates.reviewReminder({ name: u.full_name, count: c.n, total: round2(c.total), reviewEnd: cycle.reviewEnd, label: cycle.label }),
+      ...(await templates()).reviewReminder({ name: u.full_name, count: c.n, total: round2(c.total), reviewEnd: cycle.reviewEnd, label: cycle.label }),
       template: 'review_reminder',
       entityType: 'user',
       entityId: u.id,
@@ -240,7 +240,7 @@ async function demanderElements(db: Db, cycle: BillingCycle, relance: boolean) {
   const { data: fiches } = await db
     .from('inv_providers')
     .select('id, phone, employment_type, user:inv_users!inv_providers_user_id_fkey(email, full_name, is_active)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .neq('employment_type', 'independant')
   const { data: saisies } = await db
     .from('inv_payroll_inputs')
@@ -258,7 +258,7 @@ async function demanderElements(db: Db, cycle: BillingCycle, relance: boolean) {
     if (relance && repondu.has(f.id)) continue
     await deliver({
       to: { email: f.user.email, name: f.user.full_name },
-      ...templates.payrollInputsRequest({
+      ...(await templates()).payrollInputsRequest({
         name: f.user.full_name,
         label: cycle.label,
         deadline: cycle.declarationDeadline,
@@ -272,7 +272,7 @@ async function demanderElements(db: Db, cycle: BillingCycle, relance: boolean) {
     if (relance) {
       await sendSms(
         f.phone,
-        `${brand().company.name} : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${
+        `${(await activeBrand()).company.name} : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${
           process.env.NEXT_PUBLIC_APP_URL ?? ''
         }/elements-paie`
       )
@@ -307,7 +307,7 @@ async function rappelerBonsEchus(db: Db, today: string) {
     if (!o.manager) continue
     await deliver({
       to: { email: o.manager.email, name: o.manager.full_name },
-      ...templates.orderDue({
+      ...(await templates()).orderDue({
         managerName: o.manager.full_name,
         providerName: o.provider?.legal_name ?? 'le prestataire',
         title: o.title,

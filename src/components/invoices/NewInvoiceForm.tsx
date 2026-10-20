@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { formatPeriod, money, round2 } from '@/lib/format'
 import type { InvoiceActionResult } from '@/app/(app)/factures/actions'
-import { brand } from '@/lib/brand'
+import { useMarque } from '@/components/brand/MarqueProvider'
 
 export interface BillableMission {
   id: string
@@ -57,7 +57,7 @@ export function NewInvoiceForm({
       <div className="grid gap-3 sm:grid-cols-2">
         {(
           [
-            ['generated', 'La plateforme génère ma facture', `Numérotée, avec vos coordonnées : elle part tout de suite à ${brand().company.name}.`],
+            ['generated', 'La plateforme génère ma facture', `Numérotée, avec vos coordonnées : elle part tout de suite à ${useMarque().company.name}.`],
             ['uploaded', 'Je dépose ma propre facture', 'Vous déposez votre PDF à l’étape suivante ; son montant est vérifié avant l’envoi.'],
           ] as const
         ).map(([valeur, titre, desc]) => (

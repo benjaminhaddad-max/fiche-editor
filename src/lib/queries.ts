@@ -1,5 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase/server'
-import { brandScope, getBrandId } from '@/lib/brand'
+import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import type { Category } from '@/lib/types'
 
 /*
@@ -10,7 +10,7 @@ import type { Category } from '@/lib/types'
  * prestation.
  *
  * Une catégorie peut être commune aux deux écoles : elle porte « all », d'où
- * `brandScope()` plutôt qu'une égalité stricte.
+ * `(await activeBrandScope())` plutôt qu'une égalité stricte.
  */
 
 /** Categories proposables au prestataire (la RLS filtre deja visible/actif). */
@@ -21,7 +21,7 @@ export async function getProviderCategories(): Promise<
   const { data } = await supabase
     .from('inv_categories')
     .select('id, name, provider_label')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .eq('visible_to_provider', true)
     .order('sort_order')
@@ -34,7 +34,7 @@ export async function getManagers(): Promise<{ id: string; full_name: string }[]
   const { data } = await supabase
     .from('inv_users')
     .select('id, full_name')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
     .order('full_name')
@@ -47,7 +47,7 @@ export async function getCategoriesWithPole(opts: { forProvider?: boolean } = {}
   let q = supabase
     .from('inv_categories')
     .select('id, name, provider_label, pole, requires_session')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .order('sort_order')
   if (opts.forProvider) q = q.eq('visible_to_provider', true)
@@ -70,7 +70,7 @@ export async function getActiveProviders() {
   const { data } = await db
     .from('inv_providers')
     .select('id, legal_name, employment_type, user:inv_users!inv_providers_user_id_fkey!inner(full_name, is_active)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('user.is_active', true)
   return ((data ?? []) as unknown as {
     id: string

@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Category } from '@/lib/types'
 import { saveCategory } from '../actions'
-import { brandScope } from '@/lib/brand'
+import { activeBrandScope } from '@/lib/brand/actif'
 
 export default async function CategoriesPage() {
   await requireRole('admin')
@@ -13,7 +13,7 @@ export default async function CategoriesPage() {
   const { data } = await supabase
     .from('inv_categories')
     .select('*')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
     .order('sort_order')
     .order('name')
 

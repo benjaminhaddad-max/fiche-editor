@@ -3,7 +3,7 @@ import { IdentityForm, PasswordForm } from '@/components/account/AccountForms'
 import { requireUser } from '@/lib/auth'
 import { ROLE_LABEL } from '@/lib/labels'
 import { changePassword, updateOwnName } from './actions'
-import { brand } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 
 export default async function AccountPage() {
   const user = await requireUser()
@@ -12,7 +12,7 @@ export default async function AccountPage() {
     <>
       <PageHeader
         title="Mon compte"
-        description={`Vos accès à ${brand().appTitle}.`}
+        description={`Vos accès à ${(await activeBrand()).appTitle}.`}
       />
       <div className="flex flex-col gap-6">
         <IdentityForm

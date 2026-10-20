@@ -10,7 +10,7 @@ import { logAudit } from '@/lib/audit'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { EMPLOYMENTS } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 export interface AdminResult {
   error?: string
@@ -80,7 +80,7 @@ export async function createUserAccount(
       full_name: v.full_name,
       role: v.role,
       phone: v.phone || null,
-      brand: getBrandId(),
+      brand: (await activeBrandId()),
     })
     .select('id')
     .single()
@@ -94,7 +94,7 @@ export async function createUserAccount(
   if (v.role === 'prestataire') {
     const { error: providerError } = await service.from('inv_providers').insert({
       user_id: appUser.id,
-      brand: getBrandId(),
+      brand: (await activeBrandId()),
       legal_name: v.legal_name!.trim(),
       invoice_prefix: 'FACT',
       employment_type: v.employment_type,
@@ -227,7 +227,7 @@ export async function saveCategory(
   const supabase = await createServerSupabase()
   const { error } = id
     ? await supabase.from('inv_categories').update(payload).eq('id', id)
-    : await supabase.from('inv_categories').insert({ ...payload, brand: getBrandId() })
+    : await supabase.from('inv_categories').insert({ ...payload, brand: (await activeBrandId()) })
 
   if (error) return { error: `Enregistrement impossible : ${error.message}` }
 
@@ -393,7 +393,7 @@ export async function changerEmail(_prev: AdminResult, formData: FormData): Prom
   const { data: pris } = await db
     .from('inv_users')
     .select('id')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .ilike('email', nouvel)
     .maybeSingle()
   if (pris) return { fieldErrors: { email: 'Cette adresse est déjà utilisée par un autre compte.' } }
@@ -416,7 +416,7 @@ export async function changerEmail(_prev: AdminResult, formData: FormData): Prom
 
   await deliver({
     to: { email: compte.email, name: compte.full_name },
-    ...templates.emailChange({ name: compte.full_name, ancienne: compte.email, nouvelle: nouvel, par: user.full_name }),
+    ...(await templates()).emailChange({ name: compte.full_name, ancienne: compte.email, nouvelle: nouvel, par: user.full_name }),
     template: 'email_change',
     entityType: 'user',
     entityId: compte.id,

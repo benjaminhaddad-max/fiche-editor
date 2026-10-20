@@ -7,7 +7,7 @@ import { preuve, rangerPdf, reference } from '@/lib/contracts/signature'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getBrandId } from '@/lib/brand'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 export interface SignatureResult {
   error?: string
@@ -51,7 +51,7 @@ export async function signerContrat(_prev: SignatureResult, fd: FormData): Promi
   const email = signataire?.user?.email ?? ''
 
   const signature = preuve(nom, email, ip, c.id)
-  const { empreinte } = await rangerPdf(c.provider_id, c.id, corps, signature)
+  const { empreinte } = await rangerPdf(c.provider_id, c.id, corps, signature, await activeBrand())
 
   const { data: maj } = await db
     .from('inv_coaching_contracts')
@@ -74,7 +74,7 @@ export async function signerContrat(_prev: SignatureResult, fd: FormData): Promi
   if (signataire?.user) {
     await deliver({
       to: { email, name: signataire.user.full_name },
-      ...templates.contractSigned({
+      ...(await templates()).contractSigned({
         name: signataire.user.full_name,
         signerName: nom,
         intitule: corps.intitule,
@@ -94,13 +94,13 @@ export async function signerContrat(_prev: SignatureResult, fd: FormData): Promi
   const { data: equipe } = await db
     .from('inv_users')
     .select('id, email, full_name, role')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .or(`id.eq.${c.manager_id},role.eq.admin`)
     .eq('is_active', true)
   for (const u of equipe ?? []) {
     await deliver({
       to: { email: u.email, name: u.full_name },
-      ...templates.contractSigned({
+      ...(await templates()).contractSigned({
         name: u.full_name,
         signerName: signataire?.user?.full_name ?? nom,
         intitule: corps.intitule,

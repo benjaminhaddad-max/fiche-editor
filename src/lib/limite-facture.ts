@@ -1,6 +1,6 @@
 import { activeCycle, todayParis } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 /**
  * La date à laquelle la facture est vraiment attendue.
@@ -19,7 +19,7 @@ export async function limiteFacture(providerId: string | null): Promise<string |
     .from('inv_statements')
     .select('invoice_deadline, provider:inv_providers!inner(brand)')
     .eq('provider_id', providerId)
-    .eq('provider.brand', getBrandId())
+    .eq('provider.brand', (await activeBrandId()))
     .order('cycle_month', { ascending: false })
     .limit(1)
     .maybeSingle()

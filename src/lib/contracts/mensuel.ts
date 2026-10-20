@@ -1,6 +1,6 @@
 import { cycleForDate } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
-import { brandScope, getBrandId } from '@/lib/brand'
+import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
 
@@ -24,7 +24,7 @@ export async function ouvrirForfaitsMensuels(aujourdhui: string): Promise<{ ouve
   const { data } = await db
     .from('inv_coaching_contracts')
     .select('id, provider_id, manager_id, category_id, title, rate_amount, start_date, end_date, monthly_last_run')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('monthly_auto', true)
     .eq('status', 'active')
     .lte('start_date', cycle.periodEnd)
@@ -34,8 +34,8 @@ export async function ouvrirForfaitsMensuels(aujourdhui: string): Promise<{ ouve
   // prévoit une retenue. Personne ne l'aurait vu, le montant convenu et le
   // montant versé étant identiques sur la ligne.
   const [{ data: fiches }, { data: cats }] = await Promise.all([
-    db.from('inv_providers').select('id, pay_abatement, abatement_exempt_poles').eq('brand', getBrandId()),
-    db.from('inv_categories').select('id, pole').in('brand', brandScope()),
+    db.from('inv_providers').select('id, pay_abatement, abatement_exempt_poles').eq('brand', (await activeBrandId())),
+    db.from('inv_categories').select('id, pole').in('brand', (await activeBrandScope())),
   ])
   const fiche = new Map((fiches ?? []).map((f) => [f.id as string, f]))
   const poleDe = new Map((cats ?? []).map((x) => [x.id as string, x.pole as Pole]))

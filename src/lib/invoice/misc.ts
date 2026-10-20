@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { INVOICE_BUCKET, uploadedPdfPath } from '@/lib/invoice/store'
 import { addDays, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
-import { brandScope, getBrandId } from '@/lib/brand'
+import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 
 /** Ce qu'on lit sur une facture fournisseur quelconque. */
 export interface LectureFournisseur {
@@ -184,7 +184,7 @@ export async function enregistrerFactureDiverse(input: {
   const { data: cats } = await db
     .from('inv_categories')
     .select('id, name, pennylane_category_id')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
   const categories = cats ?? []
 
@@ -216,7 +216,7 @@ export async function enregistrerFactureDiverse(input: {
   const { data: fiches } = await db
     .from('inv_providers')
     .select('id, legal_name, siret, contact_email, user:inv_users!inv_providers_user_id_fkey(email)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
   const liste = (fiches ?? []) as unknown as {
     id: string
     legal_name: string
@@ -237,7 +237,7 @@ export async function enregistrerFactureDiverse(input: {
       .from('inv_providers')
       .insert({
         user_id: null,
-        brand: getBrandId(),
+        brand: (await activeBrandId()),
         legal_name: nom,
         siret,
         vat_number: lu.fournisseur.tva_intracom,

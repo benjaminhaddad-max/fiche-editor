@@ -11,7 +11,7 @@ import { POLE_LABEL } from '@/lib/labels'
 import { getActiveProviders, getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { POLES, type Pole } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 export default async function ContratsPage({
   searchParams,
@@ -24,7 +24,7 @@ export default async function ContratsPage({
   let requete = supabase
     .from('inv_coaching_contracts')
     .select(CONTRACT_SELECT)
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .order('created_at', { ascending: false })
   // Un manager suit les contrats dont il est responsable ; l'administration voit tout.
   if (user.role === 'manager') requete = requete.eq('manager_id', user.id)

@@ -5,7 +5,7 @@ import { templates } from '@/lib/email/templates'
 import { champsManquants } from '@/lib/profil'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 interface FicheRelance {
   id: string
@@ -60,8 +60,8 @@ export async function relancerDeclarations(
   let siens: Set<string> | null = null
   if (pourManager) {
     const [{ data: parDefaut }, { data: parMission }] = await Promise.all([
-      db.from('inv_providers').select('id').eq('brand', getBrandId()).eq('default_manager_id', pourManager),
-      db.from('inv_missions').select('provider_id').eq('brand', getBrandId()).eq('manager_id', pourManager),
+      db.from('inv_providers').select('id').eq('brand', (await activeBrandId())).eq('default_manager_id', pourManager),
+      db.from('inv_missions').select('provider_id').eq('brand', (await activeBrandId())).eq('manager_id', pourManager),
     ])
     siens = new Set([
       ...(parDefaut ?? []).map((f) => f.id as string),
@@ -75,14 +75,14 @@ export async function relancerDeclarations(
       .select(
         'id, email, full_name, email_unreachable_reason, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type, legal_name, siret, iban, address_line1, postal_code, city, phone)'
       )
-      .eq('brand', getBrandId())
+      .eq('brand', (await activeBrandId()))
       .eq('role', 'prestataire')
       .eq('is_active', true),
     db.from('inv_invitations').select('user_id, exchanges'),
     db
       .from('inv_missions')
       .select('provider_id')
-      .eq('brand', getBrandId())
+      .eq('brand', (await activeBrandId()))
       .gte('start_date', cycle.periodStart)
       .lte('start_date', cycle.periodEnd),
   ])
@@ -128,9 +128,9 @@ export async function relancerDeclarations(
       const pour = fiche.employment_type === 'independant' ? 'prestataire' : 'salarie'
       await deliver({
         to: { email: u.email, name: u.full_name },
-        ...templates.monthCalendar({ name: u.full_name, public: pour, cycle }),
+        ...(await templates()).monthCalendar({ name: u.full_name, public: pour, cycle }),
         template: 'month_calendar',
-        attachments: [{ name: guideNom(pour), content: (await guidePdf(pour, cycle)).toString('base64') }],
+        attachments: [{ name: await guideNom(pour), content: (await guidePdf(pour, cycle)).toString('base64') }],
         entityType: 'user',
         entityId: u.id,
       })
@@ -150,7 +150,7 @@ export async function relancerDeclarations(
 
     await deliver({
       to: { email: u.email, name: u.full_name },
-      ...templates.declarationReminder({
+      ...(await templates()).declarationReminder({
         name: u.full_name,
         deadline: cycle.declarationDeadline,
         label: cycle.label,
@@ -167,7 +167,7 @@ export async function relancerDeclarations(
   for (const u of aRelancerFiche) {
     await deliver({
       to: { email: u.email, name: u.nom },
-      ...templates.ficheIncomplete({
+      ...(await templates()).ficheIncomplete({
         name: u.nom,
         manque: u.manque,
         invoiceDeadline: cycle.invoiceDeadline,
@@ -189,7 +189,7 @@ export async function relancerDeclarations(
     : await db
         .from('inv_users')
         .select('id, email, full_name, email_unreachable_reason')
-        .eq('brand', getBrandId())
+        .eq('brand', (await activeBrandId()))
         .in('role', ['manager', 'admin'])
         .eq('is_active', true)
 
@@ -204,9 +204,9 @@ export async function relancerDeclarations(
       else {
         await deliver({
           to: { email: m.email as string, name: m.full_name as string },
-          ...templates.monthCalendar({ name: m.full_name as string, public: 'manager', cycle }),
+          ...(await templates()).monthCalendar({ name: m.full_name as string, public: 'manager', cycle }),
           template: 'month_calendar',
-          attachments: [{ name: guideNom('manager'), content: (await guidePdf('manager', cycle)).toString('base64') }],
+          attachments: [{ name: await guideNom('manager'), content: (await guidePdf('manager', cycle)).toString('base64') }],
           entityType: 'user',
           entityId: m.id as string,
         })
@@ -215,7 +215,7 @@ export async function relancerDeclarations(
     }
     await deliver({
       to: { email: m.email as string, name: m.full_name as string },
-      ...templates.managerInvoiceReminder({
+      ...(await templates()).managerInvoiceReminder({
         name: m.full_name as string,
         label: cycle.label,
         deadline: cycle.invoiceDeadline,

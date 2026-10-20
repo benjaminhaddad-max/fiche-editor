@@ -2,7 +2,7 @@ import type { BillingCycle } from '@/lib/cycle'
 import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 export interface LigneRemuneration {
   providerId: string
@@ -30,7 +30,7 @@ export interface LigneRemuneration {
  */
 export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRemuneration[]> {
   const db = createServiceClient()
-  const ecole = getBrandId()
+  const ecole = (await activeBrandId())
   const [{ data: fiches }, { data: factures }, { data: missions }, { data: bulletins }] = await Promise.all([
     db
       .from('inv_providers')

@@ -1,7 +1,8 @@
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer'
 import type { BillingCycle } from '@/lib/cycle'
 import { formatDate, formatDateLong } from '@/lib/format'
-import { brand } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
+import { BRANDS, type BrandConfig, type BrandId } from '@/lib/brand'
 
 /**
  * Les deux modes d'emploi joints aux emails du mois.
@@ -66,9 +67,9 @@ function Entete({ titre, sous }: { titre: string; sous: string }) {
 }
 
 /** Mode d'emploi d'un prestataire qui facture. */
-function GuideIndependant({ c }: { c: BillingCycle }) {
+function GuideIndependant({ c, m }: { c: BillingCycle; m: BrandConfig }) {
   return (
-    <Document title={`${brand().appTitle} — votre mode d’emploi`}>
+    <Document title={`${m.appTitle} — votre mode d’emploi`}>
       <Page size="A4" style={s.page}>
         <Entete titre="Comment ça marche, de votre côté" sous={`Quatre choses à faire, et rien d’autre. Exemple sur ${c.label}.`} />
 
@@ -122,7 +123,7 @@ function GuideIndependant({ c }: { c: BillingCycle }) {
         </View>
 
         <Text style={s.pied} fixed>
-          {brand().appTitle} — {brand().siteUrl.replace('https://', '')}
+          {m.appTitle} — {m.siteUrl.replace('https://', '')}
         </Text>
       </Page>
     </Document>
@@ -130,9 +131,9 @@ function GuideIndependant({ c }: { c: BillingCycle }) {
 }
 
 /** Mode d'emploi d'un salarié : pas de facture, des éléments de paie. */
-function GuideSalarie({ c }: { c: BillingCycle }) {
+function GuideSalarie({ c, m }: { c: BillingCycle; m: BrandConfig }) {
   return (
-    <Document title={`${brand().appTitle} — votre mode d’emploi`}>
+    <Document title={`${m.appTitle} — votre mode d’emploi`}>
       <Page size="A4" style={s.page}>
         <Entete
           titre="Comment ça marche, de votre côté"
@@ -180,7 +181,7 @@ function GuideSalarie({ c }: { c: BillingCycle }) {
         </View>
 
         <Text style={s.pied} fixed>
-          {brand().appTitle} — {brand().siteUrl.replace('https://', '')}
+          {m.appTitle} — {m.siteUrl.replace('https://', '')}
         </Text>
       </Page>
     </Document>
@@ -188,9 +189,9 @@ function GuideSalarie({ c }: { c: BillingCycle }) {
 }
 
 /** Mode d'emploi d'un manager. */
-function GuideManager({ c, depot }: { c: BillingCycle; depot: string | null }) {
+function GuideManager({ c, depot, m }: { c: BillingCycle; depot: string | null; m: BrandConfig }) {
   return (
-    <Document title={`${brand().appTitle} — mode d’emploi du manager`}>
+    <Document title={`${m.appTitle} — mode d’emploi du manager`}>
       <Page size="A4" style={s.page}>
         <Entete titre="Votre rôle, en trois gestes" sous={`Ce qu’on attend de vous chaque mois. Exemple sur ${c.label}.`} />
 
@@ -241,7 +242,7 @@ function GuideManager({ c, depot }: { c: BillingCycle; depot: string | null }) {
         </View>
 
         <Text style={s.pied} fixed>
-          {brand().appTitle} — {brand().siteUrl.replace('https://', '')}
+          {m.appTitle} — {m.siteUrl.replace('https://', '')}
         </Text>
       </Page>
     </Document>
@@ -251,22 +252,23 @@ function GuideManager({ c, depot }: { c: BillingCycle; depot: string | null }) {
 export type PublicGuide = 'prestataire' | 'salarie' | 'manager'
 
 /** Le guide correspondant, en PDF. */
-export async function guidePdf(pour: PublicGuide, cycle: BillingCycle): Promise<Buffer> {
+export async function guidePdf(pour: PublicGuide, cycle: BillingCycle, brand?: BrandId): Promise<Buffer> {
   const depot = process.env.DEPOT_FACTURES_EMAIL ?? null
+  const m = BRANDS[brand ?? (await activeBrandId())]
   const doc =
     pour === 'manager' ? (
-      <GuideManager c={cycle} depot={depot} />
+      <GuideManager c={cycle} depot={depot} m={m} />
     ) : pour === 'salarie' ? (
-      <GuideSalarie c={cycle} />
+      <GuideSalarie c={cycle} m={m} />
     ) : (
-      <GuideIndependant c={cycle} />
+      <GuideIndependant c={cycle} m={m} />
     )
   return renderToBuffer(doc)
 }
 
 /** Nom du fichier joint, lisible dans une boîte mail. */
-export function guideNom(pour: PublicGuide): string {
+export async function guideNom(pour: PublicGuide, brand?: BrandId): Promise<string> {
   // Le nom du fichier part en pièce jointe : il doit porter l'école aussi.
-  const p = brand().appTitle
+  const p = BRANDS[brand ?? (await activeBrandId())].appTitle
   return pour === 'manager' ? `${p} - guide du manager.pdf` : `${p} - mode d emploi.pdf`
 }

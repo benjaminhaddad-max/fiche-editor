@@ -1,8 +1,8 @@
 import { grilleEnTexte } from '@/lib/contracts/commissions'
 import { BAREMES_ENREGISTREMENT, bareme } from '@/lib/contracts/enregistrement'
-import { COMPANY } from '@/lib/types'
+import type { BrandConfig } from '@/lib/brand'
 import type { Employment, Pole } from '@/lib/types'
-import { brand } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 
 /**
  * Modèles de contrat proposés aux managers.
@@ -27,6 +27,14 @@ export interface CorpsContrat {
 }
 
 export interface Parametres {
+  /**
+   * La marque qui contracte.
+   *
+   * Elle voyage avec les paramètres plutôt que d'être lue à l'intérieur :
+   * le texte du contrat est figé à l'envoi, et il doit nommer la société
+   * qui signe — pas celle affichée à l'écran quand on le relit.
+   */
+  marque: BrandConfig
   /** Barème retenu, pour les modèles qui en proposent plusieurs. */
   bareme?: string | null
   /** Fac ou campus de rattachement, pour les enregistrements. */
@@ -85,8 +93,8 @@ const euros = (n: number | null) =>
 const entete = (p: Parametres): Article => ({
   titre: 'Les parties',
   texte:
-    `${COMPANY.name}${COMPANY.legalForm ? `, ${COMPANY.legalForm}` : ''}, dont le siège est situé ${COMPANY.address}, ` +
-    `${COMPANY.postalCode} ${COMPANY.city}, immatriculée sous le numéro ${COMPANY.siret}, ci-après « la société »,\n\n` +
+    `${p.marque.company.name}${p.marque.company.legalForm ? `, ${p.marque.company.legalForm}` : ''}, dont le siège est situé ${p.marque.company.address}, ` +
+    `${p.marque.company.postalCode} ${p.marque.company.city}, immatriculée sous le numéro ${p.marque.company.siret}, ci-après « la société »,\n\n` +
     `et ${p.nom}${p.siret ? `, immatriculé(e) sous le numéro ${p.siret}` : ''}${p.adresse ? `, demeurant ${p.adresse}` : ''}, ` +
     `joignable à ${p.email}${p.telephone ? ` et au ${p.telephone}` : ''}, ci-après « le prestataire ».`,
 })
@@ -107,13 +115,14 @@ const INDEPENDANCE: Article = {
     'fiscales et s’engage à en justifier sur demande.',
 }
 
-const FACTURATION: Article = {
+// L'article nomme la plateforme : il se construit donc avec la marque.
+const FACTURATION = (p: Parametres): Article => ({
   titre: 'Facturation et paiement',
   texte:
-    `Les prestations sont récapitulées chaque mois sur la plateforme ${brand().appTitle}. Le premier jour du mois ` +
+    `Les prestations sont récapitulées chaque mois sur la plateforme ${p.marque.appTitle}. Le premier jour du mois ` +
     'suivant, le prestataire reçoit son bordereau : il dispose de deux jours pour transmettre sa facture, réglée ' +
     'le troisième jour, ou le premier jour ouvré suivant.',
-}
+})
 
 const LITIGES: Article = {
   titre: 'Droit applicable',
@@ -176,7 +185,7 @@ function freelance(cle: string, nom: string, montant: number, heures: string): M
             'les performances constatées.',
         },
         commissionnement(false),
-        FACTURATION,
+        FACTURATION(p),
         INDEPENDANCE,
         CONFIDENTIALITE,
         resiliation('quinze jours'),
@@ -273,7 +282,7 @@ function professeur(cle: string, nom: string, employment: Employment): Modele {
           {
             titre: 'Déclaration des séances',
             texte:
-              `Chaque séance est déclarée sur la plateforme ${brand().appTitle} avec son créneau horaire, le groupe ` +
+              `Chaque séance est déclarée sur la plateforme ${p.marque.appTitle} avec son créneau horaire, le groupe ` +
               'concerné, le module enseigné et la modalité (présentiel, distanciel ou hybride). Cette traçabilité ' +
               'conditionne le paiement : un total d’heures mensuel ne dit ni quand la séance a eu lieu, ni ' +
               'devant quel groupe.',
@@ -285,7 +294,7 @@ function professeur(cle: string, nom: string, employment: Employment): Modele {
                   'Les heures validées par le responsable pédagogique sont transmises au service paie et figurent ' +
                   'sur le bulletin du mois. L’intervenant n’a pas de facture à établir.',
               }
-            : FACTURATION,
+            : FACTURATION(p),
           ...(mentionTva ? [mentionTva] : []),
           ...(salarie ? [] : [INDEPENDANCE]),
           CONFIDENTIALITE,
@@ -337,7 +346,7 @@ export const MODELES: Modele[] = [
             'refuse librement, aucun volume n’étant garanti de part ni d’autre.',
         },
         commissionnement(false),
-        FACTURATION,
+        FACTURATION(p),
         INDEPENDANCE,
         CONFIDENTIALITE,
         resiliation('huit jours'),
@@ -457,7 +466,7 @@ MODELES.push({
             'Le prestataire enregistre les cours dispensés à la faculté' +
             (p.lieu ? ` (${p.lieu})` : '') +
             ', selon le planning communiqué par ' +
-            `${COMPANY.name}. Il veille à la qualité du son et de l’image, et transmet les fichiers dans les délais convenus.`,
+            `${p.marque.company.name}. Il veille à la qualité du son et de l’image, et transmet les fichiers dans les délais convenus.`,
         },
         {
           titre: 'Rémunération',
@@ -466,13 +475,13 @@ MODELES.push({
             'prime de fiabilité et hors missions de renfort ou de remplacement, qui font l’objet d’un accord ' +
             'particulier. Les frais de transport pris en charge, le cas échéant, sont précisés ci-dessous.',
         },
-        FACTURATION,
+        FACTURATION(p),
         INDEPENDANCE,
         CONFIDENTIALITE,
         {
           titre: 'Droits sur les enregistrements',
           texte:
-            `Les enregistrements réalisés dans ce cadre sont la propriété de ${COMPANY.name}, qui en dispose ` +
+            `Les enregistrements réalisés dans ce cadre sont la propriété de ${p.marque.company.name}, qui en dispose ` +
             'librement pour ses formations. Le prestataire s’interdit d’en conserver ou d’en diffuser copie.',
         },
         resiliation('huit jours'),

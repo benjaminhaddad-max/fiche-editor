@@ -1,13 +1,13 @@
 import { formatDate, formatDateLong, money } from '@/lib/format'
 import type { BillingCycle } from '@/lib/cycle'
-import { COMPANY } from '@/lib/types'
-import { brand } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
+import { BRANDS, type BrandConfig, type BrandId } from '@/lib/brand'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 const INVITATION_DAYS = Number(process.env.INVITATION_DAYS ?? 30)
 
 /** Enveloppe HTML commune : sobre, lisible dans tous les clients mail. */
-function layout(title: string, body: string, cta?: { label: string; href: string }) {
+function layout(m: BrandConfig, title: string, body: string, cta?: { label: string; href: string }) {
   return `<!doctype html>
 <html lang="fr"><body style="margin:0;padding:0;background:#f7f4ee;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ee;padding:32px 12px;">
@@ -16,7 +16,7 @@ function layout(title: string, body: string, cta?: { label: string; href: string
              style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #e5ddc8;
                     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
         <tr><td style="padding:24px 28px 0;">
-          <p style="margin:0;font-size:13px;font-weight:600;color:#a8892e;letter-spacing:.3px;">${brand().appTitle.toUpperCase()}</p>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#a8892e;letter-spacing:.3px;">${m.appTitle.toUpperCase()}</p>
           <h1 style="margin:8px 0 0;font-size:19px;line-height:1.35;color:#0e1e35;">${title}</h1>
         </td></tr>
         <tr><td style="padding:16px 28px 4px;font-size:14px;line-height:1.65;color:#3b4c63;">
@@ -32,7 +32,7 @@ function layout(title: string, body: string, cta?: { label: string; href: string
             : '<tr><td style="height:16px"></td></tr>'
         }
         <tr><td style="padding:16px 28px 22px;border-top:1px solid #e5ddc8;font-size:12px;color:#a89e8a;">
-          ${COMPANY.name} — message automatique, merci de ne pas y répondre directement.
+          ${m.company.name} — message automatique, merci de ne pas y répondre directement.
         </td></tr>
       </table>
     </td></tr>
@@ -65,7 +65,17 @@ function avertissementRemplacement(renewed?: boolean): string {
      Les liens des emails précédents ne fonctionnent plus.</p>`
 }
 
-export const templates = {
+/**
+ * Les messages du mois, pour une marque donnée.
+ *
+ * C'est une fabrique et non un objet figé : le même déploiement sert
+ * plusieurs écoles, et un email doit porter le nom de celle qui l'envoie.
+ * Sans marque explicite — un envoi déclenché par le cron, par exemple —
+ * on prend celle de la requête, puis celle du déploiement.
+ */
+export async function templates(brand?: BrandId) {
+  const m = BRANDS[brand ?? (await activeBrandId())]
+  return {
   /**
    * Première prise de contact. Le message change selon le rôle : un
    * prestataire vient facturer, un manager vient contrôler. Leur envoyer le
@@ -73,11 +83,11 @@ export const templates = {
    */
   invitation: (p: { fullName: string; link: string; renewed?: boolean }) => ({
     subject: sujetInvitation(p.renewed),
-    html: layout(
+    html: layout(m, 
       p.renewed ? 'Voici votre nouveau lien d’accès' : 'Votre espace de facturation est prêt',
       `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
        ${avertissementRemplacement(p.renewed)}
-       <p style="margin:0 0 12px;">${COMPANY.name} met à votre disposition un espace pour
+       <p style="margin:0 0 12px;">${m.company.name} met à votre disposition un espace pour
           suivre vos prestations et transmettre vos factures.</p>
        <p style="margin:0 0 12px;">Cliquez ci-dessous pour <strong>choisir votre mot de passe</strong>.
           Vous compléterez ensuite vos informations de facturation — raison sociale, SIRET,
@@ -95,7 +105,7 @@ export const templates = {
     renewed?: boolean
   }) => ({
     subject: sujetInvitation(p.renewed),
-    html: layout(
+    html: layout(m, 
       p.renewed
         ? 'Voici votre nouveau lien d’accès'
         : p.isAdmin
@@ -103,7 +113,7 @@ export const templates = {
           : 'Votre espace de validation est prêt',
       `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
        ${avertissementRemplacement(p.renewed)}
-       <p style="margin:0 0 12px;">${COMPANY.name} centralise désormais les prestations des
+       <p style="margin:0 0 12px;">${m.company.name} centralise désormais les prestations des
           intervenants et leur facturation sur une seule plateforme.</p>
        <p style="margin:0 0 12px;">${
          p.isAdmin
@@ -123,7 +133,7 @@ export const templates = {
     by: string
   }) => ({
     subject: 'Une de vos prestations a été refusée',
-    html: layout(
+    html: layout(m, 
       'Prestation à corriger',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">La prestation suivante a été refusée par ${p.by} :</p>
@@ -137,7 +147,7 @@ export const templates = {
 
   readyToInvoice: (p: { providerName: string; count: number; total: number }) => ({
     subject: `${p.count} prestation${p.count > 1 ? 's' : ''} validée${p.count > 1 ? 's' : ''} — vous pouvez facturer`,
-    html: layout(
+    html: layout(m, 
       'Vos prestations sont validées',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">${p.count} prestation${p.count > 1 ? 's ont' : ' a'} été validée${p.count > 1 ? 's' : ''},
@@ -158,13 +168,13 @@ export const templates = {
     issueDate: string
   }) => ({
     subject: `Relance — il manque le PDF de votre facture ${p.number}`,
-    html: layout(
+    html: layout(m, 
       'Votre facture attend son PDF',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">Votre facture <strong>${p.number}</strong>
           (${money(p.total)}) a été créée le ${formatDate(p.issueDate)}
           mais vous n’avez pas encore déposé votre PDF.</p>
-       <p style="margin:0;">Dès qu’il est déposé, la facture part automatiquement à ${COMPANY.name}
+       <p style="margin:0;">Dès qu’il est déposé, la facture part automatiquement à ${m.company.name}
           et peut être mise en paiement.</p>`,
       { label: 'Déposer mon PDF', href: `${APP_URL}/factures` }
     ),
@@ -181,7 +191,7 @@ export const templates = {
       p.joursRestants > 0
         ? `Rappel — votre facture est attendue d’ici ${p.joursRestants} jour${p.joursRestants > 1 ? 's' : ''}`
         : 'Votre facture est attendue aujourd’hui',
-    html: layout(
+    html: layout(m, 
       'Nous attendons votre facture',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">Votre bordereau de <strong>${money(p.total)} HT</strong> est validé,
@@ -196,7 +206,7 @@ export const templates = {
 
   invoiceReceived: (p: { adminName: string; providerName: string; number: string; total: number }) => ({
     subject: `Facture ${p.number} reçue — ${p.providerName}`,
-    html: layout(
+    html: layout(m, 
       'Nouvelle facture à traiter',
       `<p style="margin:0 0 12px;">Bonjour ${p.adminName},</p>
        <p style="margin:0;">${p.providerName} a transmis la facture <strong>${p.number}</strong>
@@ -218,7 +228,7 @@ export const templates = {
     tarif: string
   }) => ({
     subject: `Bon de mission — ${p.title}`,
-    html: layout(
+    html: layout(m, 
       'Une mission vous est proposée',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">${p.managerName} vous propose la mission suivante :</p>
@@ -247,10 +257,10 @@ export const templates = {
     link: string
   }) => ({
     subject: `${p.managerName} vous propose une mission — ${p.title}`,
-    html: layout(
+    html: layout(m, 
       'Une mission vous est proposée',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
-       <p style="margin:0 0 12px;">${p.managerName}, de ${COMPANY.name}, vous propose la mission suivante :</p>
+       <p style="margin:0 0 12px;">${p.managerName}, de ${m.company.name}, vous propose la mission suivante :</p>
        <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;border-left:3px solid #c9a84c;">
          <strong>${p.title}</strong><br>
          du ${formatDate(p.start)} au ${formatDate(p.end)}<br>
@@ -272,7 +282,7 @@ export const templates = {
     note: string | null
   }) => ({
     subject: `${p.providerName} a ${p.accepted ? 'accepté' : 'refusé'} : ${p.title}`,
-    html: layout(
+    html: layout(m, 
       p.accepted ? 'Bon de mission accepté' : 'Bon de mission refusé',
       `<p style="margin:0 0 12px;">Bonjour ${p.managerName},</p>
        <p style="margin:0 0 12px;">${p.providerName} a <strong>${p.accepted ? 'accepté' : 'refusé'}</strong>
@@ -284,7 +294,7 @@ export const templates = {
 
   orderDue: (p: { managerName: string; providerName: string; title: string; end: string; id: string }) => ({
     subject: `Mission terminée ? ${p.title} — ${p.providerName}`,
-    html: layout(
+    html: layout(m, 
       'La mission devait se terminer',
       `<p style="margin:0 0 12px;">Bonjour ${p.managerName},</p>
        <p style="margin:0 0 12px;">La mission « <strong>${p.title}</strong> » confiée à ${p.providerName}
@@ -304,8 +314,8 @@ export const templates = {
     resume: string[]
     link: string
   }) => ({
-    subject: `Votre contrat avec ${COMPANY.name} — à signer`,
-    html: layout(
+    subject: `Votre contrat avec ${m.company.name} — à signer`,
+    html: layout(m, 
       'Votre contrat est prêt',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">${p.senderName} vous adresse votre <strong>${p.intitule}</strong>.</p>
@@ -331,7 +341,7 @@ export const templates = {
     subject: p.forSigner
       ? `Votre contrat signé — ${p.intitule}`
       : `${p.signerName} a signé son contrat`,
-    html: layout(
+    html: layout(m, 
       p.forSigner ? 'Votre contrat est signé' : 'Contrat signé',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">${
@@ -356,7 +366,7 @@ export const templates = {
     href: string
   }) => ({
     subject: `Message de ${p.authorName} — ${p.subject}`,
-    html: layout(
+    html: layout(m, 
       'Vous avez un nouveau message',
       `<p style="margin:0 0 12px;">Bonjour ${p.recipientName},</p>
        <p style="margin:0 0 12px;">${p.authorName} vous a écrit à propos de « ${p.subject} » :</p>
@@ -414,7 +424,7 @@ export const templates = {
 
     return {
       subject: `Calendrier de ${c.label} — Diploma Invoice`,
-      html: layout(
+      html: layout(m, 
         `Le calendrier de ${c.label}`,
         `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
          ${pourquoi}
@@ -427,7 +437,7 @@ export const templates = {
 
   ficheIncomplete: (p: { name: string; manque: string[]; invoiceDeadline: string; paymentDate: string }) => ({
     subject: `Sans votre SIRET et votre IBAN, votre facture ne peut pas être émise`,
-    html: layout(
+    html: layout(m, 
       'Il manque quelques informations',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Votre fiche est incomplète. Il manque
@@ -443,7 +453,7 @@ export const templates = {
 
   emailChange: (p: { name: string; ancienne: string; nouvelle: string; par: string }) => ({
     subject: 'L’adresse de votre compte Diploma Invoice a été modifiée',
-    html: layout(
+    html: layout(m, 
       'Votre adresse a changé',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">L’adresse de votre compte vient d’être remplacée par
@@ -457,7 +467,7 @@ export const templates = {
 
   declarationReminder: (p: { name: string; deadline: string; label: string }) => ({
     subject: `Dernier jour pour déclarer vos prestations de ${p.label} : ${formatDateLong(p.deadline)}`,
-    html: layout(
+    html: layout(m, 
       'Pensez à déclarer vos prestations',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Vos prestations de ${p.label} doivent être déclarées
@@ -477,7 +487,7 @@ export const templates = {
    */
   declarationLate: (p: { name: string; label: string; reviewEnd: string }) => ({
     subject: `Vos prestations de ${p.label} : c’est encore possible jusqu’au ${formatDateLong(p.reviewEnd)}`,
-    html: layout(
+    html: layout(m, 
       `Déclarer ${p.label}, c’est encore possible`,
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Si vous avez essayé de déclarer vos prestations de ${p.label}
@@ -493,7 +503,7 @@ export const templates = {
 
   managerInvoiceReminder: (p: { name: string; label: string; deadline: string; adresse: string | null }) => ({
     subject: `Factures diverses de ${p.label} : à faire remonter avant le ${formatDateLong(p.deadline)}`,
-    html: layout(
+    html: layout(m, 
       'Une facture à faire remonter ?',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Si vous avez une facture qui ne correspond à aucune prestation déclarée —
@@ -526,7 +536,7 @@ export const templates = {
     enAttente: { personne: string; n: number; total: number }[]
   }) => ({
     subject: `Éléments de paie de ${p.label} — ${money(p.totalNet + p.totalBrut)} à verser`,
-    html: layout(
+    html: layout(m, 
       `Éléments variables de ${p.label}`,
       `<p style="margin:0 0 14px;">Voici les prestations validées de ${p.label}, à porter sur les bulletins.</p>
        ${p.lignes
@@ -571,7 +581,7 @@ export const templates = {
    */
   socialReminder: (p: { name: string; count: number; total: number; gens: string[]; label: string }) => ({
     subject: `Paie de ${p.label} : ${p.count} prestation${p.count > 1 ? 's' : ''} de salariés à valider`,
-    html: layout(
+    html: layout(m, 
       'La paie n’attend pas',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;"><strong>${p.count} prestation${p.count > 1 ? 's' : ''}</strong>
@@ -586,7 +596,7 @@ export const templates = {
 
   reviewReminder: (p: { name: string; count: number; total: number; reviewEnd: string; label: string }) => ({
     subject: `Vérification de ${p.label} : ${p.count} prestation${p.count > 1 ? 's' : ''} à valider avant le ${formatDate(p.reviewEnd)}`,
-    html: layout(
+    html: layout(m, 
       'À vous de vérifier',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">La période de déclaration de ${p.label} est close.
@@ -611,7 +621,7 @@ export const templates = {
     subject: p.salaried
       ? `Vos éléments de ${p.label} sont transmis à la paie`
       : `Votre bordereau de ${p.label} — ${money(p.total)} HT — facture avant le ${formatDate(p.deadline)}`,
-    html: layout(
+    html: layout(m, 
       p.salaried ? 'Vos éléments sont transmis' : 'Votre bordereau est prêt',
       p.salaried
         ? `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
@@ -640,7 +650,7 @@ export const templates = {
 
   miscInvoiceFiled: (p: { name: string; supplier: string; number: string; total: number; created: boolean }) => ({
     subject: `Facture ${p.number} de ${p.supplier} bien reçue`,
-    html: layout(
+    html: layout(m, 
       'Facture enregistrée',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">La facture <strong>${p.number}</strong> de ${p.supplier}
@@ -655,7 +665,7 @@ export const templates = {
     subject: p.relance
       ? `Rappel — vos éléments de paie de ${p.label}`
       : `Vos éléments de paie de ${p.label}`,
-    html: layout(
+    html: layout(m, 
       p.relance ? 'Il manque vos éléments de paie' : 'Vos éléments de paie du mois',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Pour préparer votre bulletin de ${p.label}, indiquez en une minute :</p>
@@ -673,7 +683,7 @@ export const templates = {
 
   payslipFiled: (p: { name: string; personne: string; periode: string }) => ({
     subject: `Bulletin de ${p.personne} classé — ${p.periode}`,
-    html: layout(
+    html: layout(m, 
       'Bulletin de salaire classé',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Le bulletin de <strong>${p.personne}</strong> pour ${p.periode} est enregistré.</p>
@@ -684,10 +694,11 @@ export const templates = {
 
   inboundRefused: (p: { reason: string }) => ({
     subject: 'Votre facture n’a pas pu être enregistrée',
-    html: layout(
+    html: layout(m, 
       'Facture non enregistrée',
       `<p style="margin:0 0 12px;">Bonjour,</p>
        <p style="margin:0;">${p.reason}</p>`
     ),
-  }),
+    }),
+  }
 }

@@ -1,4 +1,4 @@
-import { brand } from '@/lib/brand'
+import { BRANDS, normalizeBrandId, type BrandId } from '@/lib/brand/config'
 
 export type Role = 'prestataire' | 'manager' | 'admin'
 export type PricingType = 'forfait_mission' | 'forfait_horaire' | 'forfait_journalier'
@@ -98,6 +98,8 @@ export interface AppUser {
   role: Role
   is_active: boolean
   created_at: string
+  /** Marque du compte, ou « all » pour la direction qui les suit toutes. */
+  brand: string
 }
 
 export interface Provider {
@@ -232,6 +234,8 @@ export interface IssuerSnapshot {
 export interface Invoice {
   id: string
   provider_id: string
+  /** Marque émettrice : c'est elle qui s'imprime en haut de la facture. */
+  brand: string
   number: string
   status: InvoiceStatus
   kind: InvoiceKind
@@ -291,4 +295,16 @@ export interface InvoiceLine {
  * et les deux écoles auraient facturé sous le même nom. Les coordonnées
  * vivent avec la marque, dans src/lib/brand/config.ts.
  */
-export const COMPANY = brand().company
+export type Societe = (typeof BRANDS)[BrandId]['company']
+
+/**
+ * La société émettrice, pour une marque donnée.
+ *
+ * Elle se déduit de la ligne qu'on imprime — `invoice.brand`, `contract.brand` —
+ * et non de la marque affichée à l'écran. Un directeur qui consulte une
+ * facture Diploma depuis l'onglet Medibox doit lire les mentions de Diploma :
+ * ce sont celles de la facture, et elles sont opposables.
+ */
+export function societeDe(brand: string | null | undefined): Societe {
+  return BRANDS[normalizeBrandId(brand)].company
+}

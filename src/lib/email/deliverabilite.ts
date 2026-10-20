@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 /**
  * Est-ce que nos messages arrivent vraiment ?
@@ -77,7 +77,7 @@ export async function verifierAdresses(): Promise<BilanAdresses> {
   const { data: users } = await db
     .from('inv_users')
     .select('id, email, full_name, role, email_unreachable_at')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('is_active', true)
 
   for (const u of users ?? []) {

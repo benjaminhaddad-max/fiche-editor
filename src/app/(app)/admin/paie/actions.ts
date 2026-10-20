@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { formatDate, money, round2 } from '@/lib/format'
-import { brand, getBrandId } from '@/lib/brand'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 import { cycleForMonth } from '@/lib/cycle'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
@@ -125,7 +125,7 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
   const mois = String(fd.get('mois') ?? '')
   if (!/^\d{4}-\d{2}$/.test(mois)) return { error: 'Mois invalide.' }
 
-  const destinataire = brand().payrollContact
+  const destinataire = (await activeBrand()).payrollContact
   if (!destinataire) {
     return { error: 'Aucun interlocuteur paie n’est renseigné pour cette école.' }
   }
@@ -162,7 +162,7 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
 
   await deliver({
     to: { email: destinataire.email, name: destinataire.name },
-    ...templates.socialRecap({
+    ...(await templates()).socialRecap({
       label: cycle.label,
       lignes: detail,
       totalBrut,
@@ -234,7 +234,7 @@ export async function relancerPourLaPaie(_prev: EnvoiSocial | null, fd: FormData
   const { data: brutes } = await db
     .from('inv_missions')
     .select('manager_id, total_ht, provider:inv_providers!inner(legal_name, employment_type)')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('id', lignes.map((l) => l.id))
 
   const parManager = new Map<string, { n: number; total: number; gens: Set<string> }>()
@@ -253,7 +253,7 @@ export async function relancerPourLaPaie(_prev: EnvoiSocial | null, fd: FormData
   const { data: encadrants } = await db
     .from('inv_users')
     .select('id, email, full_name, email_unreachable_reason')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('id', [...parManager.keys()])
     .eq('is_active', true)
 
@@ -267,7 +267,7 @@ export async function relancerPourLaPaie(_prev: EnvoiSocial | null, fd: FormData
     const c = parManager.get(m.id as string)!
     await deliver({
       to: { email: m.email as string, name: m.full_name as string },
-      ...templates.socialReminder({
+      ...(await templates()).socialReminder({
         name: m.full_name as string,
         count: c.n,
         total: round2(c.total),

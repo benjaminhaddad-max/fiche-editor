@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 import { envoyerBordereaux } from '@/lib/bordereaux'
 import { cycleForMonth } from '@/lib/cycle'
 import { notifyStatementReminder } from '@/lib/email/notify'
@@ -42,7 +42,7 @@ export async function envoyerMaintenant(formData: FormData): Promise<void> {
     .from('inv_cycle_events')
     .upsert({
       cycle_month: mois,
-      event: `${getBrandId()}:bordereaux`,
+      event: `${(await activeBrandId())}:bordereaux`,
       detail: { ...resultat, manuel: user.id },
     })
   await logAudit(null, {

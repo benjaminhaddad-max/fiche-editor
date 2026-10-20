@@ -9,7 +9,7 @@ import { money } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { AppUser, Employment } from '@/lib/types'
 import { createUserAccount } from '../actions'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 interface Fiche {
   id: string
@@ -36,7 +36,7 @@ export default async function EquipePage({
 
   // Cette page montre « tout le monde » : c'est justement celle où l'absence
   // de borne se verrait le plus vite, et se verrait par un manager.
-  const ecole = getBrandId()
+  const ecole = (await activeBrandId())
   const [{ data: users }, { data: fiches }, { data: factures }] = await Promise.all([
     db.from('inv_users').select('*').eq('brand', ecole).order('full_name'),
     db

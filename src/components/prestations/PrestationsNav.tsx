@@ -3,7 +3,7 @@ import { ongletsDuMois } from '@/components/layout/onglets-du-mois'
 import { activeCycle } from '@/lib/cycle'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 /**
  * Le bandeau du mois, côté manager et admin : un seul titre, et toutes les
@@ -31,7 +31,7 @@ export async function PrestationsNav({
   let q = supabase
     .from('inv_missions')
     .select('id', { count: 'exact', head: true })
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('status', user.role === 'admin' ? ['submitted', 'manager_approved'] : ['submitted'])
   if (user.role === 'manager') q = q.eq('manager_id', user.id)
   const { count } = await q

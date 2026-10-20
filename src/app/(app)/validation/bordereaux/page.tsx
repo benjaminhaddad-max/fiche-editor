@@ -16,7 +16,7 @@ import type { AiCheck, Employment, InvoiceStatus } from '@/lib/types'
 import { envoyerMaintenant, relancer } from './actions'
 import { porterEcheance } from '@/app/(app)/missions/actions'
 import { echeancesProposees } from '@/lib/echeances'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 interface Ligne {
   id: string
@@ -56,7 +56,7 @@ export default async function BordereauxPage({
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .gte('start_date', cycle.periodStart)
     .lte('start_date', cycle.periodEnd)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])

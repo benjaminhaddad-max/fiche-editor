@@ -163,7 +163,7 @@ export async function demanderNouvelleFacture(fd: FormData): Promise<void> {
       })
       await deliver({
         to: { email: dest.email, name: dest.full_name },
-        ...templates.messageReceived({
+        ...(await templates()).messageReceived({
           recipientName: dest.full_name,
           authorName: user.full_name,
           subject: `Facture ${f.number} à refaire`,

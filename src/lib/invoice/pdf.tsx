@@ -8,7 +8,7 @@ import {
 } from '@react-pdf/renderer'
 import { formatDate, formatPeriod, money } from '@/lib/format'
 import { PRICING_UNIT } from '@/lib/labels'
-import { COMPANY, mentionTva, type Invoice, type InvoiceLine } from '@/lib/types'
+import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 
 // Helvetica est embarquee dans @react-pdf : pas d'appel reseau au rendu.
 const styles = StyleSheet.create({
@@ -148,12 +148,14 @@ export function InvoiceDocument({
   const issuer = invoice.issuer_snapshot
   const mention = mentionTva(issuer.vat_regime)
   const isFranchise = issuer.vat_regime !== 'normal'
+  // Les mentions de l'émetteur sont celles de la facture, pas de l'écran.
+  const societe = societeDe(invoice.brand)
 
   return (
     <Document
       title={`Facture ${invoice.number}`}
       author={issuer.legal_name}
-      subject={`Facture ${invoice.number} — ${COMPANY.name}`}
+      subject={`Facture ${invoice.number} — ${societe.name}`}
     >
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
@@ -203,14 +205,14 @@ export function InvoiceDocument({
 
           <View style={styles.party}>
             <Text style={styles.partyLabel}>FACTURÉ À</Text>
-            <Text style={styles.partyName}>{COMPANY.name}</Text>
+            <Text style={styles.partyName}>{societe.name}</Text>
             <Address
               lines={[
-                COMPANY.legalForm,
-                COMPANY.address,
-                [COMPANY.postalCode, COMPANY.city].filter(Boolean).join(' '),
-                COMPANY.siret ? `SIRET : ${COMPANY.siret}` : null,
-                COMPANY.vatNumber ? `TVA : ${COMPANY.vatNumber}` : null,
+                societe.legalForm,
+                societe.address,
+                [societe.postalCode, societe.city].filter(Boolean).join(' '),
+                societe.siret ? `SIRET : ${societe.siret}` : null,
+                societe.vatNumber ? `TVA : ${societe.vatNumber}` : null,
               ]}
             />
           </View>

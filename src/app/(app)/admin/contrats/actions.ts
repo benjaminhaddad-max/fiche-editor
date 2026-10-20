@@ -14,7 +14,7 @@ import { composer, nouveauJeton, rangerPdf } from '@/lib/contracts/signature'
 import { trouverOuCreerPrestataire } from '@/lib/personnes'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
-import { brandScope } from '@/lib/brand'
+import { activeBrand, activeBrandScope } from '@/lib/brand/actif'
 
 export interface ContractResult {
   error?: string
@@ -80,7 +80,7 @@ export async function creerContrat(_prev: ContractResult, fd: FormData): Promise
   const { data: categorie } = await db
     .from('inv_categories')
     .select('id')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
     .eq('pole', v.contract_type)
     .eq('is_active', true)
     .order('sort_order')
@@ -264,7 +264,9 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
   const compte = (fiche as unknown as { user: { full_name: string; email: string; phone: string | null } | null }).user
 
   const montant = v.rate_amount === '' || v.rate_amount === undefined ? m.rateAmount : Number(v.rate_amount)
+  const marque = await activeBrand()
   const corps = composer(v.profile, {
+    marque,
     bareme: v.bareme || null,
     lieu: v.lieu || null,
     nom: compte?.full_name ?? fiche.legal_name,
@@ -284,7 +286,7 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
   const { data: categorie } = await db
     .from('inv_categories')
     .select('id')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
     .eq('pole', m.pole)
     .eq('is_active', true)
     .order('sort_order')
@@ -334,7 +336,7 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
   }
 
   if (v.envoyer === 'non' || !m.signable) {
-    await rangerPdf(providerId, contrat.id, corps, null)
+    await rangerPdf(providerId, contrat.id, corps, null, marque)
     revalidatePath('/admin/contrats', 'layout')
     return {
       success: m.signable
@@ -364,7 +366,7 @@ async function envoyerASigner(contractId: string, senderId: string, senderName: 
   const dest = (c as unknown as { provider: { user: { full_name: string; email: string } | null } | null }).provider?.user
   if (!dest?.email) return { error: 'Cette personne n’a pas d’email : complétez sa fiche.' }
 
-  await rangerPdf(c.provider_id, c.id, corps, null)
+  await rangerPdf(c.provider_id, c.id, corps, null, await activeBrand())
   const jeton = c.signature_token ?? nouveauJeton()
   await db
     .from('inv_coaching_contracts')
@@ -374,7 +376,7 @@ async function envoyerASigner(contractId: string, senderId: string, senderName: 
   const app = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
   await deliver({
     to: { email: dest.email, name: dest.full_name },
-    ...templates.contractToSign({
+    ...(await templates()).contractToSign({
       name: dest.full_name,
       senderName,
       intitule: corps.intitule,

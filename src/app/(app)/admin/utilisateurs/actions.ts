@@ -19,7 +19,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendInvitation } from '@/lib/email/notify'
 import { revalidatePath } from 'next/cache'
-import { getBrandId } from '@/lib/brand'
+import { activeBrandId } from '@/lib/brand/actif'
 
 export interface SessionSwitch {
   tokenHash?: string
@@ -212,12 +212,12 @@ export async function envoyerInvitationsEtRappels(
       service
         .from('inv_providers')
         .select('user_id')
-        .eq('brand', getBrandId())
+        .eq('brand', (await activeBrandId()))
         .eq('default_manager_id', auteur.id),
       service
         .from('inv_missions')
         .select('provider:inv_providers!inner(user_id)')
-        .eq('brand', getBrandId())
+        .eq('brand', (await activeBrandId()))
         .eq('manager_id', auteur.id),
     ])
     const siens = new Set<string>()
@@ -286,9 +286,9 @@ export async function envoyerInvitationsEtRappels(
 
     await deliver({
       to: { email: u.email, name: u.full_name },
-      ...templates.monthCalendar({ name: u.full_name, public: destinataire, cycle }),
+      ...(await templates()).monthCalendar({ name: u.full_name, public: destinataire, cycle }),
       template: 'month_calendar',
-      attachments: [{ name: guideNom(destinataire), content: (await guidePdf(destinataire, cycle)).toString('base64') }],
+      attachments: [{ name: await guideNom(destinataire), content: (await guidePdf(destinataire, cycle)).toString('base64') }],
       entityType: 'user',
       entityId: u.id,
     })

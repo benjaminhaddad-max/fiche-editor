@@ -8,7 +8,7 @@ import { formatDate, money } from '@/lib/format'
 import { DOCUMENT_LABEL } from '@/lib/labels'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { isSalaried, type PersonDocument } from '@/lib/types'
-import { brand } from '@/lib/brand'
+import { activeBrand } from '@/lib/brand/actif'
 
 /** Ce que la personne doit pouvoir retrouver seule : contrats et bulletins. */
 export default async function MesDocumentsPage() {
@@ -41,7 +41,7 @@ export default async function MesDocumentsPage() {
         description={
           isSalaried(provider.employment_type)
             ? 'Vos contrats et vos bulletins de salaire, classés par mois.'
-            : `Vos contrats et les documents que ${brand().company.name} met à votre disposition.`
+            : `Vos contrats et les documents que ${(await activeBrand()).company.name} met à votre disposition.`
         }
       />
 

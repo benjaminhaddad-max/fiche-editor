@@ -1,6 +1,6 @@
 import { PROGRAMME_LABEL } from '@/lib/contracts'
 import { createServiceClient } from '@/lib/supabase/service'
-import { brandScope, getBrandId } from '@/lib/brand'
+import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
 
@@ -78,7 +78,7 @@ export async function echeancesProposees(
   const { data: fiches } = await db
     .from('inv_providers')
     .select('id, legal_name')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .in('id', [...new Set(dues.map((e) => e.contract!.provider_id))])
   const nom = new Map((fiches ?? []).map((f) => [f.id as string, f.legal_name as string]))
 
@@ -131,7 +131,7 @@ export async function ouvrirUneEcheance(
   const { data: fiche } = await db
     .from('inv_providers')
     .select('id, pay_abatement, abatement_exempt_poles')
-    .eq('brand', getBrandId())
+    .eq('brand', (await activeBrandId()))
     .eq('id', c.provider_id)
     .maybeSingle()
   if (!fiche) return { ok: false, error: 'Fiche prestataire introuvable.' }
@@ -139,7 +139,7 @@ export async function ouvrirUneEcheance(
   const { data: cats } = await db
     .from('inv_categories')
     .select('id, pole')
-    .in('brand', brandScope())
+    .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .order('sort_order')
   const categorie = c.category_id ?? cats?.find((x) => x.pole === c.contract_type)?.id

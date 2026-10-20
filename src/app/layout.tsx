@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Fraunces, Inter, Poppins, Space_Grotesk } from 'next/font/google'
 import './globals.css'
-import { brand } from '@/lib/brand'
+import { BRANDS, deploymentBrandId } from '@/lib/brand'
 
 // Les trois familles de Diploma Lab : Inter pour le texte, Fraunces pour les
 // titres, Space Grotesk pour les intitulés en capitales.
@@ -27,9 +27,15 @@ const spaceGrotesk = Space_Grotesk({
   display: 'swap',
 })
 
+// Le layout racine couvre aussi les pages rendues sans requête — /_not-found,
+// l'écran de connexion. Il prend donc la marque du déploiement, qui est
+// connue à la compilation. Le titre suit la marque choisie un cran plus bas,
+// dans le layout de l'application, où une session existe toujours.
+const racine = BRANDS[deploymentBrandId()]
+
 export const metadata: Metadata = {
-  title: brand().appTitle,
-  description: brand().description,
+  title: racine.appTitle,
+  description: racine.description,
 }
 
 export default function RootLayout({

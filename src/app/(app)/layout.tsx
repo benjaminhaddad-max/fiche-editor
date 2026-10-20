@@ -1,4 +1,6 @@
 import { AppShell } from '@/components/layout/AppShell'
+import { MarqueProvider } from '@/components/brand/MarqueProvider'
+import { activeBrand } from '@/lib/brand/actif'
 import { FicheAcompleter } from '@/components/profile/FicheAcompleter'
 import { ImpersonationBanner } from '@/components/layout/ImpersonationBanner'
 import { requireUser } from '@/lib/auth'
@@ -22,8 +24,10 @@ export default async function AppLayout({
     salarie = isSalaried(data?.employment_type)
   }
   const unread = await countUnread(user.id)
+  const marque = await activeBrand()
 
   return (
+    <MarqueProvider valeur={marque}>
     <AppShell
       user={{ full_name: user.full_name, email: user.email, role: user.role }}
       salarie={salarie}
@@ -37,5 +41,12 @@ export default async function AppLayout({
     >
       {children}
     </AppShell>
+    </MarqueProvider>
   )
+}
+
+/** Le titre de l'onglet suit la marque affichée, pas celle du déploiement. */
+export async function generateMetadata() {
+  const m = await activeBrand()
+  return { title: m.appTitle, description: m.description }
 }
