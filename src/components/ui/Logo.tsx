@@ -1,3 +1,8 @@
+'use client'
+
+// Le logo lit la marque affichée, qui se résout par requête : c'est donc
+// un composant client. Sans cette directive, les pages publiques qui le
+// rendent — invitation, signature d'un contrat — plantaient au rendu.
 import { clsx } from 'clsx'
 import { useMarque } from '@/components/brand/MarqueProvider'
 import { LogoLinova } from '@/components/ui/LogoLinova'
