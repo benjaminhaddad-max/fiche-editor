@@ -81,3 +81,59 @@ export async function trouverOuCreerPrestataire(
 
   return { providerId: fiche.id, userId: user.id, cree: true }
 }
+
+export interface MembreTrouve {
+  userId: string
+  cree: boolean
+}
+
+/**
+ * Retrouve ou crée un membre de l'équipe — manager ou administration.
+ *
+ * Le pendant de `trouverOuCreerPrestataire`, sans fiche de facturation :
+ * un manager ne facture rien. Nolwenn a ajouté sa responsable pédagogique
+ * depuis « Ajouter quelqu'un », le seul endroit qu'elle avait trouvé, et
+ * s'est retrouvée avec une prestataire : l'écran ne savait créer que ça.
+ */
+export async function trouverOuCreerMembre(
+  db: Db,
+  p: { nom: string; email: string; telephone?: string | null; role: 'manager' | 'admin' }
+): Promise<MembreTrouve | { error: string }> {
+  const email = p.email.trim().toLowerCase()
+  const { data: existant } = await db
+    .from('inv_users')
+    .select('id, role, is_active')
+    .eq('brand', await activeBrandId())
+    .ilike('email', email)
+    .maybeSingle()
+
+  if (existant) {
+    if (existant.role === 'prestataire') {
+      return { error: 'Cet email appartient déjà à un prestataire. Changez son rôle depuis Équipe.' }
+    }
+    if (!existant.is_active) return { error: 'Ce compte est désactivé. Réactivez-le dans Équipe.' }
+    return { userId: existant.id as string, cree: false }
+  }
+
+  const { data: auth, error: authError } = await db.auth.admin.createUser({ email, email_confirm: true })
+  if (authError || !auth.user) return { error: `Création du compte impossible : ${authError?.message}` }
+
+  const { data: user, error: userError } = await db
+    .from('inv_users')
+    .insert({
+      auth_id: auth.user.id,
+      email,
+      full_name: p.nom,
+      role: p.role,
+      phone: p.telephone || null,
+      brand: await activeBrandId(),
+    })
+    .select('id')
+    .single()
+  if (userError || !user) {
+    await db.auth.admin.deleteUser(auth.user.id)
+    return { error: `Création du profil impossible : ${userError?.message}` }
+  }
+
+  return { userId: user.id as string, cree: true }
+}

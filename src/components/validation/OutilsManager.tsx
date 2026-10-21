@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { Send, UserPlus } from 'lucide-react'
-import { Input } from '@/components/ui/Field'
+import { Input, Select } from '@/components/ui/Field'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { ajouterPrestataire, type AjoutResultat } from '@/app/(app)/validation/actions'
 import { relancerMaintenant, type RelanceResultat } from '@/app/(app)/admin/factures/actions'
@@ -33,10 +33,14 @@ export function OutilsManager({
       <div className="rounded-xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-navy">Ajouter quelqu’un et lui envoyer ses accès</p>
+            <p className="text-sm font-semibold text-navy">
+              {admin ? 'Ajouter quelqu’un et lui envoyer ses accès' : 'Ajouter un intervenant et lui envoyer ses accès'}
+            </p>
             <p className="mt-1 text-xs text-muted">
-              Un nom, une adresse, et il reçoit son lien de connexion et le mode d’emploi. Le SIRET et l’IBAN,
-              c’est lui qui les remplira.
+              Un nom, une adresse, et il reçoit son lien de connexion et le mode d’emploi.
+              {admin
+                ? ' Choisissez son rôle : un intervenant déclare et facture, un manager valide.'
+                : ' Le SIRET et l’IBAN, c’est lui qui les remplira.'}
             </p>
           </div>
           {!ouvert && (
@@ -64,7 +68,18 @@ export function OutilsManager({
                 required
               />
             </div>
-            <Input id="telephone" name="telephone" type="tel" label="Téléphone (facultatif)" placeholder="06 12 34 56 78" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input id="telephone" name="telephone" type="tel" label="Téléphone (facultatif)" placeholder="06 12 34 56 78" />
+              {/* Un manager n'ouvre pas de compte d'équipe : le choix ne lui
+                  est pas montré, et le serveur le refuserait de toute façon. */}
+              {admin && (
+                <Select id="role" name="role" label="Rôle" defaultValue="prestataire">
+                  <option value="prestataire">Intervenant — déclare et facture</option>
+                  <option value="manager">Manager — valide les déclarations</option>
+                  <option value="admin">Administration — accès complet</option>
+                </Select>
+              )}
+            </div>
             <label className="flex items-center gap-2 text-xs text-navy/75">
               <input type="checkbox" name="prevenir" value="1" defaultChecked className="accent-navy" />
               Lui envoyer son accès et le calendrier du mois tout de suite

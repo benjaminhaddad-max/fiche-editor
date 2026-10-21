@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { guideNom, guidePdf } from '@/lib/guides/pdf'
-import { trouverOuCreerPrestataire } from '@/lib/personnes'
+import { trouverOuCreerMembre, trouverOuCreerPrestataire } from '@/lib/personnes'
 import { templates } from '@/lib/email/templates'
 import { deliver, sendInvitation } from '@/lib/email/notify'
 import { cycleForDate, todayParis } from '@/lib/cycle'
@@ -298,11 +298,35 @@ export async function ajouterPrestataire(
   const email = String(fd.get('email') ?? '').trim().toLowerCase()
   const telephone = String(fd.get('telephone') ?? '').trim() || null
   const prevenir = fd.get('prevenir') === '1'
+  // Seule l'administration ouvre des comptes d'équipe ; un manager ne
+  // recrute pas ses pairs. Toute autre valeur retombe sur prestataire.
+  const demande = String(fd.get('role') ?? 'prestataire')
+  const role =
+    user.role === 'admin' && (demande === 'manager' || demande === 'admin') ? demande : 'prestataire'
 
   if (nom.length < 3) return { error: 'Indiquez le nom et le prénom.' }
   if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) return { error: 'Cette adresse email n’est pas valide.' }
 
   const db = createServiceClient()
+
+  if (role !== 'prestataire') {
+    const membre = await trouverOuCreerMembre(db, { nom, email, telephone, role })
+    if ('error' in membre) return { error: membre.error }
+    if (prevenir) await sendInvitation(membre.userId, user.id)
+    await logAudit(null, {
+      actorId: user.id,
+      entityType: 'user',
+      entityId: membre.userId,
+      action: membre.cree ? 'membre_ajoute' : 'membre_retrouve',
+      payload: { email, role, prevenir },
+    })
+    revalidatePath('/admin/equipe')
+    return {
+      message: membre.cree
+        ? `${nom} est ajouté${role === 'admin' ? ' en administration' : ' comme manager'}${prevenir ? ' et a reçu son accès' : ''}.`
+        : `${nom} avait déjà un compte d'équipe${prevenir ? ', son accès vient de lui être renvoyé' : ''}.`,
+    }
+  }
   const trouve = await trouverOuCreerPrestataire(db, { nom, email, telephone })
   if ('error' in trouve) return { error: trouve.error }
 
