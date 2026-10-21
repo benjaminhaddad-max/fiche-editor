@@ -20,6 +20,8 @@ const Schema = z.object({
   paid_leave_days: z.coerce.number<number>().min(0).max(31),
   unpaid_leave_days: z.coerce.number<number>().min(0).max(31),
   leave_detail: z.string().trim().max(500).optional(),
+  sick_leave_days: z.coerce.number<number>().min(0).max(31),
+  sick_leave_detail: z.string().trim().max(500).optional(),
   transport: z.enum(['oui', 'non']),
   transport_amount: z.union([z.coerce.number<number>().min(0).max(1000), z.literal('')]).optional(),
   mutuelle: z.enum(['adherent', 'refus']),
@@ -43,26 +45,27 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
   if (!ouverts.includes(v.period)) return { error: 'Ce mois n’est plus ouvert à la déclaration.' }
 
   const db = createServiceClient()
-  let documentId: string | null = null
-  const fichier = fd.get('justificatif')
-  if (fichier instanceof File && fichier.size > 0) {
-    if (fichier.size > MAX_PDF) return { error: 'Le justificatif ne doit pas dépasser 6 Mo.' }
+
+  /** Range une pièce jointe et renvoie son identifiant, ou une erreur. */
+  async function deposer(champ: string, dossier: string, intitule: string) {
+    const fichier = fd.get(champ)
+    if (!(fichier instanceof File) || fichier.size === 0) return { id: null as string | null }
+    if (fichier.size > MAX_PDF) return { erreur: `${intitule} : le fichier ne doit pas dépasser 6 Mo.` }
     const contenu = Buffer.from(await fichier.arrayBuffer())
     const extension = fichier.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'jpg'
-    const chemin = `${provider.id}/transport/${v.period}.${extension}`
+    const chemin = `${provider.id}/${dossier}/${v.period}.${extension}`
     const { error } = await db.storage.from(INVOICE_BUCKET).upload(chemin, contenu, {
       contentType: extension === 'pdf' ? 'application/pdf' : fichier.type || 'image/jpeg',
       upsert: true,
     })
-    if (error) return { error: `Dépôt du justificatif impossible : ${error.message}` }
-
+    if (error) return { erreur: `Dépôt impossible : ${error.message}` }
     const { data: doc } = await db
       .from('inv_documents')
       .insert({
         provider_id: provider.id,
         kind: 'autre',
         period: v.period,
-        label: `Justificatif de transport — ${v.period}`,
+        label: `${intitule} — ${v.period}`,
         path: chemin,
         filename: fichier.name,
         source: 'upload',
@@ -71,8 +74,14 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
       })
       .select('id')
       .single()
-    documentId = doc?.id ?? null
+    return { id: doc?.id ?? null }
   }
+
+  const transportDoc = await deposer('justificatif', 'transport', 'Justificatif de transport')
+  if (transportDoc.erreur) return { error: transportDoc.erreur }
+  const arretDoc = await deposer('arret', 'arret-travail', 'Arrêt de travail')
+  if (arretDoc.erreur) return { error: arretDoc.erreur }
+  const documentId = transportDoc.id
 
   const { error } = await db.from('inv_payroll_inputs').upsert(
     {
@@ -82,6 +91,9 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
       paid_leave_days: v.paid_leave_days,
       unpaid_leave_days: v.unpaid_leave_days,
       leave_detail: v.leave_detail || null,
+      sick_leave_days: v.sick_leave_days,
+      sick_leave_detail: v.sick_leave_detail || null,
+      ...(arretDoc.id ? { sick_leave_document: arretDoc.id } : {}),
       transport: v.transport === 'oui',
       transport_amount: v.transport_amount === '' || v.transport_amount === undefined ? null : Number(v.transport_amount),
       ...(documentId ? { transport_document: documentId } : {}),

@@ -22,7 +22,9 @@ export async function GET(request: Request) {
   }
   const entete = [
     'Salarié', 'Statut', 'Renseigné', 'Heures supplémentaires', 'Congés payés (j)',
-    'Congés sans solde (j)', 'Dates des congés', 'Transport', 'Montant transport',
+    'Congés sans solde (j)', 'Dates des congés',
+    'Arrêt de travail (j)', 'Dates de l’arrêt', 'Arrêt fourni',
+    'Transport', 'Montant transport',
     'Justificatif fourni', 'Mutuelle', 'Remarque',
   ]
   const corps = lignes.map((l) =>
@@ -34,6 +36,9 @@ export async function GET(request: Request) {
       l.congesPayes,
       l.congesSansSolde,
       l.detailConges,
+      l.arretJours,
+      l.detailArret,
+      Boolean(l.arretDocumentId),
       l.transport,
       l.montantTransport,
       Boolean(l.justificatifId),

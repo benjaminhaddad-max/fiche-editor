@@ -63,6 +63,7 @@ export function ElementsTable({ mois, lignes }: { mois: string; lignes: LigneEle
                 <th className="px-4 py-3 text-right font-medium">H. sup.</th>
                 <th className="px-4 py-3 text-right font-medium">CP</th>
                 <th className="px-4 py-3 text-right font-medium">Sans solde</th>
+                <th className="px-4 py-3 text-right font-medium">Arrêt</th>
                 <th className="px-4 py-3 font-medium">Transport</th>
                 <th className="px-4 py-3 font-medium">Mutuelle</th>
                 <th className="px-4 py-3 font-medium">Remarque</th>
@@ -96,6 +97,18 @@ export function ElementsTable({ mois, lignes }: { mois: string; lignes: LigneEle
                   <td className="px-4 py-3 text-right text-navy/80">{l.rempli ? l.heuresSup : '—'}</td>
                   <td className="px-4 py-3 text-right text-navy/80">{l.rempli ? l.congesPayes : '—'}</td>
                   <td className="px-4 py-3 text-right text-navy/80">{l.rempli ? l.congesSansSolde : '—'}</td>
+                  {/* Un arrêt sans sa pièce se repère d'un coup d'œil : c'est
+                      elle qui manque toujours au moment de saisir la paie. */}
+                  <td className="px-4 py-3 text-right text-navy/80">
+                    {!l.rempli || !l.arretJours ? (
+                      '—'
+                    ) : (
+                      <span className={l.arretDocumentId ? undefined : 'font-semibold text-amber-700'}>
+                        {l.arretJours}
+                        {l.arretDocumentId ? '' : ' ⚠'}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {!l.rempli ? (
                       <span className="text-muted">—</span>

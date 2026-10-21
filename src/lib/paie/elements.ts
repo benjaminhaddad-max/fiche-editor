@@ -13,6 +13,9 @@ export interface LigneElements {
   congesPayes: number
   congesSansSolde: number
   detailConges: string | null
+  arretJours: number
+  detailArret: string | null
+  arretDocumentId: string | null
   transport: boolean
   montantTransport: number | null
   justificatifId: string | null
@@ -58,6 +61,9 @@ export async function elementsDuMois(cycle: BillingCycle): Promise<LigneElements
         congesPayes: Number(s?.paid_leave_days ?? 0),
         congesSansSolde: Number(s?.unpaid_leave_days ?? 0),
         detailConges: (s?.leave_detail as string | null) ?? null,
+        arretJours: Number(s?.sick_leave_days ?? 0),
+        detailArret: (s?.sick_leave_detail as string | null) ?? null,
+        arretDocumentId: (s?.sick_leave_document as string | null) ?? null,
         transport: Boolean(s?.transport),
         montantTransport: s?.transport_amount === null || s?.transport_amount === undefined ? null : Number(s.transport_amount),
         justificatifId: (s?.transport_document as string | null) ?? null,

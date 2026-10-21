@@ -10,6 +10,9 @@ export interface ElementsExistants {
   paid_leave_days: number
   unpaid_leave_days: number
   leave_detail: string | null
+  sick_leave_days: number
+  sick_leave_detail: string | null
+  sick_leave_document: string | null
   transport: boolean
   transport_amount: number | null
   mutuelle: string
@@ -66,6 +69,42 @@ export function ElementsForm({ period, existant }: { period: string; existant: E
             defaultValue={existant?.leave_detail ?? ''}
             placeholder="Ex : du 12 au 16, et le 25"
           />
+        </div>
+      </div>
+
+      {/* L'arrêt de travail ne se range pas dans les congés : la paie le
+          traite autrement, et il lui faut la pièce avec ses dates. */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Input
+          id="sick_leave_days"
+          name="sick_leave_days"
+          type="number"
+          step="0.5"
+          min="0"
+          label="Arrêt de travail (jours)"
+          defaultValue={existant?.sick_leave_days ?? 0}
+          required
+        />
+        <Input
+          id="sick_leave_detail"
+          name="sick_leave_detail"
+          label="Dates de l’arrêt (facultatif)"
+          defaultValue={existant?.sick_leave_detail ?? ''}
+          placeholder="Ex : du 3 au 9"
+        />
+        <div>
+          <span className="field-label">Arrêt de travail</span>
+          <input
+            type="file"
+            name="arret"
+            accept="application/pdf,image/*"
+            className="block text-sm text-navy/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-cream-deep file:px-3 file:py-2 file:text-sm file:font-medium file:text-navy/80"
+          />
+          <p className="field-hint">
+            {existant?.sick_leave_document
+              ? 'Un arrêt est déjà déposé ; déposez-en un nouveau pour le remplacer.'
+              : 'Le volet employeur, en PDF ou en photo.'}
+          </p>
         </div>
       </div>
 
