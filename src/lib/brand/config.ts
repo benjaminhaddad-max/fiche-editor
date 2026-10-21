@@ -122,17 +122,22 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     logos: { cream: '/logo-mark.svg', navy: '/logo-mark.svg' },
     // Teintes provisoires, à remplacer par la charte Medibox.
     palette: { dark: '#0f3d4c', accent: '#4bb3a7', light: '#f4f8f8', ink: '#13262c' },
-    // À RENSEIGNER : ces lignes s'impriment sur les factures des prestataires.
-    // Tant qu'elles sont vides, marqueFacturable() refuse l'émission plutôt
-    // que de sortir une facture sans mentions légales.
+    // Relevé au registre des entreprises : SIREN 930 619 051, SAS créée le
+    // 1er juillet 2024, enseignement supérieur (85.42Z). Clé de TVA et clé de
+    // Luhn du SIRET vérifiées — ces lignes s'impriment sur chaque facture de
+    // prestataire et sur chaque contrat, elles ne se devinent pas.
+    //
+    // La raison sociale est « Medibox France » : c'est elle qui engage, et
+    // c'est elle qui doit figurer sur les documents. « Medibox » tout court
+    // reste le nom d'usage, affiché à l'écran.
     company: {
-      name: 'Medibox',
-      legalForm: '',
-      address: '',
-      postalCode: '',
-      city: '',
-      siret: '',
-      vatNumber: '',
+      name: 'Medibox France',
+      legalForm: 'SAS',
+      address: '8 bis rue de Tunis',
+      postalCode: '75011',
+      city: 'Paris',
+      siret: '93061905100012',
+      vatNumber: 'FR61930619051',
     },
     email: {
       senderName: 'Facturation Medibox',
