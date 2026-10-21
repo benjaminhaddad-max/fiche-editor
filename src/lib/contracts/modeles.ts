@@ -307,7 +307,145 @@ function professeur(cle: string, nom: string, employment: Employment): Modele {
   }
 }
 
+/**
+ * Coachs et tuteurs : l'accompagnement d'un étudiant, par opposition à
+ * l'enseignement d'un groupe.
+ *
+ * Ils manquaient. Les contrats de coaching de Diploma avaient tous été
+ * saisis à la main faute de modèle, et Nolwenn, qui dirige Medibox où ces
+ * deux rôles sont le gros des effectifs, ne trouvait rien à choisir.
+ */
+function accompagnement(
+  cle: string,
+  nom: string,
+  pole: Pole,
+  employment: Employment,
+  objet: string
+): Modele {
+  const salarie = employment !== 'independant'
+  return {
+    cle,
+    nom,
+    pole,
+    employment,
+    rateType: 'horaire',
+    rateAmount: null,
+    monthlyAuto: false,
+    signable: true,
+    demandeBase: salarie,
+    demandeTva: !salarie,
+    resume: salarie
+      ? 'Taux horaire, net ou brut selon ce qui a été convenu — vacation'
+      : 'Taux horaire, déclaré séance par séance',
+    corps: (p) => {
+      const taux = p.montant ? euros(p.montant) : '… €'
+      const base = salarie
+        ? p.base === 'brut'
+          ? ' brut'
+          : ' net'
+        : p.tva === 'ttc'
+          ? ' toutes taxes comprises'
+          : p.tva === 'exonere'
+            ? ', exonéré de TVA'
+            : ' hors taxes'
+      const mentionTva =
+        p.tva === 'exonere'
+          ? {
+              titre: 'Taxe sur la valeur ajoutée',
+              texte:
+                'Les prestations objet du présent contrat sont exonérées de taxe sur la valeur ajoutée en ' +
+                'application de l’article 261-4-4° a du Code général des impôts. Les factures portent cette ' +
+                'mention et ne font apparaître aucune TVA.',
+            }
+          : p.tva === 'ttc'
+            ? {
+                titre: 'Taxe sur la valeur ajoutée',
+                texte:
+                  'Le taux convenu s’entend toutes taxes comprises : la taxe éventuellement applicable est ' +
+                  'comprise dans ce montant et n’est pas ajoutée à la facture.',
+              }
+            : null
+      return {
+        intitule: `Contrat d’accompagnement — ${nom.toLowerCase()}`,
+        profil: nom,
+        resume: [
+          `Rémunération : ${taux}${base} de l’heure d’accompagnement effectivement assurée.`,
+          'Les séances sont déclarées une à une : créneau, étudiant ou groupe suivi, et modalité.',
+          `Début : ${dateFr(p.debut)}${p.fin ? ` — fin : ${dateFr(p.fin)}.` : ' — sans terme fixé.'}`,
+        ],
+        articles: [
+          entete(p),
+          { titre: 'Objet', texte: objet },
+          {
+            titre: 'Rémunération',
+            texte:
+              `La rémunération est de ${taux}${base} par heure d’accompagnement effectivement assurée. Le temps ` +
+              'de préparation et de compte rendu est compris dans ce taux, sauf accord écrit contraire. Les ' +
+              'heures sont décomptées à la séance, et non au forfait mensuel.',
+          },
+          {
+            titre: 'Déclaration des séances',
+            texte:
+              `Chaque séance est déclarée sur la plateforme ${p.marque.appTitle} avec son créneau horaire, la ` +
+              'personne ou le groupe suivi et la modalité (présentiel, distanciel ou hybride). Cette ' +
+              'traçabilité conditionne le paiement : un total d’heures mensuel ne dit ni quand la séance a ' +
+              'eu lieu, ni auprès de qui.',
+          },
+          {
+            titre: 'Suivi des étudiants',
+            texte:
+              'L’intervenant signale sans délai au responsable pédagogique toute difficulté sérieuse ou ' +
+              'absence répétée d’un étudiant suivi. L’accompagnement porte sur la méthode et le travail ; ' +
+              'il ne se substitue ni à l’enseignement, ni à un suivi médical ou psychologique.',
+          },
+          salarie
+            ? {
+                titre: 'Paie',
+                texte:
+                  'Les heures validées par le responsable pédagogique sont transmises au service paie et ' +
+                  'figurent sur le bulletin du mois. L’intervenant n’a pas de facture à établir.',
+              }
+            : FACTURATION(p),
+          ...(mentionTva ? [mentionTva] : []),
+          ...(salarie ? [] : [INDEPENDANCE]),
+          CONFIDENTIALITE,
+          resiliation('un mois'),
+          LITIGES,
+          ...(p.precisions ? [{ titre: 'Dispositions particulières', texte: p.precisions }] : []),
+        ],
+      }
+    },
+  }
+}
+
 export const MODELES: Modele[] = [
+  accompagnement(
+    'coach',
+    'Coach indépendant',
+    'coaching',
+    'independant',
+    'La société confie à l’intervenant l’accompagnement individuel ou en petit groupe d’étudiants : ' +
+      'méthode de travail, organisation, préparation des épreuves et suivi de la progression. Le volume ' +
+      'd’heures n’est pas garanti ; il est arrêté au fil des besoins et des disponibilités de chacun.'
+  ),
+  accompagnement(
+    'coach_vacataire',
+    'Coach vacataire (salarié)',
+    'coaching',
+    'vacataire',
+    'La société confie à l’intervenant l’accompagnement individuel ou en petit groupe d’étudiants : ' +
+      'méthode de travail, organisation, préparation des épreuves et suivi de la progression. Le volume ' +
+      'd’heures n’est pas garanti ; il est arrêté au fil des besoins et des disponibilités de chacun.'
+  ),
+  accompagnement(
+    'tuteur',
+    'Tuteur indépendant',
+    'referent',
+    'independant',
+    'La société confie à l’intervenant le tutorat d’étudiants : permanences, reprise des points non ' +
+      'compris, correction d’exercices et accompagnement méthodologique, sous la responsabilité du ' +
+      'référent pédagogique. Le volume d’heures n’est pas garanti.'
+  ),
   professeur('professeur', 'Professeur indépendant', 'independant'),
   professeur('professeur_vacataire', 'Professeur vacataire (salarié)', 'vacataire'),
   freelance('freelance_temps_plein', 'Freelance temps plein', 500, '25 heures par semaine'),
