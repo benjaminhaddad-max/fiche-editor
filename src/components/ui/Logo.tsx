@@ -68,6 +68,24 @@ export function Logo({
     )
   }
 
+  // Une marque sans logotype s'écrit. Emprunter celui d'une autre école
+  // serait pire que n'avoir pas d'image.
+  if (!marque.logos) {
+    return (
+      <span
+        className={clsx('block select-none font-brand leading-none', className)}
+        style={{
+          fontSize: hauteur * 0.42,
+          color: tone === 'light' ? marque.palette.light : marque.palette.dark,
+          letterSpacing: '-0.01em',
+        }}
+        aria-label={marque.appTitle}
+      >
+        {marque.appTitle}
+      </span>
+    )
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img

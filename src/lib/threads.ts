@@ -1,3 +1,4 @@
+import { activeBrandId } from '@/lib/brand/actif'
 import { createServerSupabase } from '@/lib/supabase/server'
 
 export interface ThreadRow {
@@ -18,9 +19,11 @@ export async function getThreads(userId: string): Promise<ThreadRow[]> {
       .from('inv_threads')
       .select(
         `id, subject, last_message_at, closed_at,
-         provider:inv_providers(legal_name),
+         provider:inv_providers!inner(legal_name, brand),
          manager:inv_users!inv_threads_manager_id_fkey(full_name)`
       )
+      // Le fil suit la marque de son prestataire.
+      .eq('provider.brand', await activeBrandId())
       .order('last_message_at', { ascending: false })
       .limit(200),
     supabase.from('inv_thread_reads').select('thread_id, read_at').eq('user_id', userId),

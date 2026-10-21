@@ -25,7 +25,8 @@ export interface BrandConfig {
   siteUrl: string
   /** Couleur de la barre du navigateur sur mobile. */
   themeColor: string
-  logos: { cream: string; navy: string }
+  /** Null tant que la marque n'a pas son propre fichier : on écrit son nom. */
+  logos: { cream: string; navy: string } | null
   /** Teintes de la charte, pour les emails et les documents. */
   palette: { dark: string; accent: string; light: string; ink: string }
   /** Qui reçoit les factures : c'est cette société qui est facturée. */
@@ -117,9 +118,11 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       'Déclarez vos prestations, suivez vos factures et vos paiements.',
     siteUrl: 'https://facturation.medibox.fr',
     themeColor: '#0f3d4c',
-    // Pas encore de logotype Medibox dans public/ : la marque neutre évite
-    // d'afficher le logo d'une autre école en attendant le vrai fichier.
-    logos: { cream: '/logo-mark.svg', navy: '/logo-mark.svg' },
+    // Pas de logotype Medibox dans public/. Et surtout pas de repli sur
+    // logo-mark.svg : ce fichier est le logo de Diploma Santé, pas une marque
+    // neutre — Nolwenn a ouvert son espace et y a vu le logo de Diploma.
+    // Sans fichier propre, on écrit le nom, et c'est tout.
+    logos: null,
     // Teintes provisoires, à remplacer par la charte Medibox.
     palette: { dark: '#0f3d4c', accent: '#4bb3a7', light: '#f4f8f8', ink: '#13262c' },
     // Relevé au registre des entreprises : SIREN 930 619 051, SAS créée le

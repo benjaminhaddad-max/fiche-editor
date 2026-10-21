@@ -1,3 +1,4 @@
+import { activeBrandId } from '@/lib/brand/actif'
 import Link from 'next/link'
 import { OrderStatusBadge } from '@/components/ui/Badge'
 import { NewOrderForm } from '@/components/orders/OrderForms'
@@ -24,9 +25,13 @@ export default async function BonsDeMissionPage({
   const today = todayParis()
   const supabase = await createServerSupabase()
 
+  // Le bon tient sa marque de son prestataire : la table n'en porte pas.
+  // La cloison est posée en base, celui-ci la redit — une requête qui
+  // passerait un jour par le rôle de service ne la contournerait pas.
   let q = supabase
     .from('inv_mission_orders')
-    .select('*, provider:inv_providers(legal_name), manager:inv_users!inv_mission_orders_manager_id_fkey(full_name)')
+    .select('*, provider:inv_providers!inner(legal_name, brand), manager:inv_users!inv_mission_orders_manager_id_fkey(full_name)')
+    .eq('provider.brand', await activeBrandId())
     .order('end_date', { ascending: true })
   if (user.role === 'manager') q = q.eq('manager_id', user.id)
 
