@@ -27,6 +27,8 @@ export interface BrandConfig {
   themeColor: string
   /** Null tant que la marque n'a pas son propre fichier : on écrit son nom. */
   logos: { cream: string; navy: string } | null
+  /** La vignette de l'onglet du navigateur. */
+  icon: string
   /** Teintes de la charte, pour les emails et les documents. */
   palette: { dark: string; accent: string; light: string; ink: string }
   /**
@@ -67,6 +69,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     siteUrl: 'https://facturation.diploma-sante.fr',
     themeColor: '#0e1e35',
     logos: { cream: '/logo-diploma-invoice.webp', navy: '/logo-diploma-invoice-navy.webp' },
+    icon: '/icons/diploma.svg',
     palette: { dark: '#0e1e35', accent: '#c8a44b', light: '#f7f4ee', ink: '#0e1e35' },
     company: {
       name: process.env.NEXT_PUBLIC_COMPANY_NAME ?? 'Diploma Santé',
@@ -97,6 +100,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     // d'en déformer les tracés. Ces fichiers servent aux emails, où un SVG
     // en ligne ne passe pas partout.
     logos: { cream: '/logo/linova-logotype.svg', navy: '/logo/linova-logotype.svg' },
+    icon: '/icons/linova.svg',
     // Relevées dans public/logo/LISEZ-MOI.md : bleu nuit, bleu lagon,
     // blanc cassé, noir charbon. Le jaune vif ne sert qu'aux alertes.
     palette: { dark: '#182d3c', accent: '#6da3a4', light: '#efefef', ink: '#222222' },
@@ -134,6 +138,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     // neutre — Nolwenn a ouvert son espace et y a vu le logo de Diploma.
     // Sans fichier propre, on écrit le nom, et c'est tout.
     logos: null,
+    icon: '/icons/medibox.svg',
     // Charte graphique Medibox 2026 : nuit, violet, lavande. Le violet sert
     // aux accents et jamais aux grands aplats — les fonds sont nuit ou blancs.
     palette: { dark: '#07050D', accent: '#6D4FD0', light: '#F5F3FF', ink: '#140E2E' },

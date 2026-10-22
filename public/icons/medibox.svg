@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Medibox">
+  <!-- Marque provisoire, en attendant le logotype Medibox : un monogramme
+       aux seules couleurs de la charte 2026 — nuit et lavande. Mieux vaut
+       une lettre que le logo d'une autre école. -->
+  <rect width="64" height="64" rx="14" fill="#140E2E"/>
+  <path d="M16 46V18h6.6l9.4 16.2L41.4 18H48v28h-6.4V29.7L33.6 44h-3.2L22.4 29.7V46z" fill="#A78BFA"/>
+</svg>

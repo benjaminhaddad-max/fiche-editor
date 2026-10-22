@@ -62,5 +62,9 @@ export default async function AppLayout({
 /** Le titre de l'onglet suit la marque affichée, pas celle du déploiement. */
 export async function generateMetadata() {
   const m = await activeBrand()
-  return { title: m.appTitle, description: m.description }
+  return {
+    title: m.appTitle,
+    description: m.description,
+    icons: { icon: [{ url: m.icon, type: 'image/svg+xml' }] },
+  }
 }

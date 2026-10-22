@@ -37,6 +37,10 @@ const racine = BRANDS[deploymentBrandId()]
 export const metadata: Metadata = {
   title: racine.appTitle,
   description: racine.description,
+  // Déclarée ici plutôt que par le fichier src/app/icon.svg : celui-ci
+  // s'appliquait à toutes les écoles, et Medibox affichait la vignette de
+  // Diploma dans l'onglet.
+  icons: { icon: [{ url: racine.icon, type: 'image/svg+xml' }] },
 }
 
 export default function RootLayout({
