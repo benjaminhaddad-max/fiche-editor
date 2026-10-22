@@ -302,15 +302,22 @@ export function UsersTable({
                         <p className="text-right text-xs text-stone">vous</p>
                       ) : (
                         <div className="flex items-center justify-end gap-1">
+                          {/* Un clic, pas deux. Il fallait cocher la case de
+                              la ligne pour faire apparaître la barre d'envoi,
+                              et personne ne trouvait le geste. */}
                           {admin && u.is_active && (
-                            <button
-                              type="button"
-                              onClick={() => setSelection(new Set([u.id]))}
-                              title="Le sélectionner pour lui envoyer son accès et le rappel du mois"
-                              className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-navy/70 hover:bg-cream-deep"
-                            >
-                              Relancer
-                            </button>
+                            <form action={envoyer} className="inline-flex">
+                              <input type="hidden" name="user_id" value={u.id} />
+                              <SubmitButton
+                                size="sm"
+                                variant="secondary"
+                                pendingLabel="Envoi…"
+                                title="Lui envoyer son lien d’accès et le rappel du mois"
+                              >
+                                <Mail size={13} />
+                                Renvoyer l’accès
+                              </SubmitButton>
+                            </form>
                           )}
                           {admin && u.is_active && u.role !== 'admin' && (
                             <ImpersonateButton userId={u.id} />
