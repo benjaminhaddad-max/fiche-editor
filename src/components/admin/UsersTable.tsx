@@ -9,7 +9,7 @@ import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
 import { envoyerInvitationsEtRappels, type EnvoiResultat } from '@/app/(app)/admin/utilisateurs/actions'
 import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
-import { changerEtiquette, retirerPrestataire, setUserPhone, toggleUserActive, type RetraitResultat } from '@/app/(app)/admin/actions'
+import { changerEtiquette, changerRole, retirerPrestataire, setUserPhone, toggleUserActive, type RetraitResultat } from '@/app/(app)/admin/actions'
 import Link from 'next/link'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import type { Employment } from '@/lib/types'
@@ -325,6 +325,26 @@ export function UsersTable({
                               >
                                 Retirer
                               </button>
+                            </form>
+                          )}
+                          {/* Changer un rôle depuis la ligne : c'est ici qu'on
+                              s'aperçoit qu'on s'est trompé en créant le compte.
+                              Le serveur refuse de retirer le statut de
+                              prestataire à une fiche qui porte des prestations. */}
+                          {admin && u.id !== meId && (
+                            <form action={changerRole} className="inline-flex">
+                              <input type="hidden" name="user_id" value={u.id} />
+                              <select
+                                name="role"
+                                defaultValue={u.role}
+                                onChange={(ev) => ev.currentTarget.form?.requestSubmit()}
+                                title="Changer le rôle"
+                                className="cursor-pointer rounded-lg border border-line bg-white px-2 py-1 text-xs font-medium text-navy/80 hover:border-gold/50"
+                              >
+                                <option value="prestataire">Intervenant</option>
+                                <option value="manager">Manager</option>
+                                <option value="admin">Administration</option>
+                              </select>
                             </form>
                           )}
                           {admin && (

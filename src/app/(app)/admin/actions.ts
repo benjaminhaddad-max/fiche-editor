@@ -529,3 +529,69 @@ export async function retirerPrestataire(
   revalidatePath('/admin/equipe')
   return { message: `${fiche.legal_name} a été supprimé : sa fiche n’avait servi à rien.` }
 }
+
+/**
+ * Change le rôle d'un compte.
+ *
+ * Il manquait : Nolwenn a ajouté sa responsable pédagogique comme
+ * prestataire et n'avait aucun moyen d'en faire un manager. Il a fallu
+ * corriger en base.
+ *
+ * Deux garde-fous. On ne retire pas le statut de prestataire à quelqu'un
+ * dont la fiche porte déjà des prestations ou des factures : elles
+ * deviendraient orphelines, et c'est la comptabilité qui le découvrirait.
+ * Et personne ne se retire à soi-même l'administration — il ne resterait
+ * peut-être plus d'administrateur du tout.
+ */
+export async function changerRole(fd: FormData): Promise<void> {
+  const admin = await requireRole('admin')
+  const id = String(fd.get('user_id') ?? '')
+  const role = String(fd.get('role') ?? '')
+  if (!id || !['prestataire', 'manager', 'admin'].includes(role)) return
+  if (id === admin.id) return
+
+  const db = createServiceClient()
+  const { data: compte } = await db
+    .from('inv_users')
+    .select('id, role, full_name, brand, provider:inv_providers!inv_providers_user_id_fkey(id)')
+    .eq('id', id)
+    .maybeSingle()
+  if (!compte || compte.role === role) return
+  // Une école ne touche pas aux comptes d'une autre.
+  if (compte.brand !== 'all' && compte.brand !== (await activeBrandId())) return
+
+  const fiche = (compte as unknown as { provider: { id: string }[] | { id: string } | null }).provider
+  const ficheId = Array.isArray(fiche) ? fiche[0]?.id : fiche?.id
+
+  if (compte.role === 'prestataire' && ficheId) {
+    for (const table of ['inv_missions', 'inv_invoices', 'inv_coaching_contracts'] as const) {
+      const { count } = await db
+        .from(table)
+        .select('id', { count: 'exact', head: true })
+        .eq('provider_id', ficheId)
+      if (count) return
+    }
+    await db.from('inv_providers').delete().eq('id', ficheId)
+  }
+
+  await db.from('inv_users').update({ role }).eq('id', id)
+
+  if (role === 'prestataire' && !ficheId) {
+    await db.from('inv_providers').insert({
+      user_id: id,
+      brand: await activeBrandId(),
+      legal_name: compte.full_name,
+      invoice_prefix: 'FACT',
+      employment_type: 'independant',
+    })
+  }
+
+  await logAudit(null, {
+    actorId: admin.id,
+    entityType: 'user',
+    entityId: id,
+    action: 'role_change',
+    payload: { avant: compte.role, apres: role },
+  })
+  revalidatePath('/admin/equipe')
+}
