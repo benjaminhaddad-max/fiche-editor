@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { guideNom, guidePdf } from '@/lib/guides/pdf'
 import { trouverOuCreerMembre, trouverOuCreerPrestataire } from '@/lib/personnes'
+import { EMPLOYMENTS, type Employment } from '@/lib/types'
 import { templates } from '@/lib/email/templates'
 import { deliver, sendInvitation } from '@/lib/email/notify'
 import { cycleForDate, todayParis } from '@/lib/cycle'
@@ -327,7 +328,11 @@ export async function ajouterPrestataire(
         : `${nom} avait déjà un compte d'équipe${prevenir ? ', son accès vient de lui être renvoyé' : ''}.`,
     }
   }
-  const trouve = await trouverOuCreerPrestataire(db, { nom, email, telephone })
+  // Le statut d'emploi vient de l'onglet depuis lequel on ajoute : sur
+  // « Vacataires et alternants », on n'ajoute pas un indépendant.
+  const statut = String(fd.get('employment_type') ?? '')
+  const employment = (EMPLOYMENTS as string[]).includes(statut) ? (statut as Employment) : undefined
+  const trouve = await trouverOuCreerPrestataire(db, { nom, email, telephone, employment })
   if ('error' in trouve) return { error: trouve.error }
 
   // Le manager qui l'ajoute devient son interlocuteur par défaut.

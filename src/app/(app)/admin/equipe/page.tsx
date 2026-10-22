@@ -129,7 +129,7 @@ export default async function EquipePage({
       {/* Faire entrer quelqu'un et relancer tout le monde : ces deux gestes
           concernent les personnes, pas les prestations. Ils encombraient
           l'écran de validation, où l'on vient pour tout autre chose. */}
-      <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin={admin} />
+      <OutilsManager declaration={cycle.declarationDeadline} facture={cycle.invoiceDeadline} admin={admin} onglet={courant} />
 
       {admin && nouveau !== undefined && (
         <div className="mb-6">

@@ -19,11 +19,20 @@ export function OutilsManager({
   declaration,
   facture,
   admin,
+  onglet = 'prestataires',
 }: {
   declaration: string
   facture: string
   admin: boolean
+  /** L'onglet d'Équipe ouvert : il dit qui on est en train d'ajouter. */
+  onglet?: string
 }) {
+  // Sur « Vacataires et alternants », le choix utile n'est pas le rôle mais
+  // le statut : ces gens sont des intervenants payés en salaire. Sur
+  // « Managers et admins », c'est l'inverse — et il n'y a pas de fiche de
+  // facturation à créer.
+  const salaries = onglet === 'salaries'
+  const equipe = onglet === 'equipe'
   const [ouvert, setOuvert] = useState(false)
   const [ajout, ajouter] = useActionState<AjoutResultat | null, FormData>(ajouterPrestataire, null)
   const [relance, relancer] = useActionState<RelanceResultat | null, FormData>(relancerMaintenant, null)
@@ -34,13 +43,23 @@ export function OutilsManager({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-navy">
-              {admin ? 'Ajouter quelqu’un et lui envoyer ses accès' : 'Ajouter un intervenant et lui envoyer ses accès'}
+              {equipe
+                ? 'Ajouter un membre de l’équipe et lui envoyer ses accès'
+                : salaries
+                  ? 'Ajouter un salarié et lui envoyer ses accès'
+                  : admin
+                    ? 'Ajouter quelqu’un et lui envoyer ses accès'
+                    : 'Ajouter un intervenant et lui envoyer ses accès'}
             </p>
             <p className="mt-1 text-xs text-muted">
               Un nom, une adresse, et il reçoit son lien de connexion et le mode d’emploi.
-              {admin
-                ? ' Choisissez son rôle : un intervenant déclare et facture, un manager valide.'
-                : ' Le SIRET et l’IBAN, c’est lui qui les remplira.'}
+              {equipe
+                ? ' Un compte d’équipe n’a pas de fiche de facturation : il valide, il ne facture pas.'
+                : salaries
+                  ? ' Ses heures partiront à la paie, et il lui sera demandé ses éléments du mois.'
+                  : admin
+                    ? ' Choisissez son rôle : un intervenant déclare et facture, un manager valide.'
+                    : ' Le SIRET et l’IBAN, c’est lui qui les remplira.'}
             </p>
           </div>
           {!ouvert && (
@@ -72,13 +91,26 @@ export function OutilsManager({
               <Input id="telephone" name="telephone" type="tel" label="Téléphone (facultatif)" placeholder="06 12 34 56 78" />
               {/* Un manager n'ouvre pas de compte d'équipe : le choix ne lui
                   est pas montré, et le serveur le refuserait de toute façon. */}
-              {admin && (
+              {salaries ? (
+                <Select id="employment_type" name="employment_type" label="Statut" defaultValue="vacataire">
+                  <option value="vacataire">Vacataire — payé en salaire</option>
+                  <option value="alternant">Alternant — contrat d’apprentissage</option>
+                  <option value="salarie">Salarié — contrat de travail</option>
+                  <option value="salarie_enseignant">Salarié enseignant</option>
+                  <option value="interim">Intérim — via l’agence</option>
+                </Select>
+              ) : equipe && admin ? (
+                <Select id="role" name="role" label="Rôle" defaultValue="manager">
+                  <option value="manager">Manager — valide les déclarations</option>
+                  <option value="admin">Administration — accès complet</option>
+                </Select>
+              ) : admin ? (
                 <Select id="role" name="role" label="Rôle" defaultValue="prestataire">
                   <option value="prestataire">Intervenant — déclare et facture</option>
                   <option value="manager">Manager — valide les déclarations</option>
                   <option value="admin">Administration — accès complet</option>
                 </Select>
-              )}
+              ) : null}
             </div>
             <label className="flex items-center gap-2 text-xs text-navy/75">
               <input type="checkbox" name="prevenir" value="1" defaultChecked className="accent-navy" />
