@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/layout/AppShell'
 import { MarqueProvider } from '@/components/brand/MarqueProvider'
 import { SelecteurMarque } from '@/components/brand/SelecteurMarque'
+import { CouleursMarque } from '@/components/brand/CouleursMarque'
 import { BRANDS, estMultiMarque, servedBrandIds } from '@/lib/brand'
 import { activeBrand } from '@/lib/brand/actif'
 import { FicheAcompleter } from '@/components/profile/FicheAcompleter'
@@ -32,6 +33,7 @@ export default async function AppLayout({
 
   return (
     <MarqueProvider valeur={marque}>
+    <CouleursMarque marque={marque} />
     <AppShell
       selecteurMarque={
         peutChoisir ? (

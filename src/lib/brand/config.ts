@@ -29,6 +29,17 @@ export interface BrandConfig {
   logos: { cream: string; navy: string } | null
   /** Teintes de la charte, pour les emails et les documents. */
   palette: { dark: string; accent: string; light: string; ink: string }
+  /**
+   * Les couleurs de l'interface, quand elles diffèrent de celles du
+   * globals.css — qui sont celles de Diploma.
+   *
+   * Toute l'application se peint avec ces variables : navy pour le rail et
+   * les boutons, or pour les accents, crème pour les fonds. Elles étaient
+   * figées dans la feuille de style, si bien que Medibox et Linova
+   * s'affichaient en bleu nuit et or de Diploma. Une marque qui laisse ce
+   * champ vide garde ces couleurs-là.
+   */
+  ui?: Record<string, string>
   /** Qui reçoit les factures : c'est cette société qui est facturée. */
   company: {
     name: string
@@ -123,8 +134,27 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     // neutre — Nolwenn a ouvert son espace et y a vu le logo de Diploma.
     // Sans fichier propre, on écrit le nom, et c'est tout.
     logos: null,
-    // Teintes provisoires, à remplacer par la charte Medibox.
-    palette: { dark: '#0f3d4c', accent: '#4bb3a7', light: '#f4f8f8', ink: '#13262c' },
+    // Charte graphique Medibox 2026 : nuit, violet, lavande. Le violet sert
+    // aux accents et jamais aux grands aplats — les fonds sont nuit ou blancs.
+    palette: { dark: '#07050D', accent: '#6D4FD0', light: '#F5F3FF', ink: '#140E2E' },
+    ui: {
+      // Fonds sombres : rail, bandeaux. « Nuit » et ses voisines.
+      '--color-navy': '#140E2E',
+      '--color-navy-light': '#24194a',
+      '--color-navy-dark': '#07050D',
+      '--color-navy-soft': '#4C2FA8',
+      // L'accent remplace l'or : violet, indigo au survol, lavande en clair.
+      '--color-gold': '#6D4FD0',
+      '--color-gold-light': '#A78BFA',
+      '--color-gold-dark': '#4C2FA8',
+      // Les fonds clairs remplacent la crème : blanc et lilas pâle.
+      '--color-cream': '#F5F3FF',
+      '--color-cream-muted': '#FBFAFF',
+      '--color-cream-deep': '#E6E0FA',
+      '--color-line': '#E6E0FA',
+      '--color-stone': '#8B82A6',
+      '--color-muted': '#6B6480',
+    },
     // Relevé au registre des entreprises : SIREN 930 619 051, SAS créée le
     // 1er juillet 2024, enseignement supérieur (85.42Z). Clé de TVA et clé de
     // Luhn du SIRET vérifiées — ces lignes s'impriment sur chaque facture de

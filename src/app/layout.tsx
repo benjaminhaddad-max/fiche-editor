@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Fraunces, Inter, Poppins, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 import { BRANDS, deploymentBrandId } from '@/lib/brand'
+import { CouleursMarque } from '@/components/brand/CouleursMarque'
 
 // Les trois familles de Diploma Lab : Inter pour le texte, Fraunces pour les
 // titres, Space Grotesk pour les intitulés en capitales.
@@ -46,7 +47,13 @@ export default function RootLayout({
       lang="fr"
       className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable} ${poppins.variable}`}
     >
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {/* Les couleurs du déploiement, pour l'écran de connexion et les
+            pages publiques. Une fois connecté, le layout de l'application
+            les repeint selon la marque affichée. */}
+        <CouleursMarque marque={racine} />
+        {children}
+      </body>
     </html>
   )
 }
