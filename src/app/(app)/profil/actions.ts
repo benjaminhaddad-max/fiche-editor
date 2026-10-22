@@ -7,6 +7,7 @@ import { requireProvider } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ibanValide, normaliserIban } from '@/lib/iban'
+import { nirValide } from '@/lib/nir'
 
 export interface ProfileResult {
   error?: string
@@ -65,6 +66,17 @@ const ProfileSchema = z
         .refine(ibanValide, 'IBAN invalide : vérifiez les deux chiffres qui suivent « FR », puis le reste du numéro.')
     ),
     bic: optional(z.string().trim().transform((v) => v.toUpperCase())),
+    birth_date: optional(z.iso.date('Date de naissance invalide.')),
+    // Le numéro sert à la paie et aux déclarations, à rien d'autre. Sa clé
+    // est vérifiée : un chiffre de travers et l'organisme rejette le
+    // bulletin, un mois plus tard.
+    social_security_number: optional(
+      z
+        .string()
+        .trim()
+        .transform((v) => v.replace(/\s/g, '').toUpperCase())
+        .refine(nirValide, 'Numéro de sécurité sociale invalide : vérifiez les 15 caractères et la clé.')
+    ),
     vat_regime: z.enum(['franchise', 'exonere', 'normal']),
     invoice_mode: z.enum(['generated', 'uploaded']),
   })
@@ -91,6 +103,8 @@ const LIBELLES: Record<string, string> = {
   legal_name: 'Raison sociale',
   legal_form: 'Forme juridique',
   siret: 'SIRET',
+  birth_date: 'Date de naissance',
+  social_security_number: 'Numéro de sécurité sociale',
   vat_number: 'Numéro de TVA',
   address_line1: 'Adresse',
   address_line2: 'Complément d’adresse',

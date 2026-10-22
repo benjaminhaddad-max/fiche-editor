@@ -107,6 +107,14 @@ export interface Provider {
   /** Absent pour un fournisseur sans compte (facture reçue par email). */
   user_id: string | null
   employment_type: Employment
+  birth_date: string | null
+  /**
+   * Numéro de sécurité sociale.
+   *
+   * Usage limité à la paie et aux déclarations : il ne sort ni dans une
+   * liste, ni dans un export général, ni dans un email.
+   */
+  social_security_number: string | null
   /** Pourcentage retiré du montant convenu, du fait des charges du contrat. */
   pay_abatement: number
   /** Pôles auxquels cet abattement ne s'applique pas, pour cette personne. */

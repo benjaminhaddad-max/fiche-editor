@@ -164,6 +164,28 @@ export function ProfileForm({
           facture pas. */}
       {salarie && (
         <>
+          {/* Ce que la paie réclame, et que personne d'autre n'a à voir.
+              Un indépendant qui facture n'en a pas besoin. */}
+          {salarie && (
+            <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
+              <Input
+                id="birth_date"
+                name="birth_date"
+                type="date"
+                label="Date de naissance"
+                defaultValue={provider.birth_date ?? ''}
+              />
+              <Input
+                id="social_security_number"
+                name="social_security_number"
+                label="Numéro de sécurité sociale"
+                defaultValue={provider.social_security_number ?? ''}
+                placeholder="1 80 01 75 056 012 89"
+                hint="Pour votre bulletin de paie. Il n’apparaît nulle part ailleurs."
+              />
+            </div>
+          )}
+
           <input type="hidden" name="vat_regime" value={vatRegime} />
           <input type="hidden" name="invoice_mode" value={invoiceMode} />
         </>

@@ -8,6 +8,10 @@ import { isSalaried, type Provider } from '@/lib/types'
  * en arrivant : elle seule connaît son SIRET et son IBAN, et une saisie
  * faite par quelqu'un d'autre finit toujours par une erreur de virement.
  */
+/** Le SIRET est-il encore à venir ? */
+export const siretEnCours = (siret: string | null | undefined): boolean =>
+  /^en\s*cours$/i.test((siret ?? '').trim())
+
 export function champsManquants(p: Pick<
   Provider,
   'employment_type' | 'legal_name' | 'siret' | 'address_line1' | 'postal_code' | 'city' | 'iban' | 'phone'
@@ -19,7 +23,12 @@ export function champsManquants(p: Pick<
   // Un salarié ne facture pas : ni SIRET ni IBAN de facturation à demander,
   // son virement de paie passe par le dossier du social.
   if (!isSalaried(p.employment_type)) {
+    // « En cours » est accepté à la signature du contrat — l'auto-entreprise
+    // se crée souvent après. Mais une facture ne peut pas sortir sans le
+    // numéro définitif : c'est ce que le contrat promet, et c'est la
+    // mention obligatoire de l'émetteur.
     if (!p.siret?.trim()) manque.push('votre numéro de SIRET')
+    else if (siretEnCours(p.siret)) manque.push('votre numéro de SIRET définitif (il est encore « en cours »)')
     if (!p.iban?.trim()) manque.push('votre IBAN')
   }
   return manque
