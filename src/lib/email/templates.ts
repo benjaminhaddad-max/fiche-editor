@@ -3,21 +3,43 @@ import type { BillingCycle } from '@/lib/cycle'
 import { activeBrandId } from '@/lib/brand/actif'
 import { BRANDS, type BrandConfig, type BrandId } from '@/lib/brand'
 
+// L'adresse réelle du déploiement, et non le siteUrl de la marque : les
+// écoles qui n'ont pas encore leur domaine se connectent ici. Un lien vers
+// un domaine qui n'existe pas enverrait leurs prestataires dans le vide.
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 const INVITATION_DAYS = Number(process.env.INVITATION_DAYS ?? 30)
 
 /** Enveloppe HTML commune : sobre, lisible dans tous les clients mail. */
+/**
+ * Les teintes du message.
+ *
+ * Elles étaient écrites en dur, à la charte de Diploma : Nolwenn a reçu un
+ * calendrier Medibox en bleu nuit et or. Une école qui ne déclare pas de
+ * couleurs garde celles-là, donc rien ne bouge pour Diploma ni Linova.
+ */
+function teintes(m: BrandConfig) {
+  const v = (nom: string, defaut: string) => m.ui?.[nom] ?? defaut
+  return {
+    encre: v('--color-navy', '#0e1e35'),
+    accent: v('--color-gold-dark', '#a8892e'),
+    filet: v('--color-line', '#e5ddc8'),
+    fond: v('--color-cream', '#f7f4ee'),
+    carte: v('--color-cream-muted', '#fbf8f1'),
+  }
+}
+
 function layout(m: BrandConfig, title: string, body: string, cta?: { label: string; href: string }) {
+  const t = teintes(m)
   return `<!doctype html>
-<html lang="fr"><body style="margin:0;padding:0;background:#f7f4ee;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ee;padding:32px 12px;">
+<html lang="fr"><body style="margin:0;padding:0;background:${t.fond};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${t.fond};padding:32px 12px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-             style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #e5ddc8;
+             style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid ${t.filet};
                     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
         <tr><td style="padding:24px 28px 0;">
-          <p style="margin:0;font-size:13px;font-weight:600;color:#a8892e;letter-spacing:.3px;">${m.appTitle.toUpperCase()}</p>
-          <h1 style="margin:8px 0 0;font-size:19px;line-height:1.35;color:#0e1e35;">${title}</h1>
+          <p style="margin:0;font-size:13px;font-weight:600;color:${t.accent};letter-spacing:.3px;">${m.appTitle.toUpperCase()}</p>
+          <h1 style="margin:8px 0 0;font-size:19px;line-height:1.35;color:${t.encre};">${title}</h1>
         </td></tr>
         <tr><td style="padding:16px 28px 4px;font-size:14px;line-height:1.65;color:#3b4c63;">
           ${body}
@@ -25,13 +47,13 @@ function layout(m: BrandConfig, title: string, body: string, cta?: { label: stri
         ${
           cta
             ? `<tr><td style="padding:12px 28px 24px;">
-                 <a href="${cta.href}" style="display:inline-block;background:#0e1e35;color:#ffffff;
+                 <a href="${cta.href}" style="display:inline-block;background:${t.encre};color:#ffffff;
                     text-decoration:none;font-size:14px;font-weight:500;padding:11px 20px;border-radius:8px;">
                    ${cta.label}</a>
                </td></tr>`
             : '<tr><td style="height:16px"></td></tr>'
         }
-        <tr><td style="padding:16px 28px 22px;border-top:1px solid #e5ddc8;font-size:12px;color:#a89e8a;">
+        <tr><td style="padding:16px 28px 22px;border-top:1px solid ${t.filet};font-size:12px;color:#a89e8a;">
           ${m.company.name} — message automatique, merci de ne pas y répondre directement.
         </td></tr>
       </table>
@@ -47,14 +69,14 @@ function layout(m: BrandConfig, title: string, body: string, cta?: { label: stri
  * relevés Brevo l'ont montré noir sur blanc : trois invitations le même jour,
  * seule la première ouverte. On date donc l'objet.
  */
-function sujetInvitation(renewed?: boolean): string {
-  if (!renewed) return 'Créez votre accès à Diploma Invoice'
+function sujetInvitation(m: BrandConfig, renewed?: boolean): string {
+  if (!renewed) return `Créez votre accès à ${m.appTitle}`
   const jour = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
     timeZone: 'Europe/Paris',
   }).format(new Date())
-  return `Votre nouveau lien Diploma Invoice — ${jour}`
+  return `Votre nouveau lien ${m.appTitle} — ${jour}`
 }
 
 /** Dire explicitement que les anciens messages sont périmés. */
@@ -75,6 +97,7 @@ function avertissementRemplacement(renewed?: boolean): string {
  */
 export async function templates(brand?: BrandId) {
   const m = BRANDS[brand ?? (await activeBrandId())]
+  const t = teintes(m)
   return {
   /**
    * Première prise de contact. Le message change selon le rôle : un
@@ -82,7 +105,7 @@ export async function templates(brand?: BrandId) {
    * même texte les perdrait tous les deux.
    */
   invitation: (p: { fullName: string; link: string; renewed?: boolean }) => ({
-    subject: sujetInvitation(p.renewed),
+    subject: sujetInvitation(m, p.renewed),
     html: layout(m, 
       p.renewed ? 'Voici votre nouveau lien d’accès' : 'Votre espace de facturation est prêt',
       `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
@@ -104,7 +127,7 @@ export async function templates(brand?: BrandId) {
     isAdmin: boolean
     renewed?: boolean
   }) => ({
-    subject: sujetInvitation(p.renewed),
+    subject: sujetInvitation(m, p.renewed),
     html: layout(m, 
       p.renewed
         ? 'Voici votre nouveau lien d’accès'
@@ -137,7 +160,7 @@ export async function templates(brand?: BrandId) {
       'Prestation à corriger',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">La prestation suivante a été refusée par ${p.by} :</p>
-       <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;
+       <p style="margin:0 0 12px;padding:12px 14px;background:${t.carte};border-radius:8px;
                  border-left:3px solid #ef4444;"><strong>${p.detail}</strong><br>
          <span style="color:#7d8c9e;">Motif : ${p.reason}</span></p>
        <p style="margin:0;">Corrigez-la depuis votre espace, puis renvoyez-la en validation.</p>`,
@@ -232,7 +255,7 @@ export async function templates(brand?: BrandId) {
       'Une mission vous est proposée',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">${p.managerName} vous propose la mission suivante :</p>
-       <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;border-left:3px solid #c9a84c;">
+       <p style="margin:0 0 12px;padding:12px 14px;background:${t.carte};border-radius:8px;border-left:3px solid ${t.accent};">
          <strong>${p.title}</strong><br>
          du ${formatDate(p.start)} au ${formatDate(p.end)}<br>
          ${p.tarif} — <strong>${money(p.total)} HT</strong>
@@ -261,7 +284,7 @@ export async function templates(brand?: BrandId) {
       'Une mission vous est proposée',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">${p.managerName}, de ${m.company.name}, vous propose la mission suivante :</p>
-       <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;border-left:3px solid #c9a84c;">
+       <p style="margin:0 0 12px;padding:12px 14px;background:${t.carte};border-radius:8px;border-left:3px solid ${t.accent};">
          <strong>${p.title}</strong><br>
          du ${formatDate(p.start)} au ${formatDate(p.end)}<br>
          ${p.tarif} — <strong>${money(p.total)} HT</strong>
@@ -287,7 +310,7 @@ export async function templates(brand?: BrandId) {
       `<p style="margin:0 0 12px;">Bonjour ${p.managerName},</p>
        <p style="margin:0 0 12px;">${p.providerName} a <strong>${p.accepted ? 'accepté' : 'refusé'}</strong>
           la mission « ${p.title} ».</p>
-       ${p.note ? `<p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;">${p.note}</p>` : ''}`,
+       ${p.note ? `<p style="margin:0 0 12px;padding:12px 14px;background:${t.carte};border-radius:8px;">${p.note}</p>` : ''}`,
       { label: 'Voir mes bons de mission', href: `${APP_URL}/bons-de-mission` }
     ),
   }),
@@ -370,7 +393,7 @@ export async function templates(brand?: BrandId) {
       'Vous avez un nouveau message',
       `<p style="margin:0 0 12px;">Bonjour ${p.recipientName},</p>
        <p style="margin:0 0 12px;">${p.authorName} vous a écrit à propos de « ${p.subject} » :</p>
-       <p style="margin:0 0 12px;padding:12px 14px;background:#fbf8f1;border-radius:8px;border-left:3px solid #c9a84c;">${p.excerpt}</p>
+       <p style="margin:0 0 12px;padding:12px 14px;background:${t.carte};border-radius:8px;border-left:3px solid ${t.accent};">${p.excerpt}</p>
        <p style="margin:0;color:#7d8c9e;font-size:13px;">Répondez depuis la plateforme : l’échange reste attaché au dossier.</p>`,
       { label: 'Répondre', href: `${APP_URL}${p.href}` }
     ),
@@ -381,7 +404,7 @@ export async function templates(brand?: BrandId) {
   monthCalendar: (p: { name: string; public: 'prestataire' | 'salarie' | 'manager'; cycle: BillingCycle }) => {
     const c = p.cycle
     const ligne = (quand: string, quoi: string) =>
-      `<tr><td style="padding:6px 12px 6px 0;white-space:nowrap;vertical-align:top;font-weight:600;color:#0e1e35;">${quand}</td>
+      `<tr><td style="padding:6px 12px 6px 0;white-space:nowrap;vertical-align:top;font-weight:600;color:${t.encre};">${quand}</td>
            <td style="padding:6px 0;vertical-align:top;">${quoi}</td></tr>`
     const lignes =
       p.public === 'manager'
@@ -423,14 +446,14 @@ export async function templates(brand?: BrandId) {
                 puis vous éditez votre facture depuis votre espace — elle est pré-remplie, vous n’avez rien à ressaisir.</p>`
 
     return {
-      subject: `Calendrier de ${c.label} — Diploma Invoice`,
+      subject: `Calendrier ${c.label.startsWith('o') || c.label.startsWith('a') ? 'd’' : 'de '}${c.label} — ${m.appTitle}`,
       html: layout(m, 
         `Le calendrier de ${c.label}`,
         `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
          ${pourquoi}
          <p style="margin:0 0 12px;">Les dates à retenir :</p>
          <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">${lignes.join('')}</table>`,
-        { label: 'Ouvrir Diploma Invoice', href: APP_URL }
+        { label: `Ouvrir ${m.appTitle}`, href: APP_URL }
       ),
     }
   },
@@ -452,7 +475,7 @@ export async function templates(brand?: BrandId) {
   }),
 
   emailChange: (p: { name: string; ancienne: string; nouvelle: string; par: string }) => ({
-    subject: 'L’adresse de votre compte Diploma Invoice a été modifiée',
+    subject: `L’adresse de votre compte ${m.appTitle} a été modifiée`,
     html: layout(m, 
       'Votre adresse a changé',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
@@ -461,7 +484,7 @@ export async function templates(brand?: BrandId) {
        <p style="margin:0 0 12px;">C’est désormais avec elle que vous vous connectez. Les liens d’accès
           envoyés à ${p.ancienne} ne fonctionnent plus.</p>
        <p style="margin:0;">Si vous n’êtes pas à l’origine de ce changement, prévenez immédiatement votre
-          interlocuteur chez Diploma Santé.</p>`
+          interlocuteur chez ${m.company.name}.</p>`
     ),
   }),
 
@@ -542,19 +565,19 @@ export async function templates(brand?: BrandId) {
        ${p.lignes
          .map(
            (l) => `
-         <div style="margin:0 0 14px;padding:12px 14px;background:#f7f4ee;border-radius:8px;">
-           <p style="margin:0 0 6px;font-weight:600;color:#0e1e35;">${l.personne}
+         <div style="margin:0 0 14px;padding:12px 14px;background:${t.fond};border-radius:8px;">
+           <p style="margin:0 0 6px;font-weight:600;color:${t.encre};">${l.personne}
              <span style="font-weight:400;color:#8a7f6a;">— ${l.statut}</span></p>
-           <p style="margin:0 0 6px;font-size:16px;font-weight:600;color:#0e1e35;">${money(l.net + l.brut)} ${
+           <p style="margin:0 0 6px;font-size:16px;font-weight:600;color:${t.encre};">${money(l.net + l.brut)} ${
              l.brut && l.net ? 'à verser' : l.brut ? 'brut' : 'net'
-           }${l.brut && l.net ? ` <span style="font-size:13px;font-weight:500;color:#a8892e;">dont ${money(l.net)} en net</span>` : ''}</p>
+           }${l.brut && l.net ? ` <span style="font-size:13px;font-weight:500;color:${t.accent};">dont ${money(l.net)} en net</span>` : ''}</p>
            <ul style="margin:0;padding-left:18px;font-size:13px;color:#3b4c63;">
              ${l.detail.map((d) => `<li style="margin:2px 0;">${d}</li>`).join('')}
            </ul>
          </div>`
          )
          .join('')}
-       <p style="margin:14px 0 0;padding-top:12px;border-top:1px solid #e5ddc8;font-size:15px;">
+       <p style="margin:14px 0 0;padding-top:12px;border-top:1px solid ${t.filet};font-size:15px;">
          <strong>Total : ${money(p.totalNet + p.totalBrut)} ${
            p.totalBrut && p.totalNet ? 'à verser' : p.totalBrut ? 'brut' : 'net'
          }</strong>${p.totalBrut && p.totalNet ? ` — dont ${money(p.totalNet)} en net` : ''}</p>
