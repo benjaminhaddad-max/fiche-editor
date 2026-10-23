@@ -1,4 +1,4 @@
-import { isSalaried, type Provider } from '@/lib/types'
+import { estAuteur, isSalaried, type Provider } from '@/lib/types'
 
 /**
  * Ce qui manque encore à une fiche pour qu'on puisse payer la personne.
@@ -14,7 +14,8 @@ export const siretEnCours = (siret: string | null | undefined): boolean =>
 
 export function champsManquants(p: Pick<
   Provider,
-  'employment_type' | 'legal_name' | 'siret' | 'address_line1' | 'postal_code' | 'city' | 'iban' | 'phone'
+  | 'employment_type' | 'legal_name' | 'siret' | 'address_line1' | 'postal_code' | 'city' | 'iban' | 'phone'
+  | 'social_security_number'
 >): string[] {
   const manque: string[] = []
   if (!p.legal_name?.trim()) manque.push('votre nom ou raison sociale')
@@ -22,7 +23,14 @@ export function champsManquants(p: Pick<
   if (!p.phone?.trim()) manque.push('votre téléphone')
   // Un salarié ne facture pas : ni SIRET ni IBAN de facturation à demander,
   // son virement de paie passe par le dossier du social.
-  if (!isSalaried(p.employment_type)) {
+  if (estAuteur(p.employment_type)) {
+    // Pas de SIRET : un artiste-auteur n'est pas tenu d'en avoir. En
+    // revanche son numéro de sécurité sociale est indispensable — c'est
+    // par lui que l'Urssaf identifie l'auteur dans la déclaration de
+    // précompte que la société dépose pour lui.
+    if (!p.iban?.trim()) manque.push('votre IBAN')
+    if (!p.social_security_number?.trim()) manque.push('votre numéro de sécurité sociale')
+  } else if (!isSalaried(p.employment_type)) {
     // « En cours » est accepté à la signature du contrat — l'auto-entreprise
     // se crée souvent après. Mais une facture ne peut pas sortir sans le
     // numéro définitif : c'est ce que le contrat promet, et c'est la

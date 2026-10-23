@@ -5,7 +5,7 @@ import { Input, Select } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import type { ProfileResult } from '@/app/(app)/profil/actions'
-import { isSalaried, type InvoiceSource, type Provider, type VatRegime } from '@/lib/types'
+import { estAuteur, isSalaried, type InvoiceSource, type Provider, type VatRegime } from '@/lib/types'
 import { useMarque } from '@/components/brand/MarqueProvider'
 
 export function ProfileForm({
@@ -23,6 +23,11 @@ export function ProfileForm({
   // TVA ou un IBAN de facturation n'a pas de sens, et le laisse croire qu'il
   // lui manque quelque chose. Son virement de paie passe par le social.
   const salarie = isSalaried(provider.employment_type)
+  // L'artiste-auteur n'est pas tenu d'avoir un SIRET : ses revenus peuvent
+  // relever des traitements et salaires. Mais son numéro de sécurité
+  // sociale est indispensable, c'est par lui que l'Urssaf l'identifie dans
+  // la déclaration de précompte que la société dépose pour lui.
+  const auteur = estAuteur(provider.employment_type)
 
   // Champs contrôlés, volontairement. React 19 réinitialise un formulaire
   // non contrôlé dès qu'une action serveur se termine : sur une erreur de
@@ -69,7 +74,7 @@ export function ProfileForm({
             error={e.legal_name}
             required
           />
-          {!salarie && (
+          {!salarie && !auteur && (
             <>
               <Input
                 id="legal_form"
@@ -166,7 +171,7 @@ export function ProfileForm({
         <>
           {/* Ce que la paie réclame, et que personne d'autre n'a à voir.
               Un indépendant qui facture n'en a pas besoin. */}
-          {salarie && (
+          {(salarie || auteur) && (
             <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
               <Input
                 id="birth_date"
@@ -181,7 +186,11 @@ export function ProfileForm({
                 label="Numéro de sécurité sociale"
                 defaultValue={provider.social_security_number ?? ''}
                 placeholder="1 80 01 75 056 012 89"
-                hint="Pour votre bulletin de paie. Il n’apparaît nulle part ailleurs."
+                hint={
+                  auteur
+                    ? 'Obligatoire : vos cotisations sont précomptées et déclarées en votre nom. Il n’apparaît nulle part ailleurs.'
+                    : 'Pour votre bulletin de paie. Il n’apparaît nulle part ailleurs.'
+                }
               />
             </div>
           )}

@@ -18,6 +18,8 @@ interface FicheRelance {
   postal_code: string | null
   city: string | null
   phone: string | null
+  social_security_number: string | null
+| null
 }
 
 export interface Relance {
@@ -73,7 +75,7 @@ export async function relancerDeclarations(
     db
       .from('inv_users')
       .select(
-        'id, email, full_name, email_unreachable_reason, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type, legal_name, siret, iban, address_line1, postal_code, city, phone)'
+        'id, email, full_name, email_unreachable_reason, provider:inv_providers!inv_providers_user_id_fkey(id, onboarding_complete, employment_type, legal_name, siret, iban, address_line1, postal_code, city, phone, social_security_number)'
       )
       .eq('brand', (await activeBrandId()))
       .eq('role', 'prestataire')

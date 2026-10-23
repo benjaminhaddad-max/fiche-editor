@@ -43,6 +43,7 @@ export type Employment =
   | 'salarie'
   | 'salarie_enseignant'
   | 'interim'
+  | 'droits_auteur'
 
 export const EMPLOYMENTS: Employment[] = [
   'independant',
@@ -51,10 +52,31 @@ export const EMPLOYMENTS: Employment[] = [
   'salarie',
   'salarie_enseignant',
   'interim',
+  'droits_auteur',
 ]
 
+/**
+ * Les statuts payés par la paie.
+ *
+ * La liste est explicite, et non « tout sauf l'indépendant » : l'artiste-
+ * auteur n'est ni l'un ni l'autre. Il ne reçoit pas de bulletin, il émet
+ * une note de droits d'auteur — la règle par exclusion l'aurait rangé du
+ * côté des salariés et lui aurait fermé l'accès à ses factures.
+ */
+const PAYES_EN_SALAIRE: Employment[] = ['vacataire', 'alternant', 'salarie', 'salarie_enseignant', 'interim']
+
 export const isSalaried = (e: Employment | null | undefined) =>
-  Boolean(e) && e !== 'independant'
+  Boolean(e) && PAYES_EN_SALAIRE.includes(e as Employment)
+
+/**
+ * Rémunéré en droits d'auteur.
+ *
+ * Ni salarié, ni indépendant classique : pas de SIRET exigé — ses revenus
+ * peuvent relever des traitements et salaires —, mais un numéro de sécurité
+ * sociale indispensable, puisque c'est la société qui précompte ses
+ * cotisations et les déclare à l'Urssaf en son nom.
+ */
+export const estAuteur = (e: Employment | null | undefined) => e === 'droits_auteur'
 
 export interface PersonDocument {
   id: string

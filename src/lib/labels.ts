@@ -93,6 +93,7 @@ export const EMPLOYMENT_LABEL: Record<Employment, string> = {
   salarie: 'Salarié — salaire',
   salarie_enseignant: 'Salarié enseignant — salaire',
   interim: 'Intérim — via l’agence',
+  droits_auteur: 'Droits d’auteur — note de droits',
 }
 
 /** Le document qui fait foi pour chaque statut. */
@@ -103,6 +104,8 @@ export const EMPLOYMENT_HINT: Record<Employment, string> = {
   salarie: 'Contrat de travail ; bulletins classés dans son espace.',
   salarie_enseignant: 'Salarié enseignant : heures de cours suivies ici, payées en salaire.',
   interim: 'Mis à disposition par une agence, facturé par elle.',
+  droits_auteur:
+    'Artiste-auteur : il émet une note de droits d’auteur, pas une facture. Pas de SIRET exigé ; ses cotisations sont précomptées par la société.',
 }
 
 export const DOCUMENT_LABEL: Record<string, string> = {
