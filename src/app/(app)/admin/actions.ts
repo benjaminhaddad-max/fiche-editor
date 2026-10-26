@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { templates } from '@/lib/email/templates'
 import { deliver } from '@/lib/email/notify'
 import { ibanValide, normaliserIban } from '@/lib/iban'
+import { nirValide } from '@/lib/nir'
 import { z } from 'zod'
 import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -310,6 +311,17 @@ const Facturation = z.object({
   postal_code: z.string().trim().max(12).optional(),
   city: z.string().trim().max(80).optional(),
   phone: z.string().trim().max(30).optional(),
+  birth_date: z
+    .union([z.iso.date('Date de naissance invalide.'), z.literal('')])
+    .optional()
+    .transform((v) => (v === '' || v === undefined ? null : v)),
+  social_security_number: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s/g, '').toUpperCase())
+    .refine((v) => v === '' || nirValide(v), 'Numéro de sécurité sociale invalide : vérifiez les 15 caractères et la clé.')
+    .optional()
+    .transform((v) => (v === '' || v === undefined ? null : v)),
   iban: z.string().trim().max(40).optional(),
   bic: z.string().trim().max(15).optional(),
 })

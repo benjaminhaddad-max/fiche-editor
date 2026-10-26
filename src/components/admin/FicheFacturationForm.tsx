@@ -4,7 +4,7 @@ import { useActionState } from 'react'
 import { Input } from '@/components/ui/Field'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { changerEmail, corrigerFicheFacturation } from '@/app/(app)/admin/actions'
-import type { Provider } from '@/lib/types'
+import { estAuteur, isSalaried, type Provider } from '@/lib/types'
 
 interface Resultat {
   success?: string
@@ -33,6 +33,13 @@ export function FicheFacturationForm({
   const [state, action] = useActionState<Resultat, FormData>(corrigerFicheFacturation, {})
   const [mail, changer] = useActionState<Resultat, FormData>(changerEmail, {})
   const err = (c: string) => state.fieldErrors?.[c]
+  // Un artiste-auteur n'a pas de SIRET ni de TVA — mais un numéro de
+  // sécurité sociale, sans lequel la société ne peut pas déclarer son
+  // précompte. Nolwenn a dû écrire « Droit d'auteur » dans la forme
+  // juridique faute de trouver où mettre le reste.
+  const auteur = estAuteur(provider.employment_type)
+  const salarie = isSalaried(provider.employment_type)
+  const facture = !auteur && !salarie
 
   return (
     <>
@@ -72,17 +79,46 @@ export function FicheFacturationForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Input id="legal_name" name="legal_name" label="Nom ou raison sociale" defaultValue={provider.legal_name} error={err('legal_name')} required />
-        <Input id="legal_form" name="legal_form" label="Forme juridique" defaultValue={provider.legal_form ?? ''} placeholder="Micro-entreprise" error={err('legal_form')} />
-        <Input
-          id="siret"
-          name="siret"
-          label="SIRET"
-          defaultValue={provider.siret ?? ''}
-          placeholder="14 chiffres, ou « en cours »"
-          hint="Écrivez « en cours » tant que l’auto-entreprise est en création, puis corrigez dès réception."
-          error={err('siret')}
-        />
-        <Input id="vat_number" name="vat_number" label="N° de TVA" defaultValue={provider.vat_number ?? ''} error={err('vat_number')} />
+        {facture && (
+          <>
+            <Input id="legal_form" name="legal_form" label="Forme juridique" defaultValue={provider.legal_form ?? ''} placeholder="Micro-entreprise" error={err('legal_form')} />
+            <Input
+              id="siret"
+              name="siret"
+              label="SIRET"
+              defaultValue={provider.siret ?? ''}
+              placeholder="14 chiffres, ou « en cours »"
+              hint="Écrivez « en cours » tant que l’auto-entreprise est en création, puis corrigez dès réception."
+              error={err('siret')}
+            />
+            <Input id="vat_number" name="vat_number" label="N° de TVA" defaultValue={provider.vat_number ?? ''} error={err('vat_number')} />
+          </>
+        )}
+        {(auteur || salarie) && (
+          <>
+            <Input
+              id="birth_date"
+              name="birth_date"
+              type="date"
+              label="Date de naissance"
+              defaultValue={provider.birth_date ?? ''}
+              error={err('birth_date')}
+            />
+            <Input
+              id="social_security_number"
+              name="social_security_number"
+              label="Numéro de sécurité sociale"
+              defaultValue={provider.social_security_number ?? ''}
+              placeholder="1 80 01 75 056 012 89"
+              hint={
+                auteur
+                  ? 'Obligatoire : c’est par lui que l’Urssaf identifie l’auteur dans la déclaration de précompte.'
+                  : 'Pour le bulletin de paie.'
+              }
+              error={err('social_security_number')}
+            />
+          </>
+        )}
         <Input id="address_line1" name="address_line1" label="Adresse" defaultValue={provider.address_line1 ?? ''} error={err('address_line1')} />
         <Input id="address_line2" name="address_line2" label="Complément d’adresse" defaultValue={provider.address_line2 ?? ''} error={err('address_line2')} />
         <Input id="postal_code" name="postal_code" label="Code postal" defaultValue={provider.postal_code ?? ''} error={err('postal_code')} />

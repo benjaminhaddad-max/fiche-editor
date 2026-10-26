@@ -1,3 +1,6 @@
+import { formatDate } from '@/lib/format'
+import { estAuteur, isSalaried } from '@/lib/types'
+import { nirFormate } from '@/lib/nir'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -31,23 +34,39 @@ export default async function ProviderPage({
   if (!data) notFound()
   const provider = data as Provider & { user: { full_name: string; email: string } | null }
   const managers = await getManagers()
+  const auteur = estAuteur(provider.employment_type)
+  const salarie = isSalaried(provider.employment_type)
+  const facture = !auteur && !salarie
 
   const identity: [string, string | null][] = [
     // En tête, parce que c'est lui qu'on vient vérifier. Sans cette ligne,
     // on lisait « Forme juridique : Auto-entrepreneur » un peu plus bas et
     // on croyait que le statut était retombé dessus.
     ['Statut', EMPLOYMENT_LABEL[provider.employment_type] ?? provider.employment_type],
-    ['Forme juridique', provider.legal_form],
-    ['SIRET', provider.siret],
-    ['N° TVA', provider.vat_number],
-    [
-      'Régime TVA',
-      provider.vat_regime === 'franchise'
-        ? 'Sans TVA — franchise en base'
-        : provider.vat_regime === 'exonere'
-          ? 'Sans TVA — exonéré (formation professionnelle)'
-          : 'Assujetti 20 %',
-    ],
+    // Ce qui ne concerne pas le statut ne s'affiche pas : un auteur n'a ni
+    // SIRET ni TVA, et les voir marqués « non renseigné » en orange laissait
+    // croire qu'il manquait quelque chose pour le payer.
+    ...(facture
+      ? ([
+          ['Forme juridique', provider.legal_form],
+          ['SIRET', provider.siret],
+          ['N° TVA', provider.vat_number],
+          [
+            'Régime TVA',
+            provider.vat_regime === 'franchise'
+              ? 'Sans TVA — franchise en base'
+              : provider.vat_regime === 'exonere'
+                ? 'Sans TVA — exonéré (formation professionnelle)'
+                : 'Assujetti 20 %',
+          ],
+        ] as [string, string | null][])
+      : []),
+    ...(auteur || salarie
+      ? ([
+          ['Date de naissance', provider.birth_date ? formatDate(provider.birth_date) : null],
+          ['N° de sécurité sociale', provider.social_security_number ? nirFormate(provider.social_security_number) : null],
+        ] as [string, string | null][])
+      : []),
     [
       'Adresse',
       [provider.address_line1, provider.postal_code, provider.city]
