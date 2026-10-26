@@ -105,8 +105,15 @@ export function OutilsManager({
                   <option value="admin">Administration — accès complet</option>
                 </Select>
               ) : admin ? (
-                <Select id="role" name="role" label="Rôle" defaultValue="prestataire">
-                  <option value="prestataire">Intervenant — déclare et facture</option>
+                <Select
+                  id="role"
+                  name="role"
+                  label="Rôle et statut"
+                  defaultValue="prestataire"
+                  hint="Les statuts salariés se créent depuis l’onglet « Vacataires et alternants »."
+                >
+                  <option value="prestataire">Intervenant — facture ses prestations</option>
+                  <option value="prestataire:droits_auteur">Intervenant en droits d’auteur — note de droits, sans SIRET</option>
                   <option value="manager">Manager — valide les déclarations</option>
                   <option value="admin">Administration — accès complet</option>
                 </Select>

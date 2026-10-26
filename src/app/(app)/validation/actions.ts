@@ -301,7 +301,10 @@ export async function ajouterPrestataire(
   const prevenir = fd.get('prevenir') === '1'
   // Seule l'administration ouvre des comptes d'équipe ; un manager ne
   // recrute pas ses pairs. Toute autre valeur retombe sur prestataire.
-  const demande = String(fd.get('role') ?? 'prestataire')
+  // L'ajout rapide propose le rôle et, pour un intervenant, son statut —
+  // « prestataire:droits_auteur ». Les deux voyagent dans le même choix :
+  // un seul menu à lire, et les mêmes possibilités que le formulaire complet.
+  const [demande, statutChoisi] = String(fd.get('role') ?? 'prestataire').split(':')
   const role =
     user.role === 'admin' && (demande === 'manager' || demande === 'admin') ? demande : 'prestataire'
 
@@ -330,7 +333,7 @@ export async function ajouterPrestataire(
   }
   // Le statut d'emploi vient de l'onglet depuis lequel on ajoute : sur
   // « Vacataires et alternants », on n'ajoute pas un indépendant.
-  const statut = String(fd.get('employment_type') ?? '')
+  const statut = statutChoisi ?? String(fd.get('employment_type') ?? '')
   const employment = (EMPLOYMENTS as string[]).includes(statut) ? (statut as Employment) : undefined
   const trouve = await trouverOuCreerPrestataire(db, { nom, email, telephone, employment })
   if ('error' in trouve) return { error: trouve.error }

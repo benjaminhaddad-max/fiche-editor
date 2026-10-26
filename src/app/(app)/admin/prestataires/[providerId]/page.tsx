@@ -1,3 +1,4 @@
+import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
@@ -32,6 +33,10 @@ export default async function ProviderPage({
   const managers = await getManagers()
 
   const identity: [string, string | null][] = [
+    // En tête, parce que c'est lui qu'on vient vérifier. Sans cette ligne,
+    // on lisait « Forme juridique : Auto-entrepreneur » un peu plus bas et
+    // on croyait que le statut était retombé dessus.
+    ['Statut', EMPLOYMENT_LABEL[provider.employment_type] ?? provider.employment_type],
     ['Forme juridique', provider.legal_form],
     ['SIRET', provider.siret],
     ['N° TVA', provider.vat_number],
