@@ -203,6 +203,7 @@ const CategorySchema = z.object({
     .transform((v) => (v === '' ? null : v)),
   sort_order: z.coerce.number<number>().int().min(0).max(999),
   pole: z.enum(['coaching', 'professeur', 'referent', 'commercial', 'marketing', 'autres']),
+  default_manager_id: z.union([z.uuid(), z.literal('')]).transform((v) => v || null),
   visible_to_provider: z.coerce.boolean<boolean>(),
   is_active: z.coerce.boolean<boolean>(),
   /** Enseignement déclaré séance par séance plutôt qu'en total d'heures. */

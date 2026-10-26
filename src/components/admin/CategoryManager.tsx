@@ -14,10 +14,12 @@ import type { Category } from '@/lib/types'
 function CategoryForm({
   action,
   category,
+  managers,
   onDone,
 }: {
   action: (prev: AdminResult, formData: FormData) => Promise<AdminResult>
   category?: Category
+  managers: { id: string; full_name: string }[]
   onDone?: () => void
 }) {
   const [state, formAction] = useActionState<AdminResult, FormData>(action, {})
@@ -69,6 +71,22 @@ function CategoryForm({
         {POLES.map((p) => (
           <option key={p} value={p}>
             {POLE_LABEL[p]}
+          </option>
+        ))}
+      </Select>
+      {/* Le responsable suit la nature de la mission. Une même personne peut
+          faire du coaching et du tutorat : ce n'est pas le même vérificateur. */}
+      <Select
+        id={`resp-${category?.id ?? 'new'}`}
+        name="default_manager_id"
+        label="Responsable de la vérification"
+        defaultValue={category?.default_manager_id ?? ''}
+        hint="À défaut, c’est le manager par défaut du prestataire qui vérifie."
+      >
+        <option value="">— le manager par défaut du prestataire —</option>
+        {managers.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.full_name}
           </option>
         ))}
       </Select>
@@ -184,9 +202,12 @@ function ToggleCell({
 
 export function CategoryManager({
   categories,
+  managers,
   saveAction,
 }: {
   categories: Category[]
+  /** Pour désigner qui vérifie les prestations de chaque catégorie. */
+  managers: { id: string; full_name: string }[]
   saveAction: (prev: AdminResult, formData: FormData) => Promise<AdminResult>
 }) {
   const [editing, setEditing] = useState<string | null>(null)
@@ -207,7 +228,7 @@ export function CategoryManager({
       {creating && (
         <Card className="mb-6 p-6">
           <h2 className="mb-5 text-sm font-semibold text-navy">Nouvelle catégorie</h2>
-          <CategoryForm action={saveAction} onDone={() => setCreating(false)} />
+          <CategoryForm action={saveAction} managers={managers} onDone={() => setCreating(false)} />
         </Card>
       )}
 
@@ -271,6 +292,7 @@ export function CategoryManager({
                         <CategoryForm
                           action={saveAction}
                           category={c}
+                          managers={managers}
                           onDone={() => setEditing(null)}
                         />
                       </td>

@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/ui/Page'
+import { getManagers } from '@/lib/queries'
 import { CategoryManager } from '@/components/admin/CategoryManager'
 import { requireRole } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
@@ -25,6 +26,7 @@ export default async function CategoriesPage() {
       />
       <CategoryManager
         categories={(data ?? []) as Category[]}
+        managers={await getManagers()}
         saveAction={saveCategory}
       />
     </>

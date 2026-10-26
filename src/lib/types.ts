@@ -179,6 +179,8 @@ export interface Category {
   is_active: boolean
   sort_order: number
   pole: Pole
+  /** Qui vérifie les prestations de cette catégorie. */
+  default_manager_id: string | null
 }
 
 export interface Mission {

@@ -13,7 +13,7 @@ import { useMarque } from '@/components/brand/MarqueProvider'
 
 interface Props {
   action: (prev: ActionResult, formData: FormData) => Promise<ActionResult>
-  categories: Pick<Category, 'id' | 'name' | 'provider_label'>[]
+  categories: Pick<Category, 'id' | 'name' | 'provider_label' | 'default_manager_id'>[]
   managers: { id: string; full_name: string }[]
   mission?: Mission
   defaultManagerId?: string | null
@@ -32,6 +32,15 @@ export function MissionForm({
 
   const [pricingType, setPricingType] = useState<PricingType>(
     mission?.pricing_type ?? 'forfait_mission'
+  )
+  // Le responsable suit la nature de la mission : une même personne peut
+  // faire du coaching et du tutorat, et ce n'est pas le même vérificateur.
+  // La catégorie désigne le sien ; à défaut, celui du prestataire.
+  const [categoryId, setCategoryId] = useState(mission?.category_id ?? '')
+  const responsableDe = (id: string) =>
+    categories.find((c) => c.id === id)?.default_manager_id ?? defaultManagerId ?? ''
+  const [managerId, setManagerId] = useState(
+    mission?.manager_id ?? responsableDe(mission?.category_id ?? '')
   )
   const [quantity, setQuantity] = useState(String(mission?.quantity ?? '1'))
   const [unitAmount, setUnitAmount] = useState(String(mission?.unit_amount_ht ?? ''))
@@ -53,9 +62,10 @@ export function MissionForm({
             id="manager_id"
             name="manager_id"
             label="Manager"
-            defaultValue={mission?.manager_id ?? defaultManagerId ?? ''}
+            value={managerId}
+            onChange={(ev) => setManagerId(ev.target.value)}
             error={errors.manager_id}
-            hint={`La personne de ${useMarque().company.name} qui vous a confié la mission.`}
+            hint={`La personne de ${useMarque().company.name} qui vérifiera cette prestation.`}
             required
           >
             <option value="" disabled>
@@ -72,7 +82,11 @@ export function MissionForm({
             id="category_id"
             name="category_id"
             label="Catégorie de mission"
-            defaultValue={mission?.category_id ?? ''}
+            value={categoryId}
+            onChange={(ev) => {
+              setCategoryId(ev.target.value)
+              setManagerId(responsableDe(ev.target.value))
+            }}
             error={errors.category_id}
             hint="Si rien ne correspond, choisissez « Autres » et précisez dans le détail."
             required

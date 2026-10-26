@@ -15,12 +15,12 @@ import type { Category } from '@/lib/types'
 
 /** Categories proposables au prestataire (la RLS filtre deja visible/actif). */
 export async function getProviderCategories(): Promise<
-  Pick<Category, 'id' | 'name' | 'provider_label'>[]
+  Pick<Category, 'id' | 'name' | 'provider_label' | 'default_manager_id'>[]
 > {
   const supabase = await createServerSupabase()
   const { data } = await supabase
     .from('inv_categories')
-    .select('id, name, provider_label')
+    .select('id, name, provider_label, default_manager_id')
     .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .eq('visible_to_provider', true)
@@ -46,7 +46,7 @@ export async function getCategoriesWithPole(opts: { forProvider?: boolean } = {}
   const supabase = await createServerSupabase()
   let q = supabase
     .from('inv_categories')
-    .select('id, name, provider_label, pole, requires_session')
+    .select('id, name, provider_label, pole, requires_session, default_manager_id')
     .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .order('sort_order')
