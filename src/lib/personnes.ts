@@ -45,13 +45,13 @@ export async function trouverOuCreerPrestataire(
     return { providerId: id, userId: existant.id, cree: false }
   }
 
-  const { data: auth, error: authError } = await db.auth.admin.createUser({ email, email_confirm: true })
-  if (authError || !auth.user) return { error: `Création du compte impossible : ${authError?.message}` }
+  const identite = await ouvrirIdentite(db, email)
+  if ('error' in identite) return { error: identite.error }
 
   const { data: user, error: userError } = await db
     .from('inv_users')
     .insert({
-      auth_id: auth.user.id,
+      auth_id: identite.authId,
       email,
       full_name: p.nom,
       role: 'prestataire',
@@ -60,10 +60,9 @@ export async function trouverOuCreerPrestataire(
     })
     .select('id')
     .single()
-  if (userError || !user) {
-    await db.auth.admin.deleteUser(auth.user.id)
-    return { error: `Création du profil impossible : ${userError?.message}` }
-  }
+  // On ne supprime plus l'identité en cas d'échec : elle peut servir à une
+  // autre école, et l'effacer couperait l'accès de quelqu'un ailleurs.
+  if (userError || !user) return { error: `Création du profil impossible : ${userError?.message}` }
 
   const { data: fiche, error: ficheError } = await db
     .from('inv_providers')
@@ -115,13 +114,13 @@ export async function trouverOuCreerMembre(
     return { userId: existant.id as string, cree: false }
   }
 
-  const { data: auth, error: authError } = await db.auth.admin.createUser({ email, email_confirm: true })
-  if (authError || !auth.user) return { error: `Création du compte impossible : ${authError?.message}` }
+  const identite = await ouvrirIdentite(db, email)
+  if ('error' in identite) return { error: identite.error }
 
   const { data: user, error: userError } = await db
     .from('inv_users')
     .insert({
-      auth_id: auth.user.id,
+      auth_id: identite.authId,
       email,
       full_name: p.nom,
       role: p.role,
@@ -130,10 +129,41 @@ export async function trouverOuCreerMembre(
     })
     .select('id')
     .single()
-  if (userError || !user) {
-    await db.auth.admin.deleteUser(auth.user.id)
-    return { error: `Création du profil impossible : ${userError?.message}` }
-  }
+  if (userError || !user) return { error: `Création du profil impossible : ${userError?.message}` }
 
   return { userId: user.id as string, cree: true }
+}
+
+/**
+ * L'identité de connexion de cette adresse, si elle existe déjà.
+ *
+ * Les comptes d'authentification sont communs à toutes les écoles : une
+ * personne qui travaille pour deux d'entre elles n'en a qu'un. Chercher
+ * avant de créer évite l'échec « cette adresse existe déjà » sur quelqu'un
+ * que l'école en cours ne voit pas — Meryeme dirige Linova et donne des
+ * cours pour Diploma, Florine enseigne chez Diploma et rejoint Medibox.
+ */
+export async function identiteExistante(db: Db, email: string): Promise<string | null> {
+  const cherche = email.trim().toLowerCase()
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage: 200 })
+    if (error || !data?.users?.length) return null
+    const trouve = data.users.find((u) => (u.email ?? '').toLowerCase() === cherche)
+    if (trouve) return trouve.id
+    if (data.users.length < 200) return null
+  }
+  return null
+}
+
+/**
+ * Crée l'identité de connexion, ou retrouve celle qui existe déjà.
+ *
+ * Renvoie l'identifiant d'authentification, partagé entre les écoles.
+ */
+export async function ouvrirIdentite(db: Db, email: string): Promise<{ authId: string } | { error: string }> {
+  const { data, error } = await db.auth.admin.createUser({ email, email_confirm: true })
+  if (data?.user) return { authId: data.user.id }
+  const deja = await identiteExistante(db, email)
+  if (deja) return { authId: deja }
+  return { error: `Création du compte impossible : ${error?.message ?? 'erreur inconnue'}` }
 }

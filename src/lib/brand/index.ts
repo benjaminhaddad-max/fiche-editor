@@ -60,5 +60,8 @@ export function estMarqueServie(id: BrandId): boolean {
   return servedBrandIds().includes(id)
 }
 
+/** Nom du cookie qui porte l'école choisie. */
+export const COOKIE_MARQUE = 'marque'
+
 /** Repli sûr quand aucune session n'est disponible (cron, page publique). */
 export const MARQUE_PAR_DEFAUT = deploymentBrandId

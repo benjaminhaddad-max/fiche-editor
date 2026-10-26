@@ -3,7 +3,8 @@
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/auth'
-import { COOKIE_MARQUE } from '@/lib/brand/actif'
+import { COOKIE_MARQUE } from '@/lib/brand'
+import { marquesDisponibles } from '@/lib/brand/actif'
 import { estMarqueServie, normalizeBrandId } from '@/lib/brand'
 
 /**
@@ -15,11 +16,11 @@ import { estMarqueServie, normalizeBrandId } from '@/lib/brand'
  * rôle entre-temps.
  */
 export async function choisirMarque(fd: FormData): Promise<void> {
-  const user = await requireUser()
-  if (user.brand !== 'all') return
-
+  await requireUser()
+  // Seules ses propres écoles : le cookie ne peut pas en ouvrir une autre.
+  const permises = await marquesDisponibles()
   const choisie = normalizeBrandId(String(fd.get('marque') ?? ''))
-  if (!estMarqueServie(choisie)) return
+  if (!permises.includes(choisie) || !estMarqueServie(choisie)) return
 
   const jar = await cookies()
   jar.set(COOKIE_MARQUE, choisie, {

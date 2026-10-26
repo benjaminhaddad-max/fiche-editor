@@ -1,19 +1,18 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { cache } from 'react'
 import { cookies } from 'next/headers'
-import { getSessionUser } from '@/lib/auth'
+import { getSessionUser, mesMarques } from '@/lib/auth'
 import {
   BRANDS,
+  COOKIE_MARQUE,
   brandScopeOf,
   deploymentBrandId,
   estMarqueServie,
   normalizeBrandId,
+  servedBrandIds,
   type BrandConfig,
   type BrandId,
 } from '@/lib/brand'
-
-/** Nom du cookie qui porte le choix du sélecteur. */
-export const COOKIE_MARQUE = 'marque'
 
 /**
  * La marque de la requête en cours.
@@ -48,11 +47,26 @@ export function sousMarque<T>(id: BrandId, faire: () => Promise<T>): Promise<T> 
 const depuisLaSession = cache(async (): Promise<BrandId> => {
   const user = await getSessionUser()
   if (!user) return deploymentBrandId()
-  if (user.brand !== 'all') return normalizeBrandId(user.brand)
+
+  // Les écoles où cette personne peut se tenir : toutes celles du
+  // déploiement pour une direction transverse, sinon les siennes.
+  const permises =
+    user.brand === 'all' ? servedBrandIds() : (await mesMarques()).map(normalizeBrandId)
+  if (permises.length < 2) return normalizeBrandId(user.brand === 'all' ? deploymentBrandId() : user.brand)
 
   const choisie = normalizeBrandId((await cookies()).get(COOKIE_MARQUE)?.value)
-  return estMarqueServie(choisie) ? choisie : deploymentBrandId()
+  if (permises.includes(choisie) && estMarqueServie(choisie)) return choisie
+  return permises.includes(deploymentBrandId()) ? deploymentBrandId() : permises[0]
 })
+
+/** Les écoles entre lesquelles cette personne peut basculer. */
+export async function marquesDisponibles(): Promise<BrandId[]> {
+  const user = await getSessionUser()
+  if (!user) return []
+  const permises =
+    user.brand === 'all' ? servedBrandIds() : (await mesMarques()).map(normalizeBrandId)
+  return permises.filter(estMarqueServie)
+}
 
 /**
  * La marque de la requête, ou celle qu'on a imposée.

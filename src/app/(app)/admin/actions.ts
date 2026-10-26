@@ -1,5 +1,7 @@
 'use server'
 
+import { identiteExistante } from '@/lib/personnes'
+
 import { revalidatePath } from 'next/cache'
 import { templates } from '@/lib/email/templates'
 import { deliver } from '@/lib/email/notify'
@@ -63,20 +65,23 @@ export async function createUserAccount(
 
   const service = createServiceClient()
 
+  // L'identité de connexion est commune aux écoles : si elle existe déjà,
+  // on la réutilise au lieu d'échouer. C'est ce qui permet à quelqu'un de
+  // travailler pour deux écoles avec une seule adresse.
   const { data: created, error: authError } = await service.auth.admin.createUser({
     email: v.email,
     password: v.password,
     email_confirm: true,
   })
-
-  if (authError || !created.user) {
+  const authId = created?.user?.id ?? (await identiteExistante(service, v.email))
+  if (!authId) {
     return { error: `Création du compte impossible : ${authError?.message ?? 'erreur inconnue'}` }
   }
 
   const { data: appUser, error: userError } = await service
     .from('inv_users')
     .insert({
-      auth_id: created.user.id,
+      auth_id: authId,
       email: v.email,
       full_name: v.full_name,
       role: v.role,
@@ -87,8 +92,9 @@ export async function createUserAccount(
     .single()
 
   if (userError || !appUser) {
-    // On ne laisse pas un compte Auth orphelin derriere nous.
-    await service.auth.admin.deleteUser(created.user.id)
+    // On n'efface l'identité que si on vient de la créer : elle peut
+    // appartenir à quelqu'un qui travaille déjà pour une autre école.
+    if (created?.user) await service.auth.admin.deleteUser(created.user.id)
     return { error: `Création du profil impossible : ${userError?.message}` }
   }
 

@@ -3,7 +3,7 @@ import { MarqueProvider } from '@/components/brand/MarqueProvider'
 import { SelecteurMarque } from '@/components/brand/SelecteurMarque'
 import { CouleursMarque } from '@/components/brand/CouleursMarque'
 import { BRANDS, estMultiMarque, servedBrandIds } from '@/lib/brand'
-import { activeBrand } from '@/lib/brand/actif'
+import { activeBrand, marquesDisponibles } from '@/lib/brand/actif'
 import { FicheAcompleter } from '@/components/profile/FicheAcompleter'
 import { ImpersonationBanner } from '@/components/layout/ImpersonationBanner'
 import { requireUser } from '@/lib/auth'
@@ -28,8 +28,11 @@ export default async function AppLayout({
   }
   const unread = await countUnread(user.id)
   const marque = await activeBrand()
-  // Le sélecteur ne s'affiche que s'il y a vraiment un choix à faire.
-  const peutChoisir = user.brand === 'all' && estMultiMarque()
+  // Le sélecteur ne s'affiche que s'il y a vraiment un choix à faire :
+  // une direction transverse, ou quelqu'un qui travaille pour plusieurs
+  // écoles — Meryeme dirige Linova et donne des cours pour Diploma.
+  const ecoles = await marquesDisponibles()
+  const peutChoisir = ecoles.length > 1
 
   return (
     <MarqueProvider valeur={marque}>
@@ -37,10 +40,7 @@ export default async function AppLayout({
     <AppShell
       selecteurMarque={
         peutChoisir ? (
-          <SelecteurMarque
-            marques={servedBrandIds().map((id) => ({ id, nom: BRANDS[id].name }))}
-            active={marque.id}
-          />
+          <SelecteurMarque marques={ecoles.map((id) => ({ id, nom: BRANDS[id].name }))} active={marque.id} />
         ) : undefined
       }
       user={{ full_name: user.full_name, email: user.email, role: user.role }}
