@@ -52,7 +52,14 @@ const ProfileSchema = z
     vat_number: optional(z.string().trim()),
     address_line1: z.string().trim().min(3, 'Adresse obligatoire.'),
     address_line2: optional(z.string().trim()),
-    postal_code: z.string().trim().regex(/^\d{4,10}$/, 'Code postal invalide.'),
+    // Tous les codes postaux ne sont pas des chiffres : Aurore habite aux
+    // Pays-Bas, où ils s'écrivent « 1012 AB ». Le Royaume-Uni, le Canada et
+    // l'Irlande mêlent aussi lettres et chiffres. On exige seulement un
+    // chiffre quelque part, et une longueur plausible.
+    postal_code: z
+      .string()
+      .trim()
+      .regex(/^(?=.*\d)[A-Za-z0-9][A-Za-z0-9 -]{2,11}$/, 'Code postal invalide.'),
     city: z.string().trim().min(1, 'Ville obligatoire.'),
     country: z.string().trim().min(2, 'Pays obligatoire.'),
     phone: optional(z.string().trim()),
