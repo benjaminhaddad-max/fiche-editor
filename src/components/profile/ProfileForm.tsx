@@ -167,34 +167,44 @@ export function ProfileForm({
       {/* Le serveur attend toujours ces deux réglages : on renvoie ceux
           déjà enregistrés plutôt que de les demander à quelqu’un qui ne
           facture pas. */}
+      {/* Sa propre carte, et non plus un bloc niché dans celui des salariés :
+          un auteur n'est pas salarié, il ne voyait donc jamais ces deux
+          champs — tout en se faisant refuser sa note faute de les avoir
+          remplis. Antoine a cherché l'endroit sans le trouver. */}
+      {(salarie || auteur) && (
+        <Card className="p-6">
+          <h2 className="mb-1 text-sm font-semibold text-navy">
+            {auteur ? 'Pour la déclaration de vos droits d’auteur' : 'Pour votre bulletin de paie'}
+          </h2>
+          <p className="mb-5 text-xs text-muted">
+            {auteur
+              ? 'Vos cotisations sont retenues et déclarées en votre nom à l’Urssaf : ces deux informations sont indispensables pour que votre note soit émise et payée.'
+              : 'Transmis au service qui établit votre bulletin.'}
+          </p>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Input
+              id="birth_date"
+              name="birth_date"
+              type="date"
+              label="Date de naissance"
+              defaultValue={provider.birth_date ?? ''}
+            />
+            <Input
+              id="social_security_number"
+              name="social_security_number"
+              label="Numéro de sécurité sociale"
+              defaultValue={provider.social_security_number ?? ''}
+              placeholder="1 80 01 75 056 012 89"
+              hint="Les 15 caractères, clé comprise. Il n’apparaît nulle part ailleurs."
+            />
+          </div>
+        </Card>
+      )}
+
       {salarie && (
         <>
-          {/* Ce que la paie réclame, et que personne d'autre n'a à voir.
-              Un indépendant qui facture n'en a pas besoin. */}
-          {(salarie || auteur) && (
-            <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
-              <Input
-                id="birth_date"
-                name="birth_date"
-                type="date"
-                label="Date de naissance"
-                defaultValue={provider.birth_date ?? ''}
-              />
-              <Input
-                id="social_security_number"
-                name="social_security_number"
-                label="Numéro de sécurité sociale"
-                defaultValue={provider.social_security_number ?? ''}
-                placeholder="1 80 01 75 056 012 89"
-                hint={
-                  auteur
-                    ? 'Obligatoire : vos cotisations sont précomptées et déclarées en votre nom. Il n’apparaît nulle part ailleurs.'
-                    : 'Pour votre bulletin de paie. Il n’apparaît nulle part ailleurs.'
-                }
-              />
-            </div>
-          )}
-
+          {/* Le serveur attend ces deux réglages : on renvoie ceux déjà
+              enregistrés plutôt que de les demander à qui ne facture pas. */}
           <input type="hidden" name="vat_regime" value={vatRegime} />
           <input type="hidden" name="invoice_mode" value={invoiceMode} />
         </>
@@ -203,12 +213,17 @@ export function ProfileForm({
       {!salarie && (
         <>
         <Card className="p-6">
-          <h2 className="mb-1 text-sm font-semibold text-navy">TVA et règlement</h2>
+          <h2 className="mb-1 text-sm font-semibold text-navy">
+            {auteur ? 'Règlement' : 'TVA et règlement'}
+          </h2>
           <p className="mb-5 text-xs text-muted">
-            Si vous ne facturez pas de TVA, choisissez « Sans TVA » : c’est le cas de la plupart
-            des intervenants, y compris en société.
+            {auteur
+              ? 'Une note de droits d’auteur ne porte pas de TVA : il n’y a rien à choisir ici.'
+              : 'Si vous ne facturez pas de TVA, choisissez « Sans TVA » : c’est le cas de la plupart des intervenants, y compris en société.'}
           </p>
+          {auteur && <input type="hidden" name="vat_regime" value={vatRegime} />}
           <div className="grid gap-5 sm:grid-cols-2">
+            {!auteur && (
             <Select
               id="vat_regime"
               name="vat_regime"
@@ -232,25 +247,27 @@ export function ProfileForm({
               <option value="exonere">Sans TVA — exonéré, formation professionnelle (art. 261-4-4° a)</option>
               <option value="normal">Avec TVA — assujetti à 20 %</option>
             </Select>
-            {vatRegime === 'normal' ? (
-              <Input
-                id="vat_number"
-                name="vat_number"
-                label="Numéro de TVA intracommunautaire"
-                placeholder="FR00123456789"
-                value={champs.vat_number}
-              onChange={maj('vat_number')}
-                error={e.vat_number}
-                required
-              />
-            ) : (
-              <div className="flex items-end pb-1">
-                <p className="text-xs text-muted">
-                  En franchise en base, vous n’avez pas de numéro de TVA
-                  intracommunautaire : il n’y a rien à renseigner ici.
-                </p>
-              </div>
             )}
+            {!auteur &&
+              (vatRegime === 'normal' ? (
+                <Input
+                  id="vat_number"
+                  name="vat_number"
+                  label="Numéro de TVA intracommunautaire"
+                  placeholder="FR00123456789"
+                  value={champs.vat_number}
+                  onChange={maj('vat_number')}
+                  error={e.vat_number}
+                  required
+                />
+              ) : (
+                <div className="flex items-end pb-1">
+                  <p className="text-xs text-muted">
+                    En franchise en base, vous n’avez pas de numéro de TVA
+                    intracommunautaire : il n’y a rien à renseigner ici.
+                  </p>
+                </div>
+              ))}
             <Input
               id="iban"
               name="iban"
