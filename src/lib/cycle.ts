@@ -31,6 +31,14 @@ export interface BillingCycle {
   periodEnd: string
   /** Dernier jour pour déclarer (L−3). */
   declarationDeadline: string
+  /**
+   * Dernier jour pour déclarer, quand on est sous contrat (L−4).
+   *
+   * Un jour avant les indépendants. Ce qu'un salarié déclare part à la
+   * paie, pas sur une facture : il faut que les managers aient relu avant
+   * que le récapitulatif ne parte au service qui établit les bulletins.
+   */
+  declarationDeadlineSalarie: string
   /** Vérification des managers (L−2 → L). */
   reviewStart: string
   reviewEnd: string
@@ -128,6 +136,7 @@ export function billingCycle(year: number, month: number): BillingCycle {
     periodStart: iso(utc(year, month, 1)),
     periodEnd: iso(last),
     declarationDeadline: iso(addDays(last, -REVIEW_DAYS)),
+    declarationDeadlineSalarie: iso(addDays(last, -(REVIEW_DAYS + 1))),
     reviewStart: iso(addDays(last, -(REVIEW_DAYS - 1))),
     reviewEnd: iso(last),
     statementDate: iso(statement),
@@ -183,9 +192,18 @@ export function phaseOf(cycle: BillingCycle, today: string = todayParis()): Cycl
  * Jusqu'à L−3 du mois de la prestation. Au-delà, c'est son manager qui
  * l'ajoute pendant la vérification.
  */
-export function providerCanDeclare(missionDate: string, today: string = todayParis()): boolean {
-  return today <= cycleForDate(missionDate).declarationDeadline
+export function providerCanDeclare(
+  missionDate: string,
+  today: string = todayParis(),
+  salarie = false
+): boolean {
+  const c = cycleForDate(missionDate)
+  return today <= (salarie ? c.declarationDeadlineSalarie : c.declarationDeadline)
 }
+
+/** L'échéance de déclaration qui s'applique à ce statut. */
+export const echeanceDeclaration = (c: BillingCycle, salarie: boolean) =>
+  salarie ? c.declarationDeadlineSalarie : c.declarationDeadline
 
 /**
  * Le mois de cette date est-il en vérification ?

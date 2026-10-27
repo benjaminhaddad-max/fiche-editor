@@ -4,8 +4,9 @@ import { guideNom, guidePdf } from '@/lib/guides/pdf'
 import { templates } from '@/lib/email/templates'
 import { champsManquants } from '@/lib/profil'
 import { createServiceClient } from '@/lib/supabase/service'
-import type { Employment } from '@/lib/types'
+import { isSalaried, type Employment } from '@/lib/types'
 import { activeBrandId } from '@/lib/brand/actif'
+import { echeanceDeclaration } from '@/lib/cycle'
 
 interface FicheRelance {
   id: string
@@ -154,7 +155,9 @@ export async function relancerDeclarations(
       to: { email: u.email, name: u.full_name },
       ...(await templates()).declarationReminder({
         name: u.full_name,
-        deadline: cycle.declarationDeadline,
+        // Un salarié a un jour de moins : ses heures doivent être relues
+        // avant que le récapitulatif ne parte à la paie.
+        deadline: echeanceDeclaration(cycle, isSalaried(fiche.employment_type)),
         label: cycle.label,
       }),
       template: 'declaration_reminder',

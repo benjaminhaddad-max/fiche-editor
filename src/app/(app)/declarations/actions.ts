@@ -5,12 +5,13 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getSessionUser } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { cycleForDate, enVerification, managerCanEdit, providerCanDeclare } from '@/lib/cycle'
+import { cycleForDate, enVerification, managerCanEdit, providerCanDeclare, echeanceDeclaration } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
+import { isSalaried } from '@/lib/types'
 
 export interface DeclarationResult {
   error?: string
@@ -157,13 +158,18 @@ export async function declarer(
       lineErrors[i] = 'Les bonus concernent les vacataires et alternants.'
       return
     }
-    if (user.role === 'prestataire' && !providerCanDeclare(r.data.date) && !r.data.regularisation) {
+    const souscontrat = isSalaried(provider.employment_type)
+    if (
+      user.role === 'prestataire' &&
+      !providerCanDeclare(r.data.date, undefined, souscontrat) &&
+      !r.data.regularisation
+    ) {
       const c = cycleForDate(r.data.date)
       // Le message nomme la case telle qu'elle s'appelle à l'écran : deux
       // mots pour un seul interrupteur, et on cherche celui qui n'existe pas.
       lineErrors[i] = enVerification(r.data.date)
         ? `${c.label} est en vérification depuis le ${formatDateLong(c.reviewStart)} : cochez « déclaration tardive » pour l’ajouter quand même.`
-        : `${c.label} est clos depuis le ${formatDateLong(c.declarationDeadline)} : cochez « rattrapage d’un mois passé » pour l’ajouter quand même.`
+        : `${c.label} est clos depuis le ${formatDateLong(echeanceDeclaration(c, souscontrat))} : cochez « rattrapage d’un mois passé » pour l’ajouter quand même.`
       return
     }
     if (exigeSeance.has(r.data.category_id)) {
