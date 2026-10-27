@@ -128,7 +128,9 @@ export async function relancerDeclarations(
         out.echecs.push(u.email)
         continue
       }
-      const pour = fiche.employment_type === 'independant' ? 'prestataire' : 'salarie'
+      // Un auteur reçoit le guide de celui qui émet un document, pas
+      // celui du salarié à qui l'on dit qu'il n'a aucune facture à faire.
+      const pour = isSalaried(fiche.employment_type) ? 'salarie' : 'prestataire'
       await deliver({
         to: { email: u.email, name: u.full_name },
         ...(await templates()).monthCalendar({ name: u.full_name, public: pour, cycle }),

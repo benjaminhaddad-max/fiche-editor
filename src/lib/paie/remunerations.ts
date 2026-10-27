@@ -84,7 +84,9 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
   }
   for (const m of missions ?? []) {
     const l = lignes.get(m.provider_id)
-    if (!l || l.statut === 'independant') continue
+    // Seuls les salariés ont des éléments à transmettre à la paie. Un
+    // artiste-auteur émet une note : ses montants n'ont rien à faire ici.
+    if (!l || !isSalaried(l.statut)) continue
     // Le net et le brut ne s'additionnent pas : on les tient séparés jusqu'au
     // bout, et c'est la paie qui fait la conversion.
     if (m.pay_basis === 'net') l.variablesNet += Number(m.total_ht)

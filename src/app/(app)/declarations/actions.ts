@@ -154,7 +154,7 @@ export async function declarer(
       lineErrors[i] = 'Ce manager n’est plus en poste.'
       return
     }
-    if (r.data.kind === 'bonus' && provider.employment_type === 'independant') {
+    if (r.data.kind === 'bonus' && !isSalaried(provider.employment_type)) {
       lineErrors[i] = 'Les bonus concernent les vacataires et alternants.'
       return
     }

@@ -73,7 +73,7 @@ export async function VueMois({ cycle }: { cycle: BillingCycle }) {
                           <FileText size={13} />
                           Ouvrir
                         </a>
-                      ) : l.statut === 'independant' ? (
+                      ) : !isSalaried(l.statut) ? (
                         <span className="text-xs text-muted">—</span>
                       ) : (
                         <span className="text-xs text-amber-700">pas encore reçu</span>

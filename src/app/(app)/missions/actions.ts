@@ -10,6 +10,7 @@ import { round2 } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
+import { estAuteur, isSalaried } from '@/lib/types'
 
 export interface ActionResult {
   error?: string
@@ -105,7 +106,12 @@ export async function createMission(
       unit_amount_ht: v.unit_amount_ht,
       abatement_rate: abattement,
       // Pour un salarié, le montant porté est ce qu'il touche : un net.
-      pay_basis: provider.employment_type === 'independant' ? null : 'net',
+      // Pour un auteur, c'est un brut — la société en retient le précompte.
+      pay_basis: isSalaried(provider.employment_type)
+        ? 'net'
+        : estAuteur(provider.employment_type)
+          ? 'brut'
+          : null,
       total_ht: total,
       status: submit ? 'submitted' : 'draft',
       submitted_at: submit ? new Date().toISOString() : null,
