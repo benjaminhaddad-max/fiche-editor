@@ -4,7 +4,9 @@ import { useActionState } from 'react'
 import { Input } from '@/components/ui/Field'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { changerEmail, corrigerFicheFacturation } from '@/app/(app)/admin/actions'
-import { estAuteur, isSalaried, type Provider } from '@/lib/types'
+import { EMPLOYMENTS, estAuteur, isSalaried, type Provider } from '@/lib/types'
+import { EMPLOYMENT_HINT, EMPLOYMENT_LABEL } from '@/lib/labels'
+import { Select } from '@/components/ui/Field'
 
 interface Resultat {
   success?: string
@@ -78,6 +80,21 @@ export function FicheFacturationForm({
       <input type="hidden" name="provider_id" value={provider.id} />
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {/* En tête de fiche : c'est lui qui commande tout le reste — qui
+            facture, qui reçoit un bulletin, qui émet une note de droits. */}
+        <Select
+          id="employment_type"
+          name="employment_type"
+          label="Statut"
+          defaultValue={provider.employment_type}
+          hint={EMPLOYMENT_HINT[provider.employment_type] ?? 'Détermine si la personne facture ou est payée en salaire.'}
+        >
+          {EMPLOYMENTS.map((s) => (
+            <option key={s} value={s}>
+              {EMPLOYMENT_LABEL[s]}
+            </option>
+          ))}
+        </Select>
         <Input id="legal_name" name="legal_name" label="Nom ou raison sociale" defaultValue={provider.legal_name} error={err('legal_name')} required />
         {facture && (
           <>

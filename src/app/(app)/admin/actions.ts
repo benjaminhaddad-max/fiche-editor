@@ -154,7 +154,6 @@ const ProviderAdminSchema = z.object({
     .union([z.coerce.number<number>().int().positive(), z.literal('')])
     .transform((v) => (v === '' ? null : v)),
   default_manager_id: z.union([z.uuid(), z.literal('')]).transform((v) => v || null),
-  employment_type: z.enum(EMPLOYMENTS as [string, ...string[]]),
   phone: z.string().trim().max(30).optional(),
   notes: z.string().trim().max(2000).optional(),
 })
@@ -301,6 +300,9 @@ export async function changerEtiquette(fd: FormData): Promise<void> {
 
 const Facturation = z.object({
   provider_id: z.uuid(),
+  // Un manager connaît le statut de ses intervenants avant l'administration :
+  // c'est lui qui recrute, et qui apprend qu'une personne passe en vacation.
+  employment_type: z.enum(EMPLOYMENTS as [string, ...string[]]),
   legal_name: z.string().trim().min(2, 'Indiquez le nom ou la raison sociale.').max(160),
   legal_form: z.string().trim().max(60).optional(),
   // « en cours » est prévu par le contrat tant que l'auto-entreprise se crée.

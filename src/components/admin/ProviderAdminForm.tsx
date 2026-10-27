@@ -5,8 +5,7 @@ import { Input, Select, Textarea } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import type { AdminResult } from '@/app/(app)/admin/actions'
-import { EMPLOYMENTS, type Provider } from '@/lib/types'
-import { EMPLOYMENT_HINT, EMPLOYMENT_LABEL } from '@/lib/labels'
+import type { Provider } from '@/lib/types'
 
 export function ProviderAdminForm({
   action,
@@ -63,19 +62,6 @@ export function ProviderAdminForm({
             hint="Indispensable pour la synchronisation : c’est lui qui garantit le bon rapprochement."
             error={e.pennylane_supplier_id}
           />
-          <Select
-            id="employment_type"
-            name="employment_type"
-            label="Statut"
-            defaultValue={provider.employment_type}
-            hint={EMPLOYMENT_HINT[provider.employment_type] ?? 'Détermine si la personne facture ou est payée en salaire.'}
-          >
-            {EMPLOYMENTS.map((e) => (
-              <option key={e} value={e}>
-                {EMPLOYMENT_LABEL[e]}
-              </option>
-            ))}
-          </Select>
           <Input
             id="phone"
             name="phone"
