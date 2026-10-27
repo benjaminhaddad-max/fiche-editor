@@ -17,7 +17,7 @@ import { envoyerMaintenant, relancer } from './actions'
 import { porterEcheance } from '@/app/(app)/missions/actions'
 import { echeancesProposees } from '@/lib/echeances'
 import { activeBrandId } from '@/lib/brand/actif'
-import { isSalaried } from '@/lib/types'
+import { estAuteur, isSalaried } from '@/lib/types'
 
 interface Ligne {
   id: string
@@ -89,6 +89,7 @@ export default async function BordereauxPage({
       nom: string
       salarie: boolean
       total: number
+      auteur: boolean
       sienne: number
       enAttente: number
       lignes: LigneDetail[]
@@ -98,6 +99,7 @@ export default async function BordereauxPage({
     const c = parPresta.get(l.provider_id) ?? {
       nom: l.provider?.legal_name ?? '—',
       salarie: isSalaried(l.provider?.employment_type),
+      auteur: estAuteur(l.provider?.employment_type),
       total: 0,
       sienne: 0,
       enAttente: 0,
@@ -132,6 +134,14 @@ export default async function BordereauxPage({
   const enAttente = visibles.reduce((n, [, v]) => n + v.enAttente, 0)
 
   // Les tuiles gardent le mois entier ; seule la liste suit la recherche.
+  // Même règle que l'écran de validation : « HT » ne veut rien dire pour
+  // qui n'émet pas de facture.
+  const uniteBordereau =
+    visibles.length === 0 || visibles.every(([, v]) => !v.salarie && !v.auteur)
+      ? 'HT'
+      : visibles.every(([, v]) => v.salarie || v.auteur)
+        ? 'brut'
+        : ''
   const affiches = visibles.filter(([, v]) => correspondPrestataire(v.nom, cherche))
 
   // Ce que les contrats prévoient et que personne n'a porté sur le mois :
@@ -240,27 +250,39 @@ export default async function BordereauxPage({
         </Suspense>
       )}
 
-      {!envoye ? (
-        /* Avant le 1er, il n'y a pas de bordereau : seulement des gens qui
-           déclarent, et ils ont déjà leur onglet. Lister ici Clémence et
-           Diane parce qu'elles ont saisi deux lignes laissait croire qu'un
-           bordereau existait pour octobre. */
+      {visibles.length === 0 ? (
         <EmptyState
-          title={`Aucun bordereau pour ${cycle.label}`}
-          description={`Les bordereaux partent le ${formatDateLong(cycle.statementDate)}. D'ici là, les prestations se suivent dans « À valider » — ${visibles.length} personne(s) ont déjà déclaré, pour ${money(round2(visibles.reduce((s, [, v]) => s + v.total, 0)))}.`}
+          title={`Rien de déclaré pour ${cycle.label}`}
+          description={
+            envoye
+              ? undefined
+              : `Les bordereaux partent le ${formatDateLong(cycle.statementDate)}. D'ici là, les prestations déclarées apparaissent ici au fur et à mesure.`
+          }
         />
-      ) : visibles.length === 0 ? (
-        <EmptyState title="Aucune prestation sur ce mois" />
       ) : affiches.length === 0 ? (
         <EmptyState title={`Personne ne correspond à « ${cherche} » sur ce mois`} />
       ) : (
+        <>
+        {!envoye && (
+          /* L'onglet annonçait « aperçu » et n'affichait rien : Nolwenn
+             comparait son tableur à une page vide. On montre donc ce que
+             chacun recevra, en disant clairement que rien n'est encore
+             parti et que l'écart vient des lignes pas encore validées. */
+          <p className="mb-3 rounded-lg border border-gold/40 bg-gold/10 px-4 py-2.5 text-xs text-navy/80">
+            Aperçu : voici ce que chacun recevra le {formatDateLong(cycle.statementDate)}, en
+            l’état. Rien n’est encore envoyé, et les prestations qui restent à valider d’ici là
+            n’y figureront pas.
+          </p>
+        )}
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Prestataire</th>
-                  <th className="px-4 py-3 text-right font-medium">Bordereau HT</th>
+                  <th className="px-4 py-3 text-right font-medium">
+                    {uniteBordereau ? `Bordereau ${uniteBordereau}` : 'Bordereau'}
+                  </th>
                   {user.role === 'manager' && <th className="px-4 py-3 text-right font-medium">Dont vous</th>}
                   <th className="px-4 py-3 font-medium">Facture</th>
                   <th className="px-4 py-3 text-right font-medium" />
@@ -294,6 +316,7 @@ export default async function BordereauxPage({
             </table>
           </div>
         </Card>
+        </>
       )}
     </>
   )
