@@ -33,6 +33,8 @@ export interface ReviewMission {
   abattable?: boolean
   /** Sous contrat : il ne facture pas, sa ligne part au service paie. */
   salarie?: boolean
+  /** Rémunéré en droits d'auteur : une note, pas une facture. */
+  auteur?: boolean
   /** Qui a posé la validation manager, et quand. Vide si personne encore. */
   manager_approved_at?: string | null
   valide_par?: string | null
@@ -157,6 +159,18 @@ export function ValidationTable({
   // Un salarié ne facture pas : sa ligne ne devient pas « bon à payer »,
   // elle part au service paie. Le mot doit le dire.
   const tousSalaries = missions.length > 0 && missions.every((m) => m.salarie)
+
+  // « HT » ne veut rien dire pour qui n'émet pas de facture. Un salarié et
+  // un artiste-auteur déclarent un brut — et pour l'auteur, c'est un brut
+  // dont la société retiendra le précompte. Nolwenn lisait « Montant HT »
+  // sur des lignes de droits d'auteur et ne s'y retrouvait pas.
+  const unite =
+    missions.length === 0 || missions.every((m) => !m.salarie && !m.auteur)
+      ? 'HT'
+      : missions.every((m) => m.salarie || m.auteur)
+        ? 'brut'
+        : ''
+  const colonneMontant = unite ? `Montant ${unite}` : 'Montant'
   const gens = [...new Set(missions.map((m) => m.provider_name))].sort((a, b) => a.localeCompare(b, 'fr'))
   const visibles = qui ? missions.filter((m) => m.provider_name === qui) : missions
 
@@ -227,7 +241,11 @@ export function ValidationTable({
           ))}
           <span className="text-sm text-emerald-900">
             <strong>{selection.size}</strong> prestation{selection.size > 1 ? 's' : ''} —{' '}
-            <strong>{money(totalSelection)} HT</strong>. Chaque prestataire concerné
+            <strong>
+              {money(totalSelection)}
+              {unite ? ` ${unite}` : ''}
+            </strong>
+            . Chaque prestataire concerné
             recevra un seul email.
           </span>
           <div className="flex items-center gap-2">
@@ -321,7 +339,7 @@ export function ValidationTable({
               <th className="px-3 py-2.5 font-medium">Prestation</th>
               <th className="px-3 py-2.5 font-medium">Période</th>
               {showManager && <th className="px-3 py-2.5 font-medium">Manager</th>}
-              <th className="px-3 py-2.5 text-right font-medium">Montant HT</th>
+              <th className="px-3 py-2.5 text-right font-medium">{colonneMontant}</th>
               <th className="px-3 py-2.5 text-right font-medium">Décision</th>
             </tr>
           </thead>

@@ -3,7 +3,7 @@ import type { MissionStatus } from '@/lib/types'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { getContractContext } from '@/lib/contract-context'
 import { activeBrandId } from '@/lib/brand/actif'
-import { isSalaried, type Employment } from '@/lib/types'
+import { estAuteur, isSalaried, type Employment } from '@/lib/types'
 
 export const MISSION_WITH_RELATIONS = `
   id, detail, formation, regularisation, regul_period, manager_id, start_date, end_date, pricing_type, quantity, unit_amount_ht,
@@ -74,6 +74,7 @@ export function toReviewMission(row: RawMission): ReviewMission {
     // On ne propose de lever un abattement que si sa fiche en prévoit un.
     abattable: Number(row.provider?.pay_abatement ?? 0) > 0,
     salarie: isSalaried(row.provider?.employment_type as Employment | undefined),
+    auteur: estAuteur(row.provider?.employment_type as Employment | undefined),
     // Une retenue n'a pas la même raison selon qui la subit : les charges
     // du contrat pour un salarié, la TVA pour qui passe par un portage.
     motifAbattement: row.provider?.vat_regime === 'normal' ? ('TVA' as const) : ('contrat' as const),
