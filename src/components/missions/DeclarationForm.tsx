@@ -12,6 +12,7 @@ import { POLE_LABEL } from '@/lib/labels'
 import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import type { DeclarationResult } from '@/app/(app)/declarations/actions'
 import type { Employment, Pole, PricingType } from '@/lib/types'
+import { isSalaried } from '@/lib/types'
 
 export interface DeclCategory {
   id: string
@@ -151,7 +152,7 @@ export function DeclarationForm(props: Props) {
     mode === 'prestataire'
       ? (props.employment ?? 'independant')
       : (providers?.find((p) => p.id === providerId)?.employment ?? 'independant')
-  const salarie = employment !== 'independant'
+  const salarie = isSalaried(employment)
   const tarif = mode === 'prestataire' ? props.tarifs?.['moi'] : props.tarifs?.[providerId]
   // Les 56 indépendants de l'école sont en franchise : aucun ne facture de
   // TVA. « Total HT » les fait tous buter sur la même question — faut-il

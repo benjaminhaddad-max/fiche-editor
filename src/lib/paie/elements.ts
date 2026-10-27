@@ -2,6 +2,7 @@ import type { BillingCycle } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
 import { activeBrandId } from '@/lib/brand/actif'
+import { PAYES_EN_SALAIRE } from '@/lib/types'
 
 export interface LigneElements {
   providerId: string
@@ -36,7 +37,7 @@ export async function elementsDuMois(cycle: BillingCycle): Promise<LigneElements
       .from('inv_providers')
       .select('id, legal_name, employment_type, user:inv_users!inv_providers_user_id_fkey(full_name, email, is_active)')
       .eq('brand', (await activeBrandId()))
-      .neq('employment_type', 'independant'),
+      .in('employment_type', PAYES_EN_SALAIRE),
     db.from('inv_payroll_inputs').select('*').eq('period', cycle.month),
   ])
 

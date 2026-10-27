@@ -10,7 +10,7 @@ import { regulariserEffectifs } from '@/lib/effectifs'
 import { relancerDeclarations } from '@/lib/relances'
 import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
-import { isSalaried, type Employment } from '@/lib/types'
+import { isSalaried, type Employment, PAYES_EN_SALAIRE } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
 import { activeBrand, activeBrandId, sousMarque } from '@/lib/brand/actif'
 import { servedBrandIds } from '@/lib/brand'
@@ -261,7 +261,7 @@ async function demanderElements(db: Db, cycle: BillingCycle, relance: boolean) {
     .from('inv_providers')
     .select('id, phone, employment_type, user:inv_users!inv_providers_user_id_fkey(email, full_name, is_active)')
     .eq('brand', (await activeBrandId()))
-    .neq('employment_type', 'independant')
+    .in('employment_type', PAYES_EN_SALAIRE)
   const { data: saisies } = await db
     .from('inv_payroll_inputs')
     .select('provider_id, submitted_at')

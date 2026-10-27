@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment, MissionKind } from '@/lib/types'
 import { activeBrandId } from '@/lib/brand/actif'
+import { PAYES_EN_SALAIRE } from '@/lib/types'
 
 export interface LignePaie {
   id: string
@@ -64,7 +65,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
     .eq('brand', (await activeBrandId()))
-    .neq('provider.employment_type', 'independant')
+    .in('provider.employment_type', PAYES_EN_SALAIRE)
     .lte('start_date', fin)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])
     .order('start_date')

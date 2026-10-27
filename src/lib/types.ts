@@ -63,7 +63,7 @@ export const EMPLOYMENTS: Employment[] = [
  * une note de droits d'auteur — la règle par exclusion l'aurait rangé du
  * côté des salariés et lui aurait fermé l'accès à ses factures.
  */
-const PAYES_EN_SALAIRE: Employment[] = ['vacataire', 'alternant', 'salarie', 'salarie_enseignant', 'interim']
+export const PAYES_EN_SALAIRE: Employment[] = ['vacataire', 'alternant', 'salarie', 'salarie_enseignant', 'interim']
 
 export const isSalaried = (e: Employment | null | undefined) =>
   Boolean(e) && PAYES_EN_SALAIRE.includes(e as Employment)

@@ -3,6 +3,7 @@ import { BAREMES_ENREGISTREMENT, bareme } from '@/lib/contracts/enregistrement'
 import type { BrandConfig } from '@/lib/brand'
 import type { Employment, Pole } from '@/lib/types'
 import { activeBrand } from '@/lib/brand/actif'
+import { isSalaried } from '@/lib/types'
 
 /**
  * Modèles de contrat proposés aux managers.
@@ -208,7 +209,7 @@ function freelance(cle: string, nom: string, montant: number, heures: string): M
  * mensuel n'a pas de sens ici, c'est le taux horaire qui fait foi.
  */
 function professeur(cle: string, nom: string, employment: Employment): Modele {
-  const salarie = employment !== 'independant'
+  const salarie = isSalaried(employment)
   return {
     cle,
     nom,
@@ -322,7 +323,7 @@ function accompagnement(
   employment: Employment,
   objet: string
 ): Modele {
-  const salarie = employment !== 'independant'
+  const salarie = isSalaried(employment)
   return {
     cle,
     nom,

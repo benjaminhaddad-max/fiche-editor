@@ -6,6 +6,7 @@ import type { BillingCycle } from '@/lib/cycle'
 import { money, round2 } from '@/lib/format'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import { remunerationsDuMois } from '@/lib/paie/remunerations'
+import { isSalaried } from '@/lib/types'
 
 /** Vue d'ensemble : ce que chaque personne coûte sur le mois. */
 export async function VueMois({ cycle }: { cycle: BillingCycle }) {
@@ -91,7 +92,7 @@ export async function VueMois({ cycle }: { cycle: BillingCycle }) {
 
 /** Dépôt des bulletins du mois, et ce qui est déjà arrivé. */
 export async function VueBulletins({ cycle }: { cycle: BillingCycle }) {
-  const lignes = (await remunerationsDuMois(cycle)).filter((l) => l.statut !== 'independant')
+  const lignes = (await remunerationsDuMois(cycle)).filter((l) => isSalaried(l.statut))
   const recus = lignes.filter((l) => l.bulletin)
   const manquants = lignes.filter((l) => !l.bulletin)
 

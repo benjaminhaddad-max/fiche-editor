@@ -3,6 +3,7 @@ import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
 import { activeBrandId } from '@/lib/brand/actif'
+import { isSalaried } from '@/lib/types'
 
 export interface LigneRemuneration {
   providerId: string
@@ -106,6 +107,6 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
       variables: round2(l.variables),
       variablesNet: round2(l.variablesNet),
     }))
-    .filter((l) => l.facture || l.variables || l.variablesNet || l.bulletin || l.statut !== 'independant')
+    .filter((l) => l.facture || l.variables || l.variablesNet || l.bulletin || isSalaried(l.statut))
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
 }

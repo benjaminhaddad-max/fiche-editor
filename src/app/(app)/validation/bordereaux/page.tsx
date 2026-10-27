@@ -17,6 +17,7 @@ import { envoyerMaintenant, relancer } from './actions'
 import { porterEcheance } from '@/app/(app)/missions/actions'
 import { echeancesProposees } from '@/lib/echeances'
 import { activeBrandId } from '@/lib/brand/actif'
+import { isSalaried } from '@/lib/types'
 
 interface Ligne {
   id: string
@@ -96,7 +97,7 @@ export default async function BordereauxPage({
   for (const l of lignes) {
     const c = parPresta.get(l.provider_id) ?? {
       nom: l.provider?.legal_name ?? '—',
-      salarie: l.provider?.employment_type !== 'independant',
+      salarie: isSalaried(l.provider?.employment_type),
       total: 0,
       sienne: 0,
       enAttente: 0,
