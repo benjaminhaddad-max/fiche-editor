@@ -1,6 +1,6 @@
 import { isPennylaneConfigured, listSupplierInvoices } from '@/lib/pennylane/client'
 import { createServiceClient } from '@/lib/supabase/service'
-import { activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 /** Une facture arrivée directement en comptabilité, sans passer par ici. */
 export interface FactureHorsPlateforme {
@@ -27,8 +27,14 @@ const PAYEE = new Set(['paid', 'paid_offline', 'fully_paid'])
  * Celles que la plateforme a elle-même envoyées sont écartées : elles ont
  * déjà leur ligne, avec leur bordereau et leurs prestations.
  */
+/**
+ * Les factures reçues hors plateforme, lues dans Pennylane.
+ *
+ * Réservées à l'école dont c'est la comptabilité : ailleurs, la liste
+ * montrerait les fournisseurs de Diploma.
+ */
 export async function facturesHorsPlateforme(): Promise<FactureHorsPlateforme[]> {
-  if (!isPennylaneConfigured()) return []
+  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return []
 
   const { data } = await createServiceClient()
     .from('inv_invoices')

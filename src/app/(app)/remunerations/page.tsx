@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
 import { activeCycle, cycleForMonth, nextCycle, previousCycle } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
-import { activeBrandScope } from '@/lib/brand/actif'
+import { activeBrand, activeBrandScope } from '@/lib/brand/actif'
 import { ongletsDuMois } from '@/components/layout/onglets-du-mois'
 
 export const maxDuration = 300
@@ -32,7 +32,8 @@ export default async function RemunerationsPage({
   // Les mêmes onglets que « Prestations » : c'est le même mois, vu plus
   // loin dans son parcours. Les avoir en double dans le menu obligeait à
   // ressortir pour suivre un montant de bout en bout.
-  const vues: TabItem[] = ongletsDuMois(user.role, 0, cycle.month)
+  const marque = await activeBrand()
+  const vues: TabItem[] = ongletsDuMois(user.role, 0, cycle.month, marque.comptabilite)
   if (user.role !== 'admin') {
     vues.push({ key: 'deposer', label: 'Déposer une facture', href: '/remunerations?vue=deposer' })
   }
@@ -79,7 +80,7 @@ export default async function RemunerationsPage({
       {courant === 'mois' && <VueMois cycle={cycle} />}
       {courant === 'factures' && <VueFactures onglet={onglet} />}
       {courant === 'paie' && <VuePaie cycle={cycle} etape={etape} role={user.role} />}
-      {courant === 'depenses' && <VueDepenses cycle={cycle} />}
+      {courant === 'depenses' && marque.comptabilite && <VueDepenses cycle={cycle} />}
       {courant === 'deposer' && (
         <Card className="p-5">
           <MiscInvoiceUpload categories={cats ?? []} inboundAddress={process.env.DEPOT_FACTURES_EMAIL ?? null} />

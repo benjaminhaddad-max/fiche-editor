@@ -29,6 +29,15 @@ export interface BrandConfig {
   logos: { cream: string; navy: string } | null
   /** La vignette de l'onglet du navigateur. */
   icon: string
+  /**
+   * Cette école tient-elle sa comptabilité dans le Pennylane connecté ici ?
+   *
+   * Il n'y en a qu'un, celui de Diploma Santé. Les écrans qui le lisent —
+   * les dépenses du mois, les factures reçues hors plateforme — ne doivent
+   * donc s'ouvrir que pour elle. Meryeme, qui dirige Linova, y a vu passer
+   * les trois cents mouvements bancaires de Diploma.
+   */
+  comptabilite: boolean
   /** Teintes de la charte, pour les emails et les documents. */
   palette: { dark: string; accent: string; light: string; ink: string }
   /**
@@ -85,6 +94,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderEmail: 'facturation@diploma-sante.fr',
     },
     inboundEmail: process.env.DEPOT_FACTURES_EMAIL ?? null,
+    comptabilite: true,
     payrollContact: { name: 'Shirel Benchetrit', email: 'shirel.benchetrit@diploma-sante.fr' },
   },
   linova: {
@@ -121,6 +131,8 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderEmail: process.env.BREVO_SENDER_EMAIL ?? 'facturation@linova-education.fr',
     },
     inboundEmail: process.env.DEPOT_FACTURES_EMAIL ?? null,
+    // Linova tient sa comptabilité ailleurs.
+    comptabilite: false,
     // À renseigner dès que Linova aura son interlocuteur paie : sans lui, le
     // bouton d'envoi se désactive plutôt que d'écrire à l'aveugle.
     payrollContact: null,
@@ -182,6 +194,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderEmail: 'facturation@medibox.fr',
     },
     inboundEmail: null,
+    comptabilite: false,
     // À renseigner quand Medibox aura son interlocuteur paie.
     payrollContact: null,
   },

@@ -13,7 +13,13 @@ import type { Role } from '@/lib/types'
  * ce qui va à la paie, et ce que le mois aura coûté. Un manager ne voit que
  * ce qui le concerne — il ne paie personne.
  */
-export function ongletsDuMois(role: Role, aValider: number, mois: string): TabItem[] {
+export function ongletsDuMois(
+  role: Role,
+  aValider: number,
+  mois: string,
+  /** L'école tient-elle sa comptabilité ici ? Sinon, pas d'onglet Dépenses. */
+  comptabilite = true
+): TabItem[] {
   const m = `mois=${mois}`
 
   if (role === 'manager') {
@@ -33,7 +39,9 @@ export function ongletsDuMois(role: Role, aValider: number, mois: string): TabIt
     { key: 'bordereaux', label: 'Bordereaux', href: '/validation/bordereaux' },
     { key: 'factures', label: 'Factures', href: `/remunerations?vue=factures&${m}` },
     { key: 'paie', label: 'Paie', href: `/remunerations?vue=paie&${m}` },
-    { key: 'depenses', label: 'Dépenses', href: `/remunerations?vue=depenses&${m}` },
+    ...(comptabilite
+      ? [{ key: 'depenses', label: 'Dépenses', href: `/remunerations?vue=depenses&${m}` }]
+      : []),
     { key: 'mois', label: 'Ce mois-ci', href: `/remunerations?${m}` },
     { key: 'historique', label: 'Historique', href: '/validation/historique' },
   ]

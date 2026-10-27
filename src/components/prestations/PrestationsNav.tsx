@@ -3,7 +3,7 @@ import { ongletsDuMois } from '@/components/layout/onglets-du-mois'
 import { activeCycle } from '@/lib/cycle'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
-import { activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 /**
  * Le bandeau du mois, côté manager et admin : un seul titre, et toutes les
@@ -42,7 +42,7 @@ export async function PrestationsNav({
       description={description}
       actions={actions}
       currentTab={current}
-      tabs={ongletsDuMois(user.role, count ?? 0, mois ?? activeCycle().month)}
+      tabs={ongletsDuMois(user.role, count ?? 0, mois ?? activeCycle().month, (await activeBrand()).comptabilite)}
     />
   )
 }

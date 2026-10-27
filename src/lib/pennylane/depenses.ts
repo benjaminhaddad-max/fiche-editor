@@ -1,4 +1,5 @@
 import { isPennylaneConfigured } from '@/lib/pennylane/client'
+import { activeBrand } from '@/lib/brand/actif'
 
 /**
  * Les mouvements dont aucune facture n'existera jamais.
@@ -84,6 +85,13 @@ interface Brute {
  * mouvements, soit vingt-cinq appels. Personne n'attend ça au chargement
  * d'une page.
  */
+/**
+ * Les dépenses du mois, pour l'école qui tient sa comptabilité ici.
+ *
+ * Il n'y a qu'un Pennylane, celui de Diploma Santé. Une autre école qui
+ * arriverait sur cet écran y lirait les mouvements bancaires de Diploma —
+ * c'est ce qui est arrivé à Meryeme.
+ */
 export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
   const vide: MoisDepenses = {
     lignes: [],
@@ -94,7 +102,8 @@ export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
     sansJustificatif: 0,
     indisponible: true,
   }
-  if (!isPennylaneConfigured()) return vide
+  // Une école qui ne tient pas sa comptabilité ici n'a rien à y lire.
+  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return vide
 
   const [an, m] = mois.split('-').map(Number)
   const debut = `${mois}-01`
