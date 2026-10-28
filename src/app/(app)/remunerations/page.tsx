@@ -8,6 +8,7 @@ import { VuePaie } from '@/components/remunerations/VuePaie'
 import { MiscInvoiceUpload } from '@/components/admin/MiscInvoiceUpload'
 import { Card } from '@/components/ui/Page'
 import { requireRole } from '@/lib/auth'
+import { nombreSansDeclaration } from '@/lib/manquants'
 import { activeCycle, cycleForMonth, nextCycle, previousCycle } from '@/lib/cycle'
 import { createServiceClient } from '@/lib/supabase/service'
 import { activeBrand, activeBrandScope } from '@/lib/brand/actif'
@@ -33,7 +34,13 @@ export default async function RemunerationsPage({
   // loin dans son parcours. Les avoir en double dans le menu obligeait à
   // ressortir pour suivre un montant de bout en bout.
   const marque = await activeBrand()
-  const vues: TabItem[] = ongletsDuMois(user.role, 0, cycle.month, marque.comptabilite)
+  const vues: TabItem[] = ongletsDuMois(
+    user.role,
+    0,
+    await nombreSansDeclaration(user.role === 'manager' ? { managerId: user.id } : {}),
+    cycle.month,
+    marque.comptabilite
+  )
   if (user.role !== 'admin') {
     vues.push({ key: 'deposer', label: 'Déposer une facture', href: '/remunerations?vue=deposer' })
   }

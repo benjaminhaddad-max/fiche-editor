@@ -4,6 +4,7 @@ import { activeCycle } from '@/lib/cycle'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AppUser } from '@/lib/types'
 import { activeBrand, activeBrandId } from '@/lib/brand/actif'
+import { nombreSansDeclaration } from '@/lib/manquants'
 
 /**
  * Le bandeau du mois, côté manager et admin : un seul titre, et toutes les
@@ -34,7 +35,12 @@ export async function PrestationsNav({
     .eq('brand', (await activeBrandId()))
     .in('status', user.role === 'admin' ? ['submitted', 'manager_approved'] : ['submitted'])
   if (user.role === 'manager') q = q.eq('manager_id', user.id)
-  const { count } = await q
+  const [{ count }, manquants] = await Promise.all([
+    q,
+    // Le compteur fait le travail du rappel : on voit qu'il manque du monde
+    // sans avoir à ouvrir l'onglet.
+    nombreSansDeclaration(user.role === 'manager' ? { managerId: user.id } : {}),
+  ])
 
   return (
     <PageHeader
@@ -42,7 +48,13 @@ export async function PrestationsNav({
       description={description}
       actions={actions}
       currentTab={current}
-      tabs={ongletsDuMois(user.role, count ?? 0, mois ?? activeCycle().month, (await activeBrand()).comptabilite)}
+      tabs={ongletsDuMois(
+        user.role,
+        count ?? 0,
+        manquants,
+        mois ?? activeCycle().month,
+        (await activeBrand()).comptabilite
+      )}
     />
   )
 }

@@ -16,6 +16,8 @@ import type { Role } from '@/lib/types'
 export function ongletsDuMois(
   role: Role,
   aValider: number,
+  /** Combien de personnes n'ont rien déclaré ce mois-ci. */
+  manquants: number,
   mois: string,
   /** L'école tient-elle sa comptabilité ici ? Sinon, pas d'onglet Dépenses. */
   comptabilite = true
@@ -25,6 +27,7 @@ export function ongletsDuMois(
   if (role === 'manager') {
     return [
       { key: 'a-valider', label: 'À valider', href: '/validation', count: aValider },
+      { key: 'manquants', label: 'Sans déclaration', href: '/validation/manquants', count: manquants },
       { key: 'bordereaux', label: 'Bordereaux', href: '/validation/bordereaux' },
       { key: 'paie', label: 'Paie', href: `/remunerations?vue=paie&${m}` },
       { key: 'historique', label: 'Historique', href: '/validation/historique' },
@@ -36,6 +39,7 @@ export function ongletsDuMois(
   // Ils tiennent en un, avec ses étapes à l'intérieur.
   return [
     { key: 'a-valider', label: 'À valider', href: '/validation', count: aValider },
+    { key: 'manquants', label: 'Sans déclaration', href: '/validation/manquants', count: manquants },
     { key: 'bordereaux', label: 'Bordereaux', href: '/validation/bordereaux' },
     { key: 'factures', label: 'Factures', href: `/remunerations?vue=factures&${m}` },
     { key: 'paie', label: 'Paie', href: `/remunerations?vue=paie&${m}` },
