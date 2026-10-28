@@ -51,16 +51,26 @@ const REQUETE = `id, label, due_date, amount_ht,
  * s'en apercevait avant le récapitulatif, parfois après l'envoi à la paie.
  *
  * Proposer coûte un clic ; ouvrir d'office coûte un doublon.
+ *
+ * Reste à les proposer au bon moment. Une échéance qui tombe le dernier
+ * jour du mois n'apparaissait que ce jour-là — soit après la clôture des
+ * déclarations, quand plus personne ne regarde son espace. Alexandra a
+ * demandé si son coaching d'octobre se ferait tout seul « comme la
+ * dernière fois » : il attendait le 31. On propose donc dès que le mois
+ * de l'échéance est ouvert, pas le jour de son terme.
  */
 export async function echeancesProposees(
   aujourdhui: string,
   filtre: { providerId?: string; managerId?: string } = {}
 ): Promise<EcheanceProposee[]> {
   const db = createServiceClient()
+  // Jusqu'à la fin du mois en cours : l'échéance du 31 se porte dès le 1er.
+  const [an, mois] = aujourdhui.split('-').map(Number)
+  const finDuMois = new Date(Date.UTC(an, mois, 0)).toISOString().slice(0, 10)
   const { data } = await db
     .from('inv_contract_instalments')
     .select(REQUETE)
-    .lte('due_date', aujourdhui)
+    .lte('due_date', finDuMois)
     .is('mission_id', null)
     .order('due_date')
 
