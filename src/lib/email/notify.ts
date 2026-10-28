@@ -1,3 +1,4 @@
+import { activeCycle } from '@/lib/cycle'
 import { sendEmail } from '@/lib/email/brevo'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -182,18 +183,28 @@ export async function notifyMissionRejected(missionId: string): Promise<void> {
   })
 }
 
-/** Prevenir le prestataire qu'il a des prestations facturables. */
+/**
+ * Prevenir le prestataire que ses prestations sont validées.
+ *
+ * Validé ne veut pas dire facturable : on ne facture que ce qu'un bordereau
+ * porte, et le bordereau part le 1er. Le message invitait pourtant à établir
+ * la facture tout de suite — Caroline a cliqué le 28 et est tombée sur
+ * « aucune prestation à facturer », avec l'email qui disait le contraire
+ * sous les yeux. Il dit donc où en est la ligne, et n'ouvre la facturation
+ * que quand elle l'est vraiment.
+ */
 export async function notifyReadyToInvoice(providerId: string): Promise<void> {
   const supabase = createServiceClient()
 
   const { data: missions } = await supabase
     .from('inv_missions')
-    .select('total_ht')
+    .select('total_ht, statement_id')
     .eq('provider_id', providerId)
     .eq('status', 'approved')
     .is('invoice_id', null)
 
   if (!missions?.length) return
+  const surBordereau = missions.some((m) => m.statement_id)
 
   const { data: provider } = await supabase
     .from('inv_providers')
@@ -208,6 +219,8 @@ export async function notifyReadyToInvoice(providerId: string): Promise<void> {
     providerName: user.full_name,
     count: missions.length,
     total: missions.reduce((s, m) => s + Number(m.total_ht), 0),
+    surBordereau,
+    statementDate: activeCycle().statementDate,
   })
 
   await deliver({

@@ -168,19 +168,45 @@ export async function templates(brand?: BrandId) {
     ),
   }),
 
-  readyToInvoice: (p: { providerName: string; count: number; total: number }) => ({
-    subject: `${p.count} prestation${p.count > 1 ? 's' : ''} validée${p.count > 1 ? 's' : ''} — vous pouvez facturer`,
+  /**
+   * Validé ne veut pas dire facturable : la facture suit le bordereau, qui
+   * part le 1er. Inviter à facturer avant menait à « aucune prestation à
+   * facturer », l'email disant le contraire.
+   */
+  readyToInvoice: (p: {
+    providerName: string
+    count: number
+    total: number
+    /** Ces prestations sont-elles déjà portées par un bordereau ? */
+    surBordereau: boolean
+    /** Date d'envoi du bordereau du mois, quand il n'est pas encore parti. */
+    statementDate: string
+  }) => ({
+    subject: p.surBordereau
+      ? `${p.count} prestation${p.count > 1 ? 's' : ''} validée${p.count > 1 ? 's' : ''} — vous pouvez facturer`
+      : `${p.count} prestation${p.count > 1 ? 's' : ''} validée${p.count > 1 ? 's' : ''}`,
     html: layout(m, 
       'Vos prestations sont validées',
       `<p style="margin:0 0 12px;">Bonjour ${p.providerName},</p>
        <p style="margin:0 0 12px;">${p.count} prestation${p.count > 1 ? 's ont' : ' a'} été validée${p.count > 1 ? 's' : ''},
           pour un total de <strong>${money(p.total)} HT</strong>.</p>
-       <p style="margin:0 0 12px;">Rendez-vous dans votre espace pour établir votre facture :
+       ${
+         p.surBordereau
+           ? `<p style="margin:0 0 12px;">Rendez-vous dans votre espace pour établir votre facture :
           la plateforme peut la générer pour vous à partir de ces montants, ou vous pouvez
           déposer la vôtre si vous l'éditez avec votre propre outil.</p>
        <p style="margin:0;color:#7d8c9e;font-size:13px;">Dans les deux cas, les montants sont ceux
-          validés ci-dessus : vous n'avez rien à recalculer.</p>`,
-      { label: 'Établir ma facture', href: `${APP_URL}/factures/nouvelle` }
+          validés ci-dessus : vous n'avez rien à recalculer.</p>`
+           : `<p style="margin:0 0 12px;">Rien à faire pour l'instant : votre bordereau du mois
+          vous parviendra le ${formatDate(p.statementDate)}, avec toutes vos prestations validées
+          réunies. C'est lui qui ouvre la facturation, pour que vous n'ayez qu'une facture à
+          établir pour tout le mois.</p>
+       <p style="margin:0;color:#7d8c9e;font-size:13px;">Les montants validés ci-dessus sont
+          définitifs : vous n'aurez rien à recalculer.</p>`
+       }`,
+      p.surBordereau
+        ? { label: 'Établir ma facture', href: `${APP_URL}/factures/nouvelle` }
+        : { label: 'Voir mes prestations', href: `${APP_URL}/missions` }
     ),
   }),
 
