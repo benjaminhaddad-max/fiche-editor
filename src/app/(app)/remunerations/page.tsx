@@ -86,11 +86,11 @@ export default async function RemunerationsPage({
 
       {courant === 'mois' && <VueMois cycle={cycle} />}
       {courant === 'factures' && <VueFactures onglet={onglet} />}
-      {courant === 'paie' && <VuePaie cycle={cycle} etape={etape} role={user.role} />}
+      {courant === 'paie' && <VuePaie cycle={cycle} etape={etape} role={user.role} userId={user.id} />}
       {courant === 'depenses' && marque.comptabilite && <VueDepenses cycle={cycle} />}
       {courant === 'deposer' && (
         <Card className="p-5">
-          <MiscInvoiceUpload categories={cats ?? []} inboundAddress={process.env.DEPOT_FACTURES_EMAIL ?? null} />
+          <MiscInvoiceUpload categories={cats ?? []} inboundAddress={marque.inboundEmail} />
         </Card>
       )}
     </>

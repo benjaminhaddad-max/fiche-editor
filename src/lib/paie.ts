@@ -19,6 +19,8 @@ export interface LignePaie {
   abattement: number
   categorie: string
   manager: string
+  /** Qui encadre la ligne : c'est par lui qu'un manager retrouve les siennes. */
+  managerId: string | null
   status: string
 }
 
@@ -59,7 +61,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
   let q = db
     .from('inv_missions')
     .select(
-      `id, kind, detail, start_date, quantity, unit_amount_ht, total_ht, abatement_rate, status, pay_basis, payroll_batch_id,
+      `id, kind, detail, start_date, quantity, unit_amount_ht, total_ht, abatement_rate, status, pay_basis, payroll_batch_id, manager_id,
        provider:inv_providers!inner(legal_name, employment_type),
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
@@ -85,6 +87,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
     status: string
     pay_basis: 'brut' | 'net' | null
     abatement_rate: number
+    manager_id: string | null
     provider: { legal_name: string; employment_type: Employment }
     category: { name: string } | null
     manager: { full_name: string } | null
@@ -103,6 +106,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
       abattement: Number(m.abatement_rate ?? 0),
       categorie: m.category?.name ?? '—',
       manager: m.manager?.full_name ?? '—',
+      managerId: m.manager_id ?? null,
       status: m.status,
     }))
     .sort((a, b) => a.personne.localeCompare(b.personne, 'fr') || a.date.localeCompare(b.date))
