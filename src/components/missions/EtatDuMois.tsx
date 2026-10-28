@@ -162,7 +162,7 @@ export async function EtatDuMois({ providerId }: { providerId: string }) {
               {prochaine.label} — {formatDateLong(prochaine.due_date)}.
             </p>
             <p className="mt-1.5 text-xs text-navy/70">
-              Prévue par votre contrat : elle vous sera proposée à cette date, à ajouter d’un clic.
+              Prévue par votre contrat : elle vous sera proposée dès le 1er de son mois, à ajouter d’un clic.
             </p>
           </>
         ) : (
