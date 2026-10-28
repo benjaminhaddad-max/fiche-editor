@@ -5,7 +5,7 @@ import { templates } from '@/lib/email/templates'
 import { champsManquants } from '@/lib/profil'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
-import { activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 import { echeanceDeclaration } from '@/lib/cycle'
 
 interface FicheRelance {
@@ -226,7 +226,9 @@ export async function relancerDeclarations(
         name: m.full_name as string,
         label: cycle.label,
         deadline: cycle.invoiceDeadline,
-        adresse: process.env.DEPOT_FACTURES_EMAIL ?? null,
+        // L'adresse de dépôt de SON école : Medibox n'en a pas, et
+        // annoncer celle de Diploma envoyait ses factures ailleurs.
+        adresse: (await activeBrand()).inboundEmail,
       }),
       template: 'manager_invoice_reminder',
       entityType: 'user',

@@ -13,7 +13,7 @@ import { chercherDoublons } from '@/lib/invoice/doublons'
 import { getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
-import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 
 interface Row {
   id: string
@@ -109,7 +109,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
   const transmises = par('transmises')
   const aEnvoyer = par('echec')
   const enCompta = par('compta')
-  const inbound = process.env.DEPOT_FACTURES_EMAIL ?? null
+  const inbound = (await activeBrand()).inboundEmail
 
   // Arrivées par email sans qu'on sache de qui : elles attendent un manager.
   const brutes = (data ?? []) as unknown as Row[]

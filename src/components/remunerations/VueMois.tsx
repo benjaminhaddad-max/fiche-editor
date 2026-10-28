@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FileText } from 'lucide-react'
 import { BulletinsUpload } from '@/components/admin/BulletinsUpload'
+import { activeBrand } from '@/lib/brand/actif'
 import { Card, EmptyState, StatTile } from '@/components/ui/Page'
 import type { BillingCycle } from '@/lib/cycle'
 import { money, round2 } from '@/lib/format'
@@ -99,7 +100,7 @@ export async function VueBulletins({ cycle }: { cycle: BillingCycle }) {
   return (
     <>
       <Card className="mb-6 p-5">
-        <BulletinsUpload adresse={process.env.DEPOT_FACTURES_EMAIL ?? null} />
+        <BulletinsUpload adresse={(await activeBrand()).inboundEmail} />
       </Card>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">

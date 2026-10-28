@@ -253,8 +253,8 @@ export type PublicGuide = 'prestataire' | 'salarie' | 'manager'
 
 /** Le guide correspondant, en PDF. */
 export async function guidePdf(pour: PublicGuide, cycle: BillingCycle, brand?: BrandId): Promise<Buffer> {
-  const depot = process.env.DEPOT_FACTURES_EMAIL ?? null
   const m = BRANDS[brand ?? (await activeBrandId())]
+  const depot = m.inboundEmail
   const doc =
     pour === 'manager' ? (
       <GuideManager c={cycle} depot={depot} m={m} />
