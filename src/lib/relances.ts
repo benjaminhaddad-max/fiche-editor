@@ -97,7 +97,7 @@ export async function relancerDeclarations(
   )
   const aDeclare = new Set((missions ?? []).map((m) => m.provider_id as string))
 
-  const aRelancerFiche: { id: string; email: string; nom: string; manque: string[] }[] = []
+  const aRelancerFiche: { id: string; email: string; nom: string; manque: string[]; facture: boolean }[] = []
 
   for (const u of (gens ?? []) as unknown as {
     id: string
@@ -146,7 +146,14 @@ export async function relancerDeclarations(
     // Une fiche incomplète bloque le paiement : on le dit à part, et on le
     // dit à tout le monde, y compris à qui a déjà déclaré.
     const manque = champsManquants(fiche)
-    if (manque.length) aRelancerFiche.push({ id: u.id, email: u.email, nom: u.full_name, manque })
+    if (manque.length)
+      aRelancerFiche.push({
+        id: u.id,
+        email: u.email,
+        nom: u.full_name,
+        manque,
+        facture: !isSalaried(fiche.employment_type),
+      })
 
     if (aDeclare.has(fiche.id)) {
       out.ignores++
@@ -179,6 +186,7 @@ export async function relancerDeclarations(
         manque: u.manque,
         invoiceDeadline: cycle.invoiceDeadline,
         paymentDate: cycle.paymentDate,
+        facture: u.facture,
       }),
       template: 'fiche_incomplete',
       entityType: 'user',

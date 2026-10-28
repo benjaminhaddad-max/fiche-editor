@@ -144,6 +144,7 @@ export async function relancerUn(
           manque,
           invoiceDeadline: cycle.invoiceDeadline,
           paymentDate: cycle.paymentDate,
+          facture: !isSalaried(fiche.employment_type),
         }),
         template: 'fiche_incomplete',
         entityType: 'user',

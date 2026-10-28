@@ -4,6 +4,7 @@ import { activeCycle } from '@/lib/cycle'
 import { limiteFacture } from '@/lib/limite-facture'
 import { formatDateLong } from '@/lib/format'
 import { champsManquants } from '@/lib/profil'
+import { estAuteur } from '@/lib/types'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Provider } from '@/lib/types'
 
@@ -49,7 +50,14 @@ export async function FicheAcompleter({ userId }: { userId: string }) {
 
   // Sans SIRET ni IBAN, on ne peut pas émettre la facture : ce n'est plus un
   // rappel, c'est un blocage. Il se lit en rouge, avec la date butoir.
-  const bloquant = !data.siret?.trim() || !data.iban?.trim()
+  //
+  // Mais tout le monde n'émet pas de facture. Un salarié n'a ni SIRET ni
+  // IBAN de facturation et n'en a pas besoin : lui annoncer en rouge que
+  // sa facture ne sera pas émise et que son virement ne partira pas est
+  // faux, et c'est ce qui a fait chercher un SIRET à Sarah Quero pendant
+  // deux jours. On ne bloque donc que sur ce qui bloque vraiment l'argent,
+  // tel que sa propre situation le définit.
+  const bloquant = manque.some((m) => /siret|iban|sécurité sociale/i.test(m))
   const cycle = activeCycle()
   // Le bordereau déjà émis porte la vraie date : annoncer le 2 octobre
   // quand il dit le 4 ferait courir pour rien.
@@ -70,9 +78,10 @@ export async function FicheAcompleter({ userId }: { userId: string }) {
         <span>
           {bloquant ? (
             <>
-              <strong className="font-semibold">Vous ne pourrez pas facturer.</strong> Il manque {liste}. Sans ces
-              informations, votre facture du {formatDateLong(limite)} ne peut pas être émise, et le
-              virement du {formatDateLong(cycle.paymentDate)} ne partira pas.
+              <strong className="font-semibold">Vous ne pourrez pas être payé.</strong> Il manque {liste}. Sans ces
+              informations, {estAuteur(data.employment_type) ? 'votre note de droits' : 'votre facture'} du{' '}
+              {formatDateLong(limite)} ne peut pas être émise, et le virement du{' '}
+              {formatDateLong(cycle.paymentDate)} ne partira pas.
             </>
           ) : (
             <>

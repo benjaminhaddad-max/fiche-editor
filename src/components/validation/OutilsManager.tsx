@@ -104,20 +104,22 @@ export function OutilsManager({
                   <option value="manager">Manager — valide les déclarations</option>
                   <option value="admin">Administration — accès complet</option>
                 </Select>
-              ) : admin ? (
-                <Select
-                  id="role"
-                  name="role"
-                  label="Rôle et statut"
-                  defaultValue="prestataire"
-                  hint="Les statuts salariés se créent depuis l’onglet « Vacataires et alternants »."
-                >
+              ) : (
+                /* Sans ce choix, tout le monde entrait en indépendant : la
+                   personne recevait le mode d'emploi de l'auto-entrepreneur
+                   et cherchait un SIRET qu'elle n'a pas. On ne devine plus,
+                   on demande — et il n'y a pas de valeur par défaut. */
+                <Select id="role" name="role" label="Rôle et statut" defaultValue="" required>
+                  <option value="" disabled>
+                    Choisir…
+                  </option>
                   <option value="prestataire">Intervenant — facture ses prestations</option>
+                  <option value="prestataire:vacataire">Intervenant sous contrat — payé en salaire, sans facture</option>
                   <option value="prestataire:droits_auteur">Intervenant en droits d’auteur — note de droits, sans SIRET</option>
-                  <option value="manager">Manager — valide les déclarations</option>
-                  <option value="admin">Administration — accès complet</option>
+                  {admin && <option value="manager">Manager — valide les déclarations</option>}
+                  {admin && <option value="admin">Administration — accès complet</option>}
                 </Select>
-              ) : null}
+              )}
             </div>
             <label className="flex items-center gap-2 text-xs text-navy/75">
               <input type="checkbox" name="prevenir" value="1" defaultChecked className="accent-navy" />

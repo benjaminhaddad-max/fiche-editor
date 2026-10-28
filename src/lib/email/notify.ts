@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createInvitation } from '@/lib/invitation'
 import { sendSms } from '@/lib/email/sms'
 import { formatDate, money } from '@/lib/format'
+import { isSalaried, type Employment } from '@/lib/types'
 import { activeBrandId } from '@/lib/brand/actif'
 
 /**
@@ -208,9 +209,15 @@ export async function notifyReadyToInvoice(providerId: string): Promise<void> {
 
   const { data: provider } = await supabase
     .from('inv_providers')
-    .select('legal_name, user:inv_users!inv_providers_user_id_fkey(email, full_name)')
+    .select('legal_name, employment_type, user:inv_users!inv_providers_user_id_fkey(email, full_name)')
     .eq('id', providerId)
     .maybeSingle()
+
+  // Un salarié ne facture rien : ses prestations partent au service paie et
+  // il est payé sur son bulletin. Alexandra et Danial ont pourtant reçu
+  // « 1 prestation validée — vous pouvez facturer », et sont allés chercher
+  // une facture qui n'existe pas.
+  if (isSalaried(provider?.employment_type as Employment | undefined)) return
 
   const user = (provider as unknown as { user: { email: string; full_name: string } | null } | null)?.user
   if (!user?.email) return

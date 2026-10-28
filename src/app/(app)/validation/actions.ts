@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { guideNom, guidePdf } from '@/lib/guides/pdf'
 import { trouverOuCreerMembre, trouverOuCreerPrestataire } from '@/lib/personnes'
-import { EMPLOYMENTS, type Employment } from '@/lib/types'
+import { EMPLOYMENTS, isSalaried, type Employment } from '@/lib/types'
 import { templates } from '@/lib/email/templates'
 import { deliver, sendInvitation } from '@/lib/email/notify'
 import { cycleForDate, todayParis } from '@/lib/cycle'
@@ -396,11 +396,17 @@ export async function ajouterPrestataire(
     const envoye = await sendInvitation(trouve.userId, user.id)
     if (envoye) {
       const cycle = cycleForDate(todayParis())
+      // Le mode d'emploi doit être le sien. Tout le monde recevait celui de
+      // l'indépendant — « créez votre auto-entreprise, voici comment
+      // facturer » — y compris les gens sous contrat, qui ne facturent rien.
+      // Sarah Quero a passé deux jours à chercher son SIRET avant de
+      // demander si elle devait créer une auto-entreprise.
+      const pour = isSalaried(employment) ? 'salarie' : 'prestataire'
       await deliver({
         to: { email, name: nom },
-        ...(await templates()).monthCalendar({ name: nom, public: 'prestataire', cycle }),
+        ...(await templates()).monthCalendar({ name: nom, public: pour, cycle }),
         template: 'month_calendar',
-        attachments: [{ name: await guideNom('prestataire'), content: (await guidePdf('prestataire', cycle)).toString('base64') }],
+        attachments: [{ name: await guideNom(pour), content: (await guidePdf(pour, cycle)).toString('base64') }],
         entityType: 'user',
         entityId: trouve.userId,
       })
