@@ -193,14 +193,22 @@ export async function corrigerMission(formData: FormData): Promise<CorrectionRes
   const quantity = Number(formData.get('quantity'))
   const unit = Number(formData.get('unit_amount_ht'))
   const nouveauManager = String(formData.get('manager_id') ?? '').trim()
+  const debutSaisi = String(formData.get('start_date') ?? '').trim()
+  const finSaisie = String(formData.get('end_date') ?? '').trim()
   if (!id || detail.length < 3 || !(quantity > 0) || !(unit >= 0)) {
     return { error: 'Corrigez la désignation, la quantité et le montant avant d’enregistrer.' }
+  }
+  const JOUR = /^\d{4}-\d{2}-\d{2}$/
+  if (debutSaisi && !JOUR.test(debutSaisi)) return { error: 'La date de début n’est pas une date.' }
+  if (finSaisie && !JOUR.test(finSaisie)) return { error: 'La date de fin n’est pas une date.' }
+  if (debutSaisi && finSaisie && finSaisie < debutSaisi) {
+    return { error: 'La fin de la période tombe avant son début.' }
   }
 
   const db = createServiceClient()
   const { data: m } = await db
     .from('inv_missions')
-    .select('id, manager_id, status, start_date, detail, quantity, unit_amount_ht, total_ht, abatement_rate, invoice_id')
+    .select('id, manager_id, status, start_date, end_date, detail, quantity, unit_amount_ht, total_ht, abatement_rate, invoice_id, statement_id')
     .eq('id', id)
     .maybeSingle()
   if (!m) return { error: 'Prestation introuvable.' }
@@ -245,12 +253,48 @@ export async function corrigerMission(formData: FormData): Promise<CorrectionRes
     }
   }
 
+  // La période se corrige aussi : une prestation saisie à la mauvaise date
+  // partait sur le mauvais bordereau, et la seule issue était de la refuser
+  // pour la faire ressaisir. Mais changer la date, c'est changer de mois,
+  // donc de bordereau : un manager ne peut la déplacer qu'entre deux mois
+  // qu'il peut encore reprendre — ni sortir une ligne d'un mois déjà parti,
+  // ni en faire entrer une dans un mois clos.
+  const debut = debutSaisi || m.start_date
+  const fin = finSaisie || null
+  if (fin && fin < debut) return { error: 'La fin de la période tombe avant son début.' }
+  const datesChangent = debut !== m.start_date || fin !== (m.end_date ?? null)
+  // Un bordereau est un document déjà envoyé, qui dit ce que ce mois-là
+  // doit : en déplacer une ligne après coup le rendrait faux chez le
+  // prestataire comme chez nous.
+  if (datesChangent && m.statement_id) {
+    return {
+      error: 'Cette prestation figure déjà sur un bordereau envoyé : sa date ne se déplace plus. Refusez-la pour qu’elle soit ressaisie à la bonne date.',
+    }
+  }
+  if (datesChangent && user.role !== 'admin') {
+    const ferme = [m.start_date, debut].find((d) => !managerCanEdit(d))
+    if (ferme) {
+      const c = cycleForDate(ferme)
+      return {
+        error: `${c.label} est clos depuis le ${formatDateLong(c.reviewEnd)} : la date ne se déplace plus ni vers ce mois ni depuis lui. Seul l’administrateur peut le faire.`,
+      }
+    }
+  }
+
   // On recalcule avec le taux figé sur la ligne : corriger un montant ne
   // doit pas faire réapparaître l'abattement, ni le faire disparaître.
   const total = round2(quantity * unit * (1 - Number(m.abatement_rate ?? 0) / 100))
   const { error: err } = await db
     .from('inv_missions')
-    .update({ detail, quantity, unit_amount_ht: unit, total_ht: total, manager_id: managerId })
+    .update({
+      detail,
+      quantity,
+      unit_amount_ht: unit,
+      total_ht: total,
+      manager_id: managerId,
+      start_date: debut,
+      end_date: fin,
+    })
     .eq('id', id)
   if (err) return { error: `Enregistrement impossible : ${err.message}` }
 
@@ -260,16 +304,21 @@ export async function corrigerMission(formData: FormData): Promise<CorrectionRes
     entityId: id,
     action: 'correction',
     payload: {
-      avant: { detail: m.detail, quantity: Number(m.quantity), unit_amount_ht: Number(m.unit_amount_ht), total_ht: Number(m.total_ht), manager_id: m.manager_id },
-      apres: { detail, quantity, unit_amount_ht: unit, total_ht: total, manager_id: managerId },
+      avant: { detail: m.detail, quantity: Number(m.quantity), unit_amount_ht: Number(m.unit_amount_ht), total_ht: Number(m.total_ht), manager_id: m.manager_id, start_date: m.start_date, end_date: m.end_date ?? null },
+      apres: { detail, quantity, unit_amount_ht: unit, total_ht: total, manager_id: managerId, start_date: debut, end_date: fin },
     },
   })
 
   revalidatePath('/validation')
+  // Changer de mois fait disparaître la ligne de la vue en cours : on le dit,
+  // sinon la correction a l'air d'avoir effacé la prestation.
+  const changeDeMois = debut.slice(0, 7) !== m.start_date.slice(0, 7)
   return {
     message: reattribue
       ? 'Correction enregistrée. La prestation part chez le manager choisi : elle disparaît de votre liste.'
-      : 'Correction enregistrée.',
+      : changeDeMois
+        ? `Correction enregistrée. La prestation compte désormais sur ${cycleForDate(debut).label} : elle part sur le bordereau de ce mois-là.`
+        : 'Correction enregistrée.',
   }
 }
 

@@ -527,6 +527,29 @@ export function ValidationTable({
                       <input name="detail" defaultValue={m.detail} className="field text-xs" aria-label="Désignation" required minLength={3} />
                       <input name="quantity" type="number" step="0.25" min="0.25" defaultValue={m.quantity} className="field text-xs" aria-label="Quantité" required />
                       <input name="unit_amount_ht" type="number" step="0.01" min="0" defaultValue={m.unit_amount_ht} className="field text-xs" aria-label="Prix unitaire HT" required />
+                      {/* La date décide du bordereau : mal saisie, la ligne
+                          partait sur le mauvais mois et il fallait la refuser
+                          pour la faire ressaisir. */}
+                      <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+                        <span className="text-xs text-navy/75">Période : du</span>
+                        <input
+                          name="start_date"
+                          type="date"
+                          defaultValue={m.start_date}
+                          className="field w-40 text-xs"
+                          aria-label="Début de la période"
+                          required
+                        />
+                        <span className="text-xs text-navy/75">au</span>
+                        <input
+                          name="end_date"
+                          type="date"
+                          defaultValue={m.end_date ?? ''}
+                          className="field w-40 text-xs"
+                          aria-label="Fin de la période"
+                        />
+                        <span className="text-xs text-muted">à laisser vide pour une seule journée</span>
+                      </div>
                       <div className="flex gap-2 sm:col-span-3">
                         <SubmitButton size="sm" pendingLabel="…">Enregistrer la correction</SubmitButton>
                         <button type="button" onClick={() => setEditing(null)} className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-navy/70 hover:bg-cream-deep">
