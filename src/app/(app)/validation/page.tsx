@@ -7,7 +7,7 @@ import { ValidationTable } from '@/components/validation/ValidationTable'
 import { PanneauVerification } from '@/components/validation/PanneauVerification'
 import type { LigneManager } from '@/components/validation/EtatVerification'
 import { requireRole } from '@/lib/auth'
-import { money } from '@/lib/format'
+import { formatDateLong, money } from '@/lib/format'
 import { getMissionsByStatus } from '@/lib/missions'
 import { ManagerPicker } from '@/components/validation/ManagerPicker'
 import { getManagers } from '@/lib/queries'
@@ -28,11 +28,21 @@ export default async function ValidationPage({
   const cycle = cycleForDate(todayParis())
 
   if (user.role === 'manager') {
-    const [toutes, managers] = await Promise.all([
+    const [toutes, dejaValidees, managers] = await Promise.all([
       getMissionsByStatus(['submitted'], { managerId: user.id }),
+      getMissionsByStatus(['manager_approved'], { managerId: user.id }),
       getManagers(),
     ])
     const missions = toutes.filter((m) => correspondPrestataire(m.provider_name, cherche))
+    // Ce qu'il a déjà validé ce mois-ci reste corrigeable jusqu'à la fin de
+    // la vérification : une ligne validée quittait l'écran et plus rien ne
+    // permettait d'y revenir. Eloise avait un tiers temps à rattraper sur
+    // deux surveillances de concours blanc et n'avait plus aucun bouton.
+    const corrigeables = dejaValidees.filter(
+      (m) =>
+        cycleForDate(m.start_date).month === cycle.month &&
+        correspondPrestataire(m.provider_name, cherche)
+    )
     return (
       <>
         <PrestationsNav
@@ -70,6 +80,24 @@ export default async function ValidationPage({
             </p>
             <ValidationTable missions={missions} managers={managers} moi={user.id} />
           </>
+        )}
+
+        {corrigeables.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-sm font-semibold text-navy">Déjà validées ce mois-ci</h2>
+            <p className="mb-4 mt-1 text-xs text-muted">
+              {corrigeables.length} prestation{corrigeables.length > 1 ? 's' : ''} ·{' '}
+              {money(corrigeables.reduce((s, m) => s + m.total_ht, 0))} HT. Vous pouvez encore les
+              corriger jusqu’au {formatDateLong(cycle.reviewEnd)} — une heure oubliée, un tiers temps,
+              un montant à reprendre. Après, elles partent au bordereau.
+            </p>
+            <ValidationTable
+              missions={corrigeables}
+              managers={managers}
+              moi={user.id}
+              sansValidation
+            />
+          </div>
         )}
       </>
     )

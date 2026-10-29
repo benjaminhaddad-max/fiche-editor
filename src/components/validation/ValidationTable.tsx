@@ -108,6 +108,7 @@ export function ValidationTable({
   showManager,
   managers = [],
   moi,
+  sansValidation = false,
 }: {
   missions: ReviewMission[]
   showManager?: boolean
@@ -115,6 +116,16 @@ export function ValidationTable({
   managers?: { id: string; full_name: string }[]
   /** Qui regarde : on ne se propose pas à soi-même comme destinataire. */
   moi?: string
+  /**
+   * Lignes déjà validées : on vient les corriger, pas les valider à nouveau.
+   *
+   * Un manager perdait sa ligne de vue dès qu'il l'avait validée — elle
+   * quittait « À valider » et plus rien ne permettait d'y revenir, alors que
+   * la correction reste ouverte jusqu'à la fin de la vérification. Eloise
+   * avait un tiers temps à rattraper sur deux surveillances de concours
+   * blanc et n'avait plus aucun bouton pour le faire.
+   */
+  sansValidation?: boolean
 }) {
   // Corriger, transférer, refuser : trois volets sous la même ligne. Un seul
   // à la fois, sinon on ne sait plus lequel on est en train de remplir.
@@ -325,15 +336,17 @@ export function ValidationTable({
           <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="px-3 py-2.5">
-                <input
-                  type="checkbox"
-                  checked={tousCoches}
-                  onChange={() =>
-                    setSelection(tousCoches ? new Set() : new Set(visibles.map((m) => m.id)))
-                  }
-                  title="Tout sélectionner"
-                  className="h-4 w-4 cursor-pointer accent-emerald-600"
-                />
+                {!sansValidation && (
+                  <input
+                    type="checkbox"
+                    checked={tousCoches}
+                    onChange={() =>
+                      setSelection(tousCoches ? new Set() : new Set(visibles.map((m) => m.id)))
+                    }
+                    title="Tout sélectionner"
+                    className="h-4 w-4 cursor-pointer accent-emerald-600"
+                  />
+                )}
               </th>
               <th className="px-3 py-2.5 font-medium">Prestataire</th>
               <th className="px-3 py-2.5 font-medium">Prestation</th>
@@ -350,12 +363,14 @@ export function ValidationTable({
                 className={clsx('align-middle', selection.has(m.id) && 'bg-emerald-50/60')}
               >
                 <td className="px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={selection.has(m.id)}
-                    onChange={() => bascule(m.id)}
-                    className="h-4 w-4 cursor-pointer accent-emerald-600"
-                  />
+                  {!sansValidation && (
+                    <input
+                      type="checkbox"
+                      checked={selection.has(m.id)}
+                      onChange={() => bascule(m.id)}
+                      className="h-4 w-4 cursor-pointer accent-emerald-600"
+                    />
+                  )}
                 </td>
                 <td className="truncate px-3 py-2 font-medium text-navy" title={m.provider_name}>
                   {m.provider_name}
@@ -404,20 +419,27 @@ export function ValidationTable({
                   {money(m.total_ht)}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <form action={approveMission}>
-                    <input type="hidden" name="mission_id" value={m.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
-                    >
+                  {sansValidation ? (
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-emerald-700">
                       <Check size={13} />
-                      {!m.manager_approved_at
-                        ? 'Valider'
-                        : m.salarie
-                          ? 'Bon pour la paie'
-                          : 'Bon à payer'}
-                    </button>
-                  </form>
+                      validée
+                    </span>
+                  ) : (
+                    <form action={approveMission}>
+                      <input type="hidden" name="mission_id" value={m.id} />
+                      <button
+                        type="submit"
+                        className="inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700"
+                      >
+                        <Check size={13} />
+                        {!m.manager_approved_at
+                          ? 'Valider'
+                          : m.salarie
+                            ? 'Bon pour la paie'
+                            : 'Bon à payer'}
+                      </button>
+                    </form>
+                  )}
                 </td>
               </tr>
               {(ouvert.has(m.id) || editing === m.id || rejecting === m.id || confier === m.id) && (
