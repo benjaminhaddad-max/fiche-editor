@@ -12,6 +12,11 @@ import { BRANDS, type BrandConfig, type BrandId } from '@/lib/brand'
  * à traduire, ni à chercher ailleurs.
  */
 
+// L'adresse réelle du déploiement, et non le siteUrl de la marque — même
+// raison que dans les emails : facturation.medibox.fr n'existe pas, et le
+// guide des prestataires de Medibox imprimait cette adresse en pied de page.
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr').replace('https://', '')
+
 const NAVY = '#0e1e35'
 const OR = '#8B6914'
 const GRIS = '#5b6b7d'
@@ -123,7 +128,7 @@ function GuideIndependant({ c, m }: { c: BillingCycle; m: BrandConfig }) {
         </View>
 
         <Text style={s.pied} fixed>
-          {m.appTitle} — {m.siteUrl.replace('https://', '')}
+          {m.appTitle} — {APP_URL}
         </Text>
       </Page>
     </Document>
@@ -181,7 +186,7 @@ function GuideSalarie({ c, m }: { c: BillingCycle; m: BrandConfig }) {
         </View>
 
         <Text style={s.pied} fixed>
-          {m.appTitle} — {m.siteUrl.replace('https://', '')}
+          {m.appTitle} — {APP_URL}
         </Text>
       </Page>
     </Document>
@@ -242,7 +247,7 @@ function GuideManager({ c, depot, m }: { c: BillingCycle; depot: string | null; 
         </View>
 
         <Text style={s.pied} fixed>
-          {m.appTitle} — {m.siteUrl.replace('https://', '')}
+          {m.appTitle} — {APP_URL}
         </Text>
       </Page>
     </Document>
