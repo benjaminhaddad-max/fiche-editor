@@ -11,8 +11,8 @@ import { money, round2 } from '@/lib/format'
 import { POLE_LABEL } from '@/lib/labels'
 import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import type { DeclarationResult } from '@/app/(app)/declarations/actions'
-import type { Employment, Pole, PricingType } from '@/lib/types'
-import { isSalaried } from '@/lib/types'
+import type { Employment, PayBasis, Pole, PricingType } from '@/lib/types'
+import { baseDeRemuneration, isSalaried } from '@/lib/types'
 
 export interface DeclCategory {
   id: string
@@ -26,7 +26,8 @@ interface Ligne {
   cle: number
   category_id: string
   manager_id: string
-  pay_basis: 'brut' | 'net'
+  /** Vide : on prend la base convenue sur la fiche. */
+  pay_basis: PayBasis | ''
   formation: string
   regularisation: boolean
   regul_period: string
@@ -57,10 +58,12 @@ interface Props {
   mode: 'prestataire' | 'manager' | 'admin'
   categories: DeclCategory[]
   managers: { id: string; full_name: string }[]
-  providers?: { id: string; name: string; employment: Employment }[]
+  providers?: { id: string; name: string; employment: Employment; base?: PayBasis | null }[]
   defaultManagerId?: string | null
   defaultPole?: Pole
   employment?: Employment
+  /** La base convenue sur sa fiche, pour un salarié qui déclare lui-même. */
+  base?: PayBasis | null
   /** Ce que le contrat paie déjà, et qu'il ne faut donc pas redéclarer. */
   couvertures?: { categoryId: string; resume: string }[]
   /** Sans TVA, « HT » ne veut rien dire : c'est le montant payé, point. */
@@ -153,6 +156,14 @@ export function DeclarationForm(props: Props) {
       ? (props.employment ?? 'independant')
       : (providers?.find((p) => p.id === providerId)?.employment ?? 'independant')
   const salarie = isSalaried(employment)
+  // Ce qui a été convenu avec cette personne, une fois pour toutes, à son
+  // contrat. La question se posait ligne par ligne, décochée par défaut :
+  // personne ne la touchait et des nets convenus partaient en brut à la paie.
+  const baseConvenue: PayBasis =
+    baseDeRemuneration({
+      employment_type: employment,
+      pay_basis: mode === 'prestataire' ? props.base : providers?.find((p) => p.id === providerId)?.base,
+    }) ?? 'brut'
   const tarif = mode === 'prestataire' ? props.tarifs?.['moi'] : props.tarifs?.[providerId]
   // Les 56 indépendants de l'école sont en franchise : aucun ne facture de
   // TVA. « Total HT » les fait tous buter sur la même question — faut-il
@@ -173,7 +184,7 @@ export function DeclarationForm(props: Props) {
     cle: ++compteur,
     category_id: categorieParDefaut,
     manager_id: '',
-    pay_basis: 'brut',
+    pay_basis: '',
     formation: '',
     regularisation: false,
     regul_period: '',
@@ -651,15 +662,20 @@ export function DeclarationForm(props: Props) {
                       onChange={(e) => maj(l.cle, { unit_amount_ht: e.target.value })}
                       aria-label={sansTva ? 'Prix unitaire' : 'Prix unitaire HT'}
                     />
-                    {salarie && (
-                      <label className="mt-1.5 flex items-center gap-1.5 text-xs text-navy/70">
-                        <input
-                          type="checkbox"
-                          checked={l.pay_basis === 'net'}
-                          onChange={(e) => maj(l.cle, { pay_basis: e.target.checked ? 'net' : 'brut' })}
-                          className="accent-navy"
-                        />
-                        Montant net
+    {salarie && (
+                      <label className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-navy/70">
+                        <select
+                          value={l.pay_basis || baseConvenue}
+                          onChange={(e) => maj(l.cle, { pay_basis: e.target.value as PayBasis })}
+                          className="cursor-pointer rounded border border-line bg-white px-1.5 py-0.5 text-xs"
+                          aria-label="Base du montant"
+                        >
+                          <option value="net">Montant net</option>
+                          <option value="brut">Montant brut</option>
+                        </select>
+                        {(l.pay_basis || baseConvenue) === baseConvenue
+                          ? 'comme sa fiche'
+                          : `sa fiche dit ${baseConvenue}`}
                       </label>
                     )}
                     {tarif && l.kind !== 'bonus' && (

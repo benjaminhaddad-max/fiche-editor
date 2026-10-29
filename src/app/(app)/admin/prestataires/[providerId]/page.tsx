@@ -8,12 +8,15 @@ import { ArrowLeft } from 'lucide-react'
 import { Card, PageHeader } from '@/components/ui/Page'
 import { FicheFacturationForm } from '@/components/admin/FicheFacturationForm'
 import { ProviderAdminForm } from '@/components/admin/ProviderAdminForm'
+import { ReglagesRemuneration } from '@/components/admin/ReglagesRemuneration'
+import { CONTRACT_SELECT, CONTRACT_STATUS_LABEL, contractRate, contractTitle, type ContractRow } from '@/lib/contracts'
+import { RATE_TYPE_LABEL } from '@/lib/labels'
 import { requireRole } from '@/lib/auth'
 import { getManagers } from '@/lib/queries'
 import { formaterIban, ibanValide } from '@/lib/iban'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Provider } from '@/lib/types'
-import { updateProviderAdmin } from '../../actions'
+import { reglerRemuneration, updateProviderAdmin } from '../../actions'
 
 export default async function ProviderPage({
   params,
@@ -33,7 +36,26 @@ export default async function ProviderPage({
 
   if (!data) notFound()
   const provider = data as Provider & { user: { full_name: string; email: string } | null }
-  const managers = await getManagers()
+
+  // Son contrat, sur sa fiche. Il fallait aller le chercher dans la liste des
+  // contrats, sans lien depuis la personne : « le contrat de travail de
+  // chacun rattaché à sa fiche », demandait Shirel, et c'est là qu'on le
+  // cherche quand on prépare une paie.
+  const [managers, { data: contrats }, { data: pieces }] = await Promise.all([
+    getManagers(),
+    supabase
+      .from('inv_coaching_contracts')
+      .select(CONTRACT_SELECT)
+      .eq('provider_id', providerId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('inv_documents')
+      .select('id, label, filename, created_at')
+      .eq('provider_id', providerId)
+      .eq('kind', 'contrat')
+      .order('created_at', { ascending: false }),
+  ])
+  const sesContrats = (contrats ?? []) as unknown as ContractRow[]
   const auteur = estAuteur(provider.employment_type)
   const salarie = isSalaried(provider.employment_type)
   const facture = !auteur && !salarie
@@ -125,6 +147,61 @@ export default async function ProviderPage({
             </div>
           ))}
         </dl>
+      </Card>
+
+      <ReglagesRemuneration action={reglerRemuneration} provider={provider} />
+
+      <Card className="mb-6 p-6">
+        <h2 className="mb-1 text-sm font-semibold text-navy">
+          {salarie ? 'Son contrat de travail' : 'Son contrat de prestation'}
+        </h2>
+        <p className="mb-4 text-xs text-muted">
+          Ce qui fait foi pour la payer : le contrat signé, et ce qu’il prévoit.
+        </p>
+
+        {sesContrats.length === 0 && (pieces ?? []).length === 0 ? (
+          <p className="text-sm text-amber-600">
+            Aucun contrat rattaché.{' '}
+            <Link href="/admin/contrats?nouveau" className="font-medium text-gold-dark hover:underline">
+              En établir un
+            </Link>
+          </p>
+        ) : (
+          <ul className="divide-y divide-line/60 text-sm">
+            {sesContrats.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
+                <span>
+                  <Link href={`/admin/contrats/${c.id}`} className="font-medium text-navy hover:text-gold-dark hover:underline">
+                    {contractTitle(c)}
+                  </Link>
+                  <span className="block text-xs text-muted">
+                    {[
+                      CONTRACT_STATUS_LABEL[c.status] ?? c.status,
+                      RATE_TYPE_LABEL[c.rate_type],
+                      contractRate(c),
+                      c.signed_at ? `signé le ${formatDate(c.signed_at)}` : 'pas encore signé',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </span>
+                {(c.instalments ?? []).length > 0 && (
+                  <span className="text-xs text-muted">
+                    {(c.instalments ?? []).length} échéances
+                  </span>
+                )}
+              </li>
+            ))}
+            {(pieces ?? []).map((d) => (
+              <li key={d.id} className="py-2.5">
+                <a href={`/api/documents/${d.id}`} className="font-medium text-navy hover:text-gold-dark hover:underline">
+                  {d.label || d.filename || 'Contrat'}
+                </a>
+                <span className="block text-xs text-muted">Pièce déposée le {formatDate(d.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       {/* Préfixe de facture, identifiant Pennylane, statut : c'est le

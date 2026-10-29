@@ -1,5 +1,6 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
+import { baseDeRemuneration } from '@/lib/types'
 import type { Category } from '@/lib/types'
 
 /*
@@ -69,15 +70,23 @@ export async function getActiveProviders() {
   const db = createServiceClient()
   const { data } = await db
     .from('inv_providers')
-    .select('id, legal_name, employment_type, user:inv_users!inv_providers_user_id_fkey!inner(full_name, is_active)')
+    .select('id, legal_name, employment_type, pay_basis, user:inv_users!inv_providers_user_id_fkey!inner(full_name, is_active)')
     .eq('brand', (await activeBrandId()))
     .eq('user.is_active', true)
   return ((data ?? []) as unknown as {
     id: string
     legal_name: string
     employment_type: import('@/lib/types').Employment
+    pay_basis: string | null
     user: { full_name: string } | null
   }[])
-    .map((p) => ({ id: p.id, name: p.user?.full_name ?? p.legal_name, employment: p.employment_type }))
+    // La base convenue suit la personne : le formulaire de déclaration la
+    // reprend au lieu de repartir de « brut » à chaque ligne.
+    .map((p) => ({
+      id: p.id,
+      name: p.user?.full_name ?? p.legal_name,
+      employment: p.employment_type,
+      base: baseDeRemuneration(p),
+    }))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
 }

@@ -298,6 +298,56 @@ export async function changerEtiquette(fd: FormData): Promise<void> {
   revalidatePath('/admin/equipe')
 }
 
+/**
+ * Ce qui a été convenu avec cette personne : la base, et le rythme.
+ *
+ * Deux réglages qui tiennent au contrat et non à chaque ligne. La base
+ * brut/net était demandée prestation par prestation, décochée par défaut :
+ * personne ne la touchait, et des nets convenus avec des vacataires
+ * remontaient en brut au service paie. Le rythme dit si la personne déclare
+ * chaque mois ou si son montant ne bouge pas — auquel cas il n'y a qu'à
+ * valider, et la relancer n'a aucun sens.
+ *
+ * Ouvert aux managers : c'est le manager qui négocie le montant, et c'est
+ * Shirel, manager, qui prépare la paie.
+ */
+export async function reglerRemuneration(fd: FormData): Promise<void> {
+  const user = await requireRole('manager', 'admin')
+  const providerId = String(fd.get('provider_id') ?? '')
+  const base = String(fd.get('pay_basis') ?? '')
+  const mode = String(fd.get('pay_mode') ?? '')
+  if (!providerId) return
+
+  const db = createServiceClient()
+  // L'école de la fiche, pas celle du déploiement : un manager d'une école
+  // ne règle pas la rémunération de quelqu'un d'une autre.
+  const { data: fiche } = await db
+    .from('inv_providers')
+    .select('id, brand, employment_type')
+    .eq('id', providerId)
+    .eq('brand', await activeBrandId())
+    .maybeSingle()
+  if (!fiche) return
+
+  await db
+    .from('inv_providers')
+    .update({
+      // Un indépendant facture : la question brut/net ne se pose pas.
+      pay_basis: fiche.employment_type === 'independant' ? null : base === 'brut' || base === 'net' ? base : null,
+      pay_mode: mode === 'fixe' || mode === 'variable' ? mode : null,
+    })
+    .eq('id', providerId)
+
+  await logAudit(db, {
+    actorId: user.id,
+    action: 'provider.remuneration',
+    entityType: 'provider',
+    entityId: providerId,
+    payload: { pay_basis: base || null, pay_mode: mode || null },
+  })
+  revalidatePath(`/admin/prestataires/${providerId}`)
+}
+
 const Facturation = z.object({
   provider_id: z.uuid(),
   // Un manager connaît le statut de ses intervenants avant l'administration :

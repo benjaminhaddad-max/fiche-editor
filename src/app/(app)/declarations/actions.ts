@@ -11,7 +11,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
-import { isSalaried } from '@/lib/types'
+import { baseDeRemuneration, isSalaried } from '@/lib/types'
 
 export interface DeclarationResult {
   error?: string
@@ -107,7 +107,7 @@ export async function declarer(
 
   const { data: provider } = await db
     .from('inv_providers')
-    .select('id, legal_name, employment_type, pay_abatement, abatement_exempt_poles, brand')
+    .select('id, legal_name, employment_type, pay_basis, pay_abatement, abatement_exempt_poles, brand')
     .eq('id', providerId)
     .eq('brand', (await activeBrandId()))
     .maybeSingle()
@@ -230,8 +230,10 @@ export async function declarer(
     // est écrite à part quand elle en diffère.
     regularisation: Boolean(l.regularisation),
     regul_period: l.regularisation ? l.regul_period || l.date.slice(0, 7) : null,
-    // Un indépendant facture : la question brut/net ne se pose pas pour lui.
-    pay_basis: provider.employment_type === 'independant' ? null : l.pay_basis || 'brut',
+    // La base vient de la fiche, où elle est convenue une fois. Elle partait
+    // à « brut » par défaut, ligne par ligne, et c'est ce brut qui remontait
+    // au service paie pour des vacataires payés sur un net convenu.
+    pay_basis: l.pay_basis || baseDeRemuneration(provider),
     pricing_type: l.kind === 'bonus' ? 'forfait_mission' : l.pricing_type,
     quantity: l.kind === 'bonus' ? 1 : l.quantity,
     unit_amount_ht: l.kind === 'bonus' ? round2(l.quantity * l.unit_amount_ht) : l.unit_amount_ht,

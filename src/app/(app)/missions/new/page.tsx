@@ -8,6 +8,7 @@ import { formatDateLong } from '@/lib/format'
 import { getCategoriesWithPole, getManagers } from '@/lib/queries'
 import { baremesParPrestataire } from '@/lib/contracts/baremes'
 import { couvertureParContrat } from '@/lib/contracts/couverture'
+import { baseDeRemuneration } from '@/lib/types'
 import { tauxAbattement } from '@/lib/abattement'
 import { isSalaried, type Pole } from '@/lib/types'
 import { declarer } from '../../declarations/actions'
@@ -75,6 +76,7 @@ export default async function NewMissionPage({
         defaultManagerId={provider.default_manager_id}
         defaultPole={pole}
         employment={provider.employment_type}
+        base={baseDeRemuneration(provider)}
         tarifs={monTarif}
         couvertures={couvertures}
         sansTva={provider.vat_regime === 'franchise'}

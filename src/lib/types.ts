@@ -78,6 +78,38 @@ export const isSalaried = (e: Employment | null | undefined) =>
  */
 export const estAuteur = (e: Employment | null | undefined) => e === 'droits_auteur'
 
+/** Base d'un montant convenu : ce qu'on verse, ou ce qui part en paie. */
+export type PayBasis = 'brut' | 'net'
+
+/** Même montant chaque mois, ou déclaré chaque mois. */
+export type PayMode = 'fixe' | 'variable'
+
+/**
+ * La base à reprendre sur les prestations de cette personne.
+ *
+ * Elle se convient une fois, au contrat, et se lit sur la fiche. Elle était
+ * demandée ligne par ligne — une case « Montant net » qui partait décochée,
+ * que personne ne cochait : tout remontait en brut au service paie alors
+ * qu'avec un vacataire on se met d'accord sur un net à payer.
+ *
+ * À défaut de réglage : net pour un vacataire, c'est la règle de la maison ;
+ * brut pour un salarié à salaire fixe, dont les éléments du mois s'expriment
+ * en brut ; brut pour un auteur, dont la société retient le précompte. Rien
+ * pour un indépendant : il facture, la question ne se pose pas.
+ */
+export function baseDeRemuneration(p: {
+  employment_type: Employment
+  pay_basis?: string | null
+}): PayBasis | null {
+  if (p.employment_type === 'independant') return null
+  if (p.pay_basis === 'brut' || p.pay_basis === 'net') return p.pay_basis
+  return p.employment_type === 'vacataire' ? 'net' : 'brut'
+}
+
+/** Faute de réglage, on considère qu'une personne déclare chaque mois. */
+export const modeDeRemuneration = (p: { pay_mode?: string | null }): PayMode =>
+  p.pay_mode === 'fixe' ? 'fixe' : 'variable'
+
 export interface PersonDocument {
   id: string
   provider_id: string
@@ -139,6 +171,10 @@ export interface Provider {
   social_security_number: string | null
   /** Pourcentage retiré du montant convenu, du fait des charges du contrat. */
   pay_abatement: number
+  /** Base convenue — brut ou net. Lire par `baseDeRemuneration`. */
+  pay_basis: PayBasis | null
+  /** Montant fixe chaque mois, ou déclaré chaque mois. */
+  pay_mode: PayMode | null
   /** Pôles auxquels cet abattement ne s'applique pas, pour cette personne. */
   abatement_exempt_poles: string[] | null
   contact_email: string | null
