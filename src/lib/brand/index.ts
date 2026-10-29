@@ -10,6 +10,7 @@ import {
 export {
   BRANDS,
   deploymentBrandId,
+  identifiantsDepot,
   marqueFacturable,
   normalizeBrandId,
   servedBrandIds,

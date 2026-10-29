@@ -3,13 +3,13 @@ import { releverBoite, boiteConfiguree } from '@/lib/inbound/imap'
 
 export const maxDuration = 300
 
-/** Relève depotfactures@diploma-sante.fr (tâche planifiée). */
+/** Relève les boîtes de dépôt des écoles servies ici (tâche planifiée). */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
   if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'non autorisé' }, { status: 401 })
   }
-  if (!boiteConfiguree()) return NextResponse.json({ ok: false, raison: 'boîte non configurée' })
+  if (!boiteConfiguree()) return NextResponse.json({ ok: false, raison: 'aucune boîte configurée' })
   try {
     return NextResponse.json({ ok: true, ...(await releverBoite()) })
   } catch (err) {

@@ -62,10 +62,48 @@ export interface BrandConfig {
     vatNumber: string
   }
   email: { senderName: string; senderEmail: string }
-  /** Adresse où déposer une facture reçue par mail, quand il y en a une. */
+  /**
+   * Adresse où déposer une facture reçue par mail, quand il y en a une.
+   *
+   * Une boîte par école, chacune avec sa variable : l'adresse annoncée à un
+   * prestataire doit être celle de son école, et la facture qui y arrive est
+   * rapprochée de l'équipe de cette école-là. Une adresse partagée a valu à
+   * Nolwenn, chez Medibox, un mail qui lui donnait celle de Diploma.
+   */
   inboundEmail: string | null
   /** Qui prépare les bulletins : c'est à elle que part le récapitulatif de paie. */
   payrollContact: { name: string; email: string } | null
+}
+
+/**
+ * Les identifiants de la boîte de dépôt d'une école.
+ *
+ * Une boîte par école, donc une paire de variables par école — Diploma garde
+ * celles d'avant l'ouverture des autres écoles. Les noms sont écrits en
+ * entier : Next remplace `process.env.X` à la compilation, un nom calculé ne
+ * donnerait rien. Hors du serveur, tout est indéfini, et c'est très bien :
+ * seul le serveur relève la boîte et imprime l'adresse.
+ */
+export function identifiantsDepot(id: BrandId): { email?: string; motDePasse?: string } {
+  if (id === 'medibox') {
+    return {
+      email: process.env.DEPOT_FACTURES_EMAIL_MEDIBOX,
+      motDePasse: process.env.DEPOT_FACTURES_PASSWORD_MEDIBOX,
+    }
+  }
+  return { email: process.env.DEPOT_FACTURES_EMAIL, motDePasse: process.env.DEPOT_FACTURES_PASSWORD }
+}
+
+/**
+ * L'adresse qu'on annonce aux prestataires de cette école.
+ *
+ * Elle n'est annoncée que si la plateforme sait relever la boîte : sans mot
+ * de passe d'application, les factures déposées là partiraient dans le vide
+ * sans que personne ne s'en aperçoive.
+ */
+function adresseDeDepot(id: BrandId): string | null {
+  const { email, motDePasse } = identifiantsDepot(id)
+  return email && motDePasse ? email : null
 }
 
 export const BRANDS: Record<BrandId, BrandConfig> = {
@@ -93,7 +131,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderName: 'Facturation Diploma Santé',
       senderEmail: 'facturation@diploma-sante.fr',
     },
-    inboundEmail: process.env.DEPOT_FACTURES_EMAIL ?? null,
+    inboundEmail: adresseDeDepot('diploma'),
     comptabilite: true,
     payrollContact: { name: 'Shirel Benchetrit', email: 'shirel.benchetrit@diploma-sante.fr' },
   },
@@ -130,7 +168,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderName: 'Facturation Linova',
       senderEmail: process.env.BREVO_SENDER_EMAIL ?? 'facturation@linova-education.fr',
     },
-    inboundEmail: process.env.DEPOT_FACTURES_EMAIL ?? null,
+    inboundEmail: adresseDeDepot('linova'),
     // Linova tient sa comptabilité ailleurs.
     comptabilite: false,
     // À renseigner dès que Linova aura son interlocuteur paie : sans lui, le
@@ -193,7 +231,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderName: 'Facturation Medibox',
       senderEmail: 'facturation@medibox.fr',
     },
-    inboundEmail: null,
+    inboundEmail: adresseDeDepot('medibox'),
     comptabilite: false,
     // À renseigner quand Medibox aura son interlocuteur paie.
     payrollContact: null,

@@ -1,25 +1,89 @@
 import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import { traiterCourriel } from '@/lib/inbound/traiter'
+import { identifiantsDepot, servedBrandIds, type BrandId } from '@/lib/brand'
+import { sousMarque } from '@/lib/brand/actif'
+
+export interface Bilan {
+  lus: number
+  traites: number
+  ignores: number
+  erreurs: number
+}
+
+interface Boite {
+  brand: BrandId
+  user: string
+  pass: string
+}
+
+const vide = (): Bilan => ({ lus: 0, traites: 0, ignores: 0, erreurs: 0 })
+
+/**
+ * Les boîtes de dépôt que ce déploiement doit relever : une par école.
+ *
+ * Une facture déposée est rapprochée de l'équipe de son école. Relever la
+ * boîte de Medibox sous la marque du déploiement chercherait donc
+ * l'expéditeur dans l'équipe de Diploma, et l'accusé de réception partirait
+ * au mauvais manager. Chaque boîte se relève sous son école.
+ *
+ * Deux écoles qui partagent une adresse ne la relèvent qu'une fois, sous la
+ * marque du déploiement : `servedBrandIds()` la place en tête.
+ */
+export function boitesDeDepot(): Boite[] {
+  const boites: Boite[] = []
+  const vues = new Set<string>()
+  for (const brand of servedBrandIds()) {
+    const { email: user, motDePasse: pass } = identifiantsDepot(brand)
+    if (!user || !pass || vues.has(user.toLowerCase())) continue
+    vues.add(user.toLowerCase())
+    boites.push({ brand, user, pass })
+  }
+  return boites
+}
 
 export function boiteConfiguree(): boolean {
-  return Boolean(process.env.DEPOT_FACTURES_EMAIL && process.env.DEPOT_FACTURES_PASSWORD)
+  return boitesDeDepot().length > 0
 }
 
 /**
- * Relève la boîte depotfactures@ (Gmail, IMAP) : chaque message non lu est
+ * Relève les boîtes de dépôt, chacune sous l'école à laquelle elle appartient.
+ *
+ * Une boîte qui refuse la connexion — mot de passe d'application révoqué,
+ * IMAP coupé — ne doit pas empêcher les autres d'être relevées.
+ */
+export async function releverBoite(max = 10): Promise<Bilan & { boites: Record<string, Bilan> }> {
+  const total = vide()
+  const boites: Record<string, Bilan> = {}
+  for (const boite of boitesDeDepot()) {
+    let bilan: Bilan
+    try {
+      bilan = await sousMarque(boite.brand, () => releverUneBoite(boite, max))
+    } catch (err) {
+      console.error('[depotfactures]', boite.user, err)
+      bilan = { ...vide(), erreurs: 1 }
+    }
+    boites[boite.brand] = bilan
+    total.lus += bilan.lus
+    total.traites += bilan.traites
+    total.ignores += bilan.ignores
+    total.erreurs += bilan.erreurs
+  }
+  return { ...total, boites }
+}
+
+/**
+ * Relève une boîte depotfactures@ (Gmail, IMAP) : chaque message non lu est
  * traité puis marqué comme lu. Un message qui échoue reste non lu et sera
  * repris au passage suivant.
  */
-export async function releverBoite(max = 10): Promise<{ lus: number; traites: number; ignores: number; erreurs: number }> {
-  const bilan = { lus: 0, traites: 0, ignores: 0, erreurs: 0 }
-  if (!boiteConfiguree()) return bilan
-
+async function releverUneBoite(boite: Boite, max: number): Promise<Bilan> {
+  const bilan = vide()
   const client = new ImapFlow({
     host: 'imap.gmail.com',
     port: 993,
     secure: true,
-    auth: { user: process.env.DEPOT_FACTURES_EMAIL!, pass: process.env.DEPOT_FACTURES_PASSWORD! },
+    auth: { user: boite.user, pass: boite.pass },
     logger: false,
   })
   await client.connect()
@@ -60,7 +124,7 @@ export async function releverBoite(max = 10): Promise<{ lus: number; traites: nu
         await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true })
       } catch (err) {
         bilan.erreurs++
-        console.error('[depotfactures]', uid, err)
+        console.error('[depotfactures]', boite.user, uid, err)
       }
     }
   } finally {
