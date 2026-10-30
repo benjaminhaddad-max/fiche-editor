@@ -676,14 +676,15 @@ export async function templates(brand?: BrandId) {
     ),
   }),
 
-  commissionsReminder: (p: { name: string; label: string; reviewEnd: string; href: string }) => ({
-    subject: `Commissions de ${p.label} : à vérifier sur HubDiploma avant le ${formatDate(p.reviewEnd)}`,
+  commissionsReminder: (p: { name: string; label: string; avant: string; depot: string; href: string }) => ({
+    subject: `Commissions de ${p.label} : à vérifier sur HubDiploma avant le ${formatDate(p.avant)}`,
     html: layout(m, 
       'Vos commissions à vérifier',
       `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
        <p style="margin:0 0 12px;">Les suggestions de commissions de ${p.label} vous attendent sur HubDiploma,
           avec les appels de chacun. Vérifiez que tout est bon (doublons, montants) et prévalidez.</p>
-       <p style="margin:0;">Une ligne prévalidée permet au commercial de déposer sa facture.</p>`,
+       <p style="margin:0;">Une ligne prévalidée permet au commercial de déposer sa facture, jusqu'au ${formatDate(p.depot)}.
+          Passé cette date, elle part sur le mois suivant.</p>`,
       { label: 'Voir les commissions', href: p.href }
     ),
   }),

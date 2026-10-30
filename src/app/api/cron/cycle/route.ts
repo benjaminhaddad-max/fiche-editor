@@ -24,10 +24,11 @@ type Db = ReturnType<typeof createServiceClient>
  *
  *   le 1er            calendrier du nouveau mois à tous
  *                     bordereau global du mois écoulé
+ *   L−7               rappel à Pascal pour les commissions HubDiploma : à prévalider à L−4
  *   L−5               rappel aux prestataires : clôture des déclarations à L−3
  *                     demande des éléments de paie aux salariés
  *   L−1               relance des salariés qui n'ont rien renseigné
- *   L−2               début de la vérification : rappel aux managers, et à Pascal pour les commissions HubDiploma
+ *   L−2               début de la vérification : rappel aux managers
  *   le 2              relance des factures manquantes (email + SMS)
  *   dernier jour      forfaits mensuels des contrats → prestations
  *   chaque jour       adresses vérifiées auprès de Brevo : qui ne reçoit rien
@@ -131,6 +132,10 @@ async function cycleDUneMarque(
   }
   if (today === courant.reviewStart) {
     fait.rappelVerification = await uneFois(db, courant.month, 'rappel_verification', () => rappelerVerification(db, courant))
+  }
+  // Les commissions sont un sujet Diploma, et Pascal doit les prévalider avant
+  // la clôture du dépôt (L−3) : à L−2, sa validation partirait au mois suivant.
+  if (today === addDays(courant.declarationDeadline, -4) && (await activeBrandId()) === 'diploma') {
     fait.rappelCommissions = await uneFois(db, courant.month, 'rappel_commissions', () => rappelerCommissions(db, courant))
   }
   if (today === precedent.invoiceDeadline) {
@@ -240,14 +245,14 @@ async function rappelerVerification(db: Db, cycle: BillingCycle) {
   return { envoyes: n }
 }
 
-/** Pascal vérifie les commissions sur HubDiploma : Invoice le lui rappelle en même temps que ses prestations. */
+/** Pascal vérifie les commissions sur HubDiploma : Invoice le lui rappelle assez tôt pour que les commerciaux déposent avant la clôture. */
 async function rappelerCommissions(db: Db, cycle: BillingCycle) {
   const { data: pascal } = await db.from('inv_users').select('id, email, full_name').eq('email', 'pascal@diploma-sante.fr').maybeSingle()
   if (!pascal) return { envoyes: 0 }
   await deliver({
     to: { email: pascal.email, name: pascal.full_name },
     ...(await templates()).commissionsReminder({
-      name: pascal.full_name, label: cycle.label, reviewEnd: cycle.reviewEnd,
+      name: pascal.full_name, label: cycle.label, avant: cycle.declarationDeadlineSalarie, depot: cycle.declarationDeadline,
       href: `${process.env.HUBDIPLOMA_URL ?? 'https://hub.diploma-sante.fr'}/admin/crm-v2/commissions`,
     }),
     template: 'commissions_reminder',
