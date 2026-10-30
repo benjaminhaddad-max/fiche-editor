@@ -83,6 +83,61 @@ async function facturerDepuisBordereau(
   }
 }
 
+/**
+ * La facture de commissions déposée sur HubDiploma devient la facture du mois.
+ *
+ * Seulement quand elle couvre tout le bordereau : une ligne d'un autre pôle à
+ * côté, et le PDF ne dit plus le bon total. On retombe alors sur le chemin
+ * normal, une seule facture par mois, et le PDF reste en pièce sur la ligne.
+ */
+async function facturerDepuisDepot(
+  db: ReturnType<typeof createServiceClient>,
+  providerId: string,
+  statementId: string
+): Promise<boolean> {
+  const { data } = await db
+    .from('inv_missions')
+    .select('id, commission_pdf_path, commission_pdf_name, commission_ai_check')
+    .eq('statement_id', statementId)
+    .is('invoice_id', null)
+  const lignes = (data ?? []) as {
+    id: string
+    commission_pdf_path: string | null
+    commission_pdf_name: string | null
+    commission_ai_check: unknown
+  }[]
+  if (lignes.length !== 1 || !lignes[0].commission_pdf_path) return false
+  const depot = lignes[0]
+
+  try {
+    const { data: invoiceId, error } = await db.rpc('inv_create_invoice', {
+      p_provider_id: providerId,
+      p_mission_ids: [depot.id],
+    })
+    if (error || !invoiceId) throw new Error(error?.message ?? 'création impossible')
+
+    const now = new Date().toISOString()
+    await db
+      .from('inv_invoices')
+      .update({
+        statement_id: statementId,
+        status: 'sent',
+        sent_at: now,
+        pdf_path: depot.commission_pdf_path,
+        pdf_source: 'uploaded',
+        uploaded_filename: depot.commission_pdf_name,
+        uploaded_at: now,
+        ai_check: depot.commission_ai_check,
+      })
+      .eq('id', invoiceId as string)
+    await db.from('inv_statements').update({ invoice_id: invoiceId as string, status: 'invoiced' }).eq('id', statementId)
+    return true
+  } catch (err) {
+    console.error('[bordereaux:depot]', providerId, err)
+    return false
+  }
+}
+
 export async function envoyerBordereaux(
   cycle: BillingCycle,
   auteurId?: string | null,
@@ -214,7 +269,8 @@ export async function envoyerBordereaux(
     // complète, sinon on émettrait un document sans SIRET ni IBAN.
     const facturePrete = isSalaried(employment)
       ? false
-      : await facturerDepuisBordereau(db, providerId, bordereau.id)
+      : (await facturerDepuisDepot(db, providerId, bordereau.id)) ||
+        (await facturerDepuisBordereau(db, providerId, bordereau.id))
 
     // Le total fait foi à partir des lignes réellement rattachées.
     const { data: rattachees } = await db
