@@ -3,11 +3,13 @@
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getSessionUser } from '@/lib/auth'
+import { getSessionUser, requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { cycleForDate, enVerification, managerCanEdit, providerCanDeclare, echeanceDeclaration } from '@/lib/cycle'
 import { formatDateLong, round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getCategoriesWithPole } from '@/lib/queries'
+import { lireFacturePrestation } from '@/lib/invoice/lecture-prestation'
 import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
@@ -280,4 +282,96 @@ export async function declarer(
     }
   }
   return { success: `${quoi} déclarée${n > 1 ? 's' : ''} pour ${provider.legal_name}, déjà validée${n > 1 ? 's' : ''}.` }
+}
+
+/** Une ligne lue sur la facture, déjà traduite dans les termes du formulaire. */
+export interface LigneImportee {
+  category_id: string
+  date: string
+  detail: string
+  formation: string
+  pricing_type: 'forfait_mission' | 'forfait_horaire' | 'forfait_journalier'
+  quantity: string
+  unit_amount_ht: string
+}
+
+export interface ImportResult {
+  error?: string
+  /** Ce qu'on a lu, dit en une phrase, pour que le manager recoupe. */
+  resume?: string
+  lignes?: LigneImportee[]
+}
+
+/** « Tarifs horaires » et « tarif horaire » désignent la même catégorie. */
+function cle(s: string) {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/**
+ * Lit la facture qu'un intervenant a envoyée en retard, et rend ses lignes
+ * prêtes à être relues dans le formulaire.
+ *
+ * Rien n'est enregistré ici : le manager voit les lignes remplies, corrige
+ * ce qui doit l'être, puis déclare comme d'habitude. Une facture mal lue ne
+ * laisse donc aucune trace, et personne n'est payé sur la foi d'un PDF.
+ */
+export async function importerFacturePrestation(_prev: ImportResult, fd: FormData): Promise<ImportResult> {
+  await requireRole('manager', 'admin')
+
+  const fichier = fd.get('facture')
+  if (!(fichier instanceof File) || fichier.size === 0) return { error: 'Choisissez un fichier PDF.' }
+  if (fichier.size > 15 * 1024 * 1024) return { error: 'Fichier trop lourd (15 Mo maximum).' }
+  const nom = fichier.name.toLowerCase()
+  if (!nom.endsWith('.pdf') && fichier.type !== 'application/pdf') {
+    return { error: 'Seuls les PDF peuvent être lus.' }
+  }
+
+  const categories = await getCategoriesWithPole()
+  let lue
+  try {
+    lue = await lireFacturePrestation(
+      Buffer.from(await fichier.arrayBuffer()),
+      categories.map((c) => c.label)
+    )
+  } catch (e) {
+    return { error: `Lecture impossible : ${e instanceof Error ? e.message : 'erreur inconnue'}` }
+  }
+
+  const parLabel = new Map(categories.map((c) => [cle(c.label), c]))
+  const lignes: LigneImportee[] = lue.lignes.map((l) => {
+    const cat = l.categorie ? parLabel.get(cle(l.categorie)) : undefined
+    const unite = l.unite ?? (cat?.requiresSession ? 'heure' : 'mission')
+    return {
+      category_id: cat?.id ?? '',
+      date: /^\d{4}-\d{2}-\d{2}$/.test(l.date ?? '') ? (l.date as string) : (lue.date ?? ''),
+      detail: l.detail ?? '',
+      formation: l.formation ?? '',
+      pricing_type:
+        unite === 'heure' ? 'forfait_horaire' : unite === 'journee' ? 'forfait_journalier' : 'forfait_mission',
+      quantity: l.quantite != null ? String(l.quantite) : '1',
+      unit_amount_ht: l.prix_unitaire != null ? String(l.prix_unitaire) : '',
+    }
+  })
+  if (!lignes.length) {
+    return { error: lue.avertissement ?? 'Aucune ligne de prestation trouvée sur ce document.' }
+  }
+
+  const n = lignes.length
+  const parties = [
+    `${n} ligne${n > 1 ? 's' : ''} lue${n > 1 ? 's' : ''}`,
+    lue.prestataire ? `facture de ${lue.prestataire}` : null,
+    lue.numero ? `n° ${lue.numero}` : null,
+    lue.total_ht != null
+      ? `total annoncé ${lue.total_ht.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`
+      : null,
+  ].filter(Boolean)
+  const resume = `${parties.join(' · ')}. Relisez chaque ligne avant de déclarer.${
+    lue.avertissement ? ` ${lue.avertissement}` : ''
+  }`
+  return { resume, lignes }
 }

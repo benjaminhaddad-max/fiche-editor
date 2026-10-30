@@ -8,7 +8,7 @@ import { activeCycle, cycleForDate, todayParis } from '@/lib/cycle'
 import { formatDateLong } from '@/lib/format'
 import { getActiveProviders, getCategoriesWithPole, getManagers } from '@/lib/queries'
 import { baremesParPrestataire } from '@/lib/contracts/baremes'
-import { declarer } from '../../declarations/actions'
+import { declarer, importerFacturePrestation } from '../../declarations/actions'
 
 export default async function DeclarerPourPage() {
   const user = await requireRole('manager', 'admin')
@@ -39,6 +39,7 @@ export default async function DeclarerPourPage() {
       <CalendrierMois pour="manager" />
       <DeclarationForm
         action={declarer}
+        importAction={importerFacturePrestation}
         mode={user.role === 'admin' ? 'admin' : 'manager'}
         categories={categories}
         managers={managers}
