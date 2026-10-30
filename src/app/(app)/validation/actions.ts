@@ -610,18 +610,35 @@ export async function reattribuerMissions(
   if (!cible) return { error: 'Cette personne n’encadre pas, ou n’est plus en poste.' }
 
   // Une prestation déjà facturée ou partie en paie ne change plus de main.
-  let q = db
+  const { data: toutes } = await db
     .from('inv_missions')
-    .select('id, manager_id, total_ht')
+    .select('id, manager_id, provider_id, total_ht')
     .in('id', ids)
     .eq('brand', (await activeBrandId()))
     .in('status', ['submitted', 'manager_approved'])
     .is('invoice_id', null)
     .is('payroll_batch_id', null)
-  // Un manager ne transmet que ce qu'on lui a confié.
-  if (user.role === 'manager') q = q.eq('manager_id', user.id)
-  const { data: lignes } = await q
-  if (!lignes?.length) {
+
+  // Un manager ne transmet que ce qu'on lui a confié — avec une exception :
+  // il peut RÉCUPÉRER, pour lui seul, la prestation d'un de ses prestataires
+  // qui s'est trompé de destinataire en déclarant. Sans ça, celui à qui la
+  // ligne revient ne pouvait que demander au collègue de la lui renvoyer.
+  // Jamais vers un tiers : on ne déplace pas le travail d'un collègue.
+  let lignes = toutes ?? []
+  if (user.role === 'manager') {
+    const siennes = new Set<string>()
+    if (vers === user.id) {
+      const { data: fiches } = await db
+        .from('inv_providers')
+        .select('id')
+        .eq('brand', (await activeBrandId()))
+        .eq('default_manager_id', user.id)
+      for (const f of fiches ?? []) siennes.add(f.id as string)
+    }
+    lignes = lignes.filter((l) => l.manager_id === user.id || siennes.has(l.provider_id as string))
+  }
+
+  if (!lignes.length) {
     return {
       error:
         user.role === 'manager'
@@ -646,7 +663,8 @@ export async function reattribuerMissions(
     .in('id', aBouger.map((l) => l.id))
 
   const total = round2(aBouger.reduce((s, l) => s + Number(l.total_ht), 0))
-  if (!cible.email_unreachable_reason) {
+  // On ne s'écrit pas à soi-même pour se signaler ce qu'on vient de prendre.
+  if (!cible.email_unreachable_reason && cible.id !== user.id) {
     const cycle = cycleForDate(todayParis())
     await deliver({
       to: { email: cible.email as string, name: cible.full_name as string },
@@ -663,18 +681,30 @@ export async function reattribuerMissions(
     })
   }
 
+  const recuperees = aBouger.filter((l) => l.manager_id !== user.id).length
+
   await logAudit(db, {
     actorId: user.id,
     entityType: 'user',
     entityId: cible.id as string,
     action: 'prestations_reattribuees',
-    payload: { vers: cible.full_name, lignes: aBouger.length, total },
+    payload: { vers: cible.full_name, lignes: aBouger.length, total, recuperees },
   })
   revalidatePath('/validation')
 
+  const combien = `${aBouger.length} prestation${aBouger.length > 1 ? 's' : ''} (${money(total)} HT)`
+  if (cible.id === user.id) {
+    return {
+      message:
+        `${combien} récupérée${aBouger.length > 1 ? 's' : ''} : ${aBouger.length > 1 ? 'elles sont' : 'elle est'} ` +
+        'dans votre liste à valider, et le manager qui ' +
+        `${aBouger.length > 1 ? 'les' : 'la'} détenait ne ${aBouger.length > 1 ? 'les' : 'la'} voit plus.`,
+    }
+  }
+
   return {
     message:
-      `${aBouger.length} prestation${aBouger.length > 1 ? 's' : ''} (${money(total)} HT) confiée${aBouger.length > 1 ? 's' : ''} à ${cible.full_name}` +
+      `${combien} confiée${aBouger.length > 1 ? 's' : ''} à ${cible.full_name}` +
       (cible.email_unreachable_reason
         ? ' — mais son adresse n’arrive pas, prévenez-le autrement.'
         : ', qui vient d’être prévenu par mail.'),

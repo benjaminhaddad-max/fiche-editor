@@ -1,6 +1,7 @@
 import type { ReviewMission } from '@/components/validation/ValidationTable'
 import type { MissionStatus } from '@/lib/types'
 import { createServerSupabase } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { getContractContext } from '@/lib/contract-context'
 import { activeBrandId } from '@/lib/brand/actif'
 import { estAuteur, isSalaried, type Employment } from '@/lib/types'
@@ -85,6 +86,56 @@ export function toReviewMission(row: RawMission): ReviewMission {
     manager_approved_at: row.manager_approved_at,
     valide_par: row.valideur?.full_name ?? null,
   }
+}
+
+/**
+ * Les prestations de SES prestataires qui ont atterri chez quelqu'un d'autre.
+ *
+ * Un prestataire se trompe de destinataire en déclarant, et la ligne part
+ * dans la liste d'un collègue : celui à qui elle revient ne la voit nulle
+ * part, et ne peut donc pas la réclamer. Eloïse l'a demandé — « quand on
+ * voit qu'une mission a été donnée au mauvais manager, qu'on puisse la
+ * récupérer ».
+ *
+ * « Ses » prestataires, ce sont ceux dont il est le manager par défaut :
+ * c'est la seule marque, dans les données, de qui encadre qui. On ne montre
+ * donc rien d'autre — un manager ne fouille pas les lignes de ses collègues.
+ *
+ * La lecture passe par le client de service : les règles de la base ne
+ * laissent un manager voir que ce qui lui est confié, et c'est bien ce
+ * qu'on veut par défaut.
+ */
+export async function getMissionsEgarees(managerId: string): Promise<ReviewMission[]> {
+  const db = createServiceClient()
+  const brand = await activeBrandId()
+
+  const { data: fiches } = await db
+    .from('inv_providers')
+    .select('id')
+    .eq('brand', brand)
+    .eq('default_manager_id', managerId)
+  const siennes = (fiches ?? []).map((f) => f.id)
+  if (!siennes.length) return []
+
+  const { data, error } = await db
+    .from('inv_missions')
+    .select(MISSION_WITH_RELATIONS)
+    .eq('brand', brand)
+    .in('provider_id', siennes)
+    .neq('manager_id', managerId)
+    .in('status', ['submitted', 'manager_approved'])
+    // Facturée ou partie en paie, une ligne ne change plus de main.
+    .is('invoice_id', null)
+    .is('payroll_batch_id', null)
+    .order('start_date', { ascending: true })
+  if (error) {
+    console.error('[getMissionsEgarees]', error.message)
+    return []
+  }
+
+  const rows = (data as unknown as RawMission[]).map(toReviewMission)
+  const contexte = await getContractContext(rows.map((r) => r.id))
+  return rows.map((r) => ({ ...r, contract: contexte.get(r.id) }))
 }
 
 /** Prestations dans un etat donne, avec toutes les relations d'affichage. */

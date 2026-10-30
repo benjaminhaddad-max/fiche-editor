@@ -5,10 +5,11 @@ import { Clock } from 'lucide-react'
 import { EmptyState } from '@/components/ui/Page'
 import { ValidationTable } from '@/components/validation/ValidationTable'
 import { PanneauVerification } from '@/components/validation/PanneauVerification'
+import { PrestationsEgarees } from '@/components/validation/PrestationsEgarees'
 import type { LigneManager } from '@/components/validation/EtatVerification'
 import { requireRole } from '@/lib/auth'
 import { formatDateLong, money } from '@/lib/format'
-import { getMissionsByStatus } from '@/lib/missions'
+import { getMissionsByStatus, getMissionsEgarees } from '@/lib/missions'
 import { ManagerPicker } from '@/components/validation/ManagerPicker'
 import { getManagers } from '@/lib/queries'
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
@@ -28,9 +29,10 @@ export default async function ValidationPage({
   const cycle = cycleForDate(todayParis())
 
   if (user.role === 'manager') {
-    const [toutes, dejaValidees, managers] = await Promise.all([
+    const [toutes, dejaValidees, egarees, managers] = await Promise.all([
       getMissionsByStatus(['submitted'], { managerId: user.id }),
       getMissionsByStatus(['manager_approved'], { managerId: user.id }),
+      getMissionsEgarees(user.id),
       getManagers(),
     ])
     const missions = toutes.filter((m) => correspondPrestataire(m.provider_name, cherche))
@@ -99,6 +101,11 @@ export default async function ValidationPage({
             />
           </div>
         )}
+
+        <PrestationsEgarees
+          missions={egarees.filter((m) => correspondPrestataire(m.provider_name, cherche))}
+          moi={user.id}
+        />
       </>
     )
   }
