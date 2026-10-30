@@ -76,10 +76,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, mission_id: deja.id, cycle: cycle.month, label: cycle.label, limite: cycle.declarationDeadline })
   }
 
-  const { data: comptes } = await db
-    .from('inv_users')
-    .select('id')
-    .ilike('email', email.replace(/[\\%_]/g, '\\$&'))
   const coordonnees = {
     legal_name: champ(form, 'nom'),
     address_line1: champ(form, 'adresse'),
