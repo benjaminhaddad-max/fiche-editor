@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import { cycleForDate, nextCycle, todayParis } from '@/lib/cycle'
 import { round2 } from '@/lib/format'
 import { controlerMontant } from '@/lib/invoice/controle'
+import { ibanValide } from '@/lib/iban'
 import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
@@ -23,6 +24,12 @@ function secretValide(recu: string): boolean {
   return attendu.length === donne.length && timingSafeEqual(attendu, donne)
 }
 
+const champ = (form: FormData | null, nom: string) => String(form?.get(nom) ?? '').trim()
+
+function coordonneesCompletes(c: { legal_name: string; address_line1: string; postal_code: string; city: string; siret: string; iban: string }) {
+  return Boolean(c.legal_name && c.address_line1 && c.postal_code && c.city) && /^\d{14}$/.test(c.siret) && ibanValide(c.iban)
+}
+
 const refus = (error: string, status = 422) => NextResponse.json({ error }, { status })
 
 /**
@@ -31,6 +38,10 @@ const refus = (error: string, status = 422) => NextResponse.json({ error }, { st
  * Pascal a déjà tranché dans le CRM : la ligne arrive validée, elle attend
  * juste le bordereau du mois. Le montant vient du CRM, le PDF sert de pièce
  * et doit dire la même chose. Aucun nom d'élève ne passe ici.
+ *
+ * Les commerciaux n'ont pas de compte ici, tout se passe sur HubDiploma : leur
+ * fiche se crée au premier dépôt, sans connexion, avec les coordonnées saisies
+ * là-bas. Elle reste ensuite, ils n'ont rien à ressaisir.
  *
  * Après la clôture des déclarations (L−3), la ligne part sur le mois suivant :
  * le bordereau du mois en cours est déjà en vérification.
@@ -69,15 +80,53 @@ export async function POST(request: Request) {
     .from('inv_users')
     .select('id')
     .ilike('email', email.replace(/[\\%_]/g, '\\$&'))
-  const { data: fiche } = await db
-    .from('inv_providers')
-    .select('id, user_id, employment_type')
-    .in('user_id', (comptes ?? []).map((u) => u.id))
-    .eq('brand', 'diploma')
-    .maybeSingle()
-  if (!fiche) return refus('Pas de compte Diploma Invoice à ton adresse email : préviens Ben.')
-  if (isSalaried(fiche.employment_type as Employment)) {
+  const coordonnees = {
+    legal_name: champ(form, 'nom'),
+    address_line1: champ(form, 'adresse'),
+    postal_code: champ(form, 'code_postal'),
+    city: champ(form, 'ville'),
+    siret: champ(form, 'siret').replace(/\s+/g, ''),
+    iban: champ(form, 'iban').replace(/\s+/g, '').toUpperCase(),
+  }
+  const motif = email.replace(/[\\%_]/g, '\\$&')
+  const { data: comptes } = await db.from('inv_users').select('id').ilike('email', motif)
+  const parCompte = (comptes ?? []).length
+    ? (await db
+        .from('inv_providers')
+        .select('id, employment_type')
+        .in('user_id', (comptes ?? []).map((u) => u.id))
+        .eq('brand', 'diploma')
+        .maybeSingle()).data
+    : null
+  const parContact =
+    parCompte ??
+    (await db
+      .from('inv_providers')
+      .select('id, employment_type')
+      .ilike('contact_email', motif)
+      .eq('brand', 'diploma')
+      .limit(1)
+      .maybeSingle()).data
+  // Même personne, autre email : le SIRET évite de lui faire une seconde fiche.
+  const existante =
+    parContact ??
+    (coordonnees.siret
+      ? (await db
+          .from('inv_providers')
+          .select('id, employment_type')
+          .eq('siret', coordonnees.siret)
+          .eq('brand', 'diploma')
+          .limit(1)
+          .maybeSingle()).data
+      : null)
+  if (existante && isSalaried(existante.employment_type as Employment)) {
     return refus('Tu es en paie, pas en facture : tes commissions passent par le social.')
+  }
+  if (!existante && !coordonneesCompletes(coordonnees)) {
+    return NextResponse.json(
+      { error: 'Complète tes coordonnées de facturation : on ne te les demandera qu’une fois.', code: 'coordonnees' },
+      { status: 422 }
+    )
   }
 
   const [{ data: pascal }, { data: categorie }] = await Promise.all([
@@ -89,6 +138,23 @@ export async function POST(request: Request) {
   const pdf = Buffer.from(await file.arrayBuffer())
   const controle = await controlerMontant(pdf, montant)
   if (controle.matches === false) return refus(controle.message ?? 'Le montant ne correspond pas.')
+
+  const fiche =
+    existante ??
+    (await db
+      .from('inv_providers')
+      .insert({
+        ...coordonnees,
+        user_id: null,
+        contact_email: email,
+        invoice_mode: 'uploaded',
+        default_manager_id: pascal.id,
+        onboarding_complete: true,
+        brand: 'diploma',
+      })
+      .select('id, employment_type')
+      .single()).data
+  if (!fiche) return refus('Enregistrement impossible.', 500)
 
   const today = todayParis()
   const courant = cycleForDate(today)
@@ -134,7 +200,7 @@ export async function POST(request: Request) {
   }
 
   await logAudit(null, {
-    actorId: fiche.user_id,
+    actorId: pascal.id,
     entityType: 'mission',
     entityId: mission.id,
     action: 'commission_depot',
