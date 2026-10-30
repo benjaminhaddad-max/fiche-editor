@@ -27,7 +27,7 @@ type Db = ReturnType<typeof createServiceClient>
  *   L−5               rappel aux prestataires : clôture des déclarations à L−3
  *                     demande des éléments de paie aux salariés
  *   L−1               relance des salariés qui n'ont rien renseigné
- *   L−2               début de la vérification : rappel aux managers
+ *   L−2               début de la vérification : rappel aux managers, et à Pascal pour les commissions HubDiploma
  *   le 2              relance des factures manquantes (email + SMS)
  *   dernier jour      forfaits mensuels des contrats → prestations
  *   chaque jour       adresses vérifiées auprès de Brevo : qui ne reçoit rien
@@ -131,6 +131,7 @@ async function cycleDUneMarque(
   }
   if (today === courant.reviewStart) {
     fait.rappelVerification = await uneFois(db, courant.month, 'rappel_verification', () => rappelerVerification(db, courant))
+    fait.rappelCommissions = await uneFois(db, courant.month, 'rappel_commissions', () => rappelerCommissions(db, courant))
   }
   if (today === precedent.invoiceDeadline) {
     fait.relances = await uneFois(db, precedent.month, 'relance_factures', () => relancerFactures(db, precedent))
@@ -237,6 +238,23 @@ async function rappelerVerification(db: Db, cycle: BillingCycle) {
     n++
   }
   return { envoyes: n }
+}
+
+/** Pascal vérifie les commissions sur HubDiploma : Invoice le lui rappelle en même temps que ses prestations. */
+async function rappelerCommissions(db: Db, cycle: BillingCycle) {
+  const { data: pascal } = await db.from('inv_users').select('id, email, full_name').eq('email', 'pascal@diploma-sante.fr').maybeSingle()
+  if (!pascal) return { envoyes: 0 }
+  await deliver({
+    to: { email: pascal.email, name: pascal.full_name },
+    ...(await templates()).commissionsReminder({
+      name: pascal.full_name, label: cycle.label, reviewEnd: cycle.reviewEnd,
+      href: `${process.env.HUBDIPLOMA_URL ?? 'https://hub.diploma-sante.fr'}/admin/crm-v2/commissions`,
+    }),
+    template: 'commissions_reminder',
+    entityType: 'user',
+    entityId: pascal.id,
+  })
+  return { envoyes: 1 }
 }
 
 async function relancerFactures(db: Db, cycle: BillingCycle) {
