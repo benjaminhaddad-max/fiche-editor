@@ -10,6 +10,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { AppUser, Employment } from '@/lib/types'
 import { createUserAccount } from '../actions'
 import { activeBrandId } from '@/lib/brand/actif'
+import { nomsConfondables } from '@/lib/noms'
 
 interface Fiche {
   id: string
@@ -47,6 +48,26 @@ export default async function EquipePage({
   ])
 
   const parUser = new Map(((fiches ?? []) as Fiche[]).filter((f) => f.user_id).map((f) => [f.user_id!, f]))
+
+  // Deux personnes qui portent le même nom se confondent au moment de
+  // payer : on compare sur toute l'école, pas seulement sur l'onglet ouvert, et sur tous
+  // les noms sous lesquels chacune apparaît — celui du compte comme celui de
+  // la fiche. Deux « Mathilde » se confondent, mais « Faustine » et « Prof
+  // Faustine » aussi.
+  const gens = ((users ?? []) as AppUser[]).map((u) => ({
+    id: u.id,
+    ecritures: [u.full_name, parUser.get(u.id)?.legal_name],
+  }))
+  const confondus = new Set<string>()
+  for (let i = 0; i < gens.length; i++) {
+    for (let j = i + 1; j < gens.length; j++) {
+      if (nomsConfondables(gens[i].ecritures, gens[j].ecritures)) {
+        confondus.add(gens[i].id)
+        confondus.add(gens[j].id)
+      }
+    }
+  }
+
   const rows: EquipeRow[] = ((users ?? []) as (AppUser & { phone: string | null })[]).map((u) => {
     const f = parUser.get(u.id)
     return {
@@ -57,6 +78,8 @@ export default async function EquipePage({
       onboarding: f?.onboarding_complete,
       tags: f?.tags ?? [],
       unreachable: (u as { email_unreachable_reason?: string | null }).email_unreachable_reason ?? null,
+      legalName: f?.legal_name ?? null,
+      homonyme: confondus.has(u.id),
     }
   })
   const sansCompte = ((fiches ?? []) as Fiche[]).filter((f) => !f.user_id)

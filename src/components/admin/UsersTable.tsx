@@ -13,6 +13,7 @@ import { changerEtiquette, changerRole, retirerPrestataire, setUserPhone, toggle
 import Link from 'next/link'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import type { Employment } from '@/lib/types'
+import { memeNom } from '@/lib/noms'
 
 const ROLE_STYLE: Record<string, string> = {
   admin: 'bg-gold/10 text-gold-dark ring-gold/30',
@@ -28,6 +29,14 @@ export type EquipeRow = AppUser & {
   tags?: string[]
   /** Brevo bloque tous les envois à cette adresse : rien ne lui arrive. */
   unreachable?: string | null
+  /**
+   * Le nom qui part en paiement : celui de la fiche, pas celui du compte.
+   * Les deux divergeaient sans que personne ne le voie — « Prof Agnès » ici,
+   * « Agnès CANDIOTTI » sur le bordereau.
+   */
+  legalName?: string | null
+  /** Quelqu'un d'autre porte un nom confondable : il faut les distinguer avant de payer. */
+  homonyme?: boolean
 }
 
 export function UsersTable({
@@ -69,6 +78,7 @@ export function UsersTable({
         (!etiquette || (u.tags ?? []).includes(etiquette)) &&
         (!q ||
           u.full_name.toLowerCase().includes(q) ||
+          (u.legalName ?? '').toLowerCase().includes(q) ||
           u.email.toLowerCase().includes(q) ||
           (u.phone ?? '').toLowerCase().includes(q) ||
           (u.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
@@ -254,6 +264,22 @@ export function UsersTable({
                       )}
                       {!u.is_active && (
                         <span className="ml-2 text-xs font-normal text-red-600">désactivé</span>
+                      )}
+                      {u.homonyme && (
+                        <span
+                          className="ml-2 text-xs font-normal text-amber-700"
+                          title="Une autre personne porte un nom qu’on peut confondre avec celui-ci. Précisez les deux fiches avant de payer."
+                        >
+                          homonyme
+                        </span>
+                      )}
+                      {/* Le nom de la fiche est celui que lit le bordereau et que
+                          voit la banque : quand il diffère du nom du compte, il
+                          faut le voir ici, là où on le corrige. */}
+                      {u.legalName && !memeNom(u.legalName, u.full_name) && (
+                        <span className="block text-xs font-normal text-muted">
+                          facturé sous « {u.legalName} »
+                        </span>
                       )}
                       {u.providerId && <Etiquettes providerId={u.providerId} tags={u.tags ?? []} connues={etiquettes.map(([t]) => t)} />}
                     </td>
