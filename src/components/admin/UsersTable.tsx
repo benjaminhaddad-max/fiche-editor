@@ -9,7 +9,7 @@ import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
 import { envoyerInvitationsEtRappels, type EnvoiResultat } from '@/app/(app)/admin/utilisateurs/actions'
 import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
-import { changerEtiquette, changerRole, retirerPrestataire, setUserPhone, toggleUserActive, type RetraitResultat } from '@/app/(app)/admin/actions'
+import { changerEtiquette, changerRole, renommerCompte, retirerPrestataire, setUserPhone, toggleUserActive, type RetraitResultat } from '@/app/(app)/admin/actions'
 import Link from 'next/link'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import type { Employment } from '@/lib/types'
@@ -280,6 +280,28 @@ export function UsersTable({
                         <span className="block text-xs font-normal text-muted">
                           facturé sous « {u.legalName} »
                         </span>
+                      )}
+                      {/* Le nom du compte ne s'écrivait qu'à sa création : une faute
+                          de frappe restait là pour toujours. On le corrige ici,
+                          sous le nom, là où on la voit. */}
+                      {admin && (
+                        <details className="mt-1">
+                          <summary className="cursor-pointer text-xs font-normal text-gold-dark hover:underline">
+                            corriger le nom
+                          </summary>
+                          <form action={renommerCompte} className="mt-1 flex items-center gap-1">
+                            <input type="hidden" name="user_id" value={u.id} />
+                            <input
+                              name="full_name"
+                              defaultValue={u.full_name}
+                              className="w-44 rounded border border-line px-2 py-0.5 text-xs font-normal"
+                              aria-label="Nom du compte"
+                            />
+                            <button type="submit" className="cursor-pointer text-xs text-gold-dark hover:underline">
+                              OK
+                            </button>
+                          </form>
+                        </details>
                       )}
                       {u.providerId && <Etiquettes providerId={u.providerId} tags={u.tags ?? []} connues={etiquettes.map(([t]) => t)} />}
                     </td>

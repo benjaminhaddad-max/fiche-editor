@@ -1,6 +1,7 @@
 'use server'
 
 import { identiteExistante } from '@/lib/personnes'
+import { memeNom } from '@/lib/noms'
 
 import { revalidatePath } from 'next/cache'
 import { templates } from '@/lib/email/templates'
@@ -256,6 +257,53 @@ export async function toggleCategoryVisibility(formData: FormData): Promise<void
     .eq('id', id)
 
   revalidatePath('/admin/categories')
+}
+
+/**
+ * Corrige le nom du compte de quelqu'un.
+ *
+ * Jusqu'ici ce nom ne s'écrivait qu'à la création du compte : une faute de
+ * frappe était définitive, et personne ne pouvait la rattraper. Eloïse a
+ * cherché à corriger « Bouhamsou » en « Boulamsou » sans y arriver, parce
+ * que l'écran ne proposait que la fiche de facturation.
+ *
+ * Quand la fiche portait exactement le même nom — donc la même faute —, elle
+ * est corrigée du même geste : c'est elle que lit le bordereau et que voit la
+ * banque, et laisser les deux noms diverger ne ferait que déplacer le
+ * problème. Si la fiche porte un autre nom, on n'y touche pas : la raison
+ * sociale d'une entreprise n'est pas le nom de la personne.
+ */
+export async function renommerCompte(formData: FormData): Promise<void> {
+  const admin = await requireRole('admin')
+  const id = String(formData.get('user_id') ?? '')
+  const nom = String(formData.get('full_name') ?? '').trim().slice(0, 160)
+  if (!id || nom.length < 2) return
+
+  const db = createServiceClient()
+  const { data: compte } = await db
+    .from('inv_users')
+    .select('id, full_name, provider:inv_providers!inv_providers_user_id_fkey(id, legal_name)')
+    .eq('id', id)
+    .maybeSingle()
+  if (!compte || memeNom(compte.full_name, nom)) return
+
+  await db.from('inv_users').update({ full_name: nom }).eq('id', id)
+
+  const fiche = Array.isArray(compte.provider) ? compte.provider[0] : compte.provider
+  const ficheSuivie = Boolean(fiche && memeNom(fiche.legal_name, compte.full_name))
+  if (ficheSuivie) {
+    await db.from('inv_providers').update({ legal_name: nom }).eq('id', fiche!.id)
+  }
+
+  await logAudit(null, {
+    actorId: admin.id,
+    entityType: 'user',
+    entityId: id,
+    action: 'compte_renomme',
+    payload: { avant: compte.full_name, apres: nom, fiche: ficheSuivie ? fiche!.id : null },
+  })
+  revalidatePath('/admin/equipe')
+  if (fiche) revalidatePath(`/admin/prestataires/${fiche.id}`)
 }
 
 /** Numéro du manager, pour les SMS de la messagerie. */
