@@ -44,7 +44,9 @@ async function facturerDepuisBordereau(
 ): Promise<boolean> {
   const { data: fiche } = await db
     .from('inv_providers')
-    .select('invoice_mode, employment_type, legal_name, siret, address_line1, postal_code, city, iban, phone')
+    .select(
+      'invoice_mode, employment_type, legal_name, siret, address_line1, postal_code, city, iban, phone, social_security_number'
+    )
     .eq('id', providerId)
     .maybeSingle()
   if (!fiche || fiche.invoice_mode !== 'generated') return false
@@ -273,11 +275,18 @@ export async function envoyerBordereaux(
         (await facturerDepuisBordereau(db, providerId, bordereau.id))
 
     // Le total fait foi à partir des lignes réellement rattachées.
+    //
+    // « approved » et « invoiced » : la facture vient peut-être d'être
+    // produite trois lignes plus haut, et elle fait passer les lignes en
+    // « invoiced ». Ne compter que les « approved » revenait alors à
+    // n'en compter aucune — le bordereau de Caroline annonçait 0,00 €
+    // pour 280 € de prestations, et sa facture était pourtant juste.
+    // Seules les lignes refusées ou contestées restent dehors.
     const { data: rattachees } = await db
       .from('inv_missions')
       .select('total_ht')
       .eq('statement_id', bordereau.id)
-      .eq('status', 'approved')
+      .in('status', ['approved', 'invoiced'])
     valeurs.total_ht = round2((rattachees ?? []).reduce((s, m) => s + Number(m.total_ht), 0))
     await db.from('inv_statements').update({ total_ht: valeurs.total_ht }).eq('id', bordereau.id)
 

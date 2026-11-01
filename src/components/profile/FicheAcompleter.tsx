@@ -20,7 +20,13 @@ export async function FicheAcompleter({ userId }: { userId: string }) {
   const supabase = await createServerSupabase()
   const { data } = await supabase
     .from('inv_providers')
-    .select('id, employment_type, legal_name, siret, address_line1, postal_code, city, iban, phone')
+    // social_security_number : il est demandé aux auteurs, donc il doit être
+    // lu ici. Sans lui dans la requête, champsManquants le croyait vide et
+    // tous les auteurs Medibox lisaient « Vous ne pourrez pas être payé »
+    // alors que leur fiche était complète.
+    .select(
+      'id, employment_type, legal_name, siret, address_line1, postal_code, city, iban, phone, social_security_number'
+    )
     .eq('user_id', userId)
     .maybeSingle()
   if (!data) return null
