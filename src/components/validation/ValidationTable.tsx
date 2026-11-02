@@ -470,7 +470,7 @@ export function ValidationTable({
                       <>
                         {' = '}
                         <span className="line-through">{money(m.quantity * m.unit_amount_ht)}</span>
-                        {` − ${m.abatement_rate} % (${m.motifAbattement})`}
+                        {m.motifAbattement === 'TVA' ? ' TTC, passé en HT' : ` − ${m.abatement_rate} % (${m.motifAbattement})`}
                       </>
                     )}
                     {/* Le levier au cas par cas : un remboursement de

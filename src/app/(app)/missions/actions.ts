@@ -6,7 +6,6 @@ import { z } from 'zod'
 import { getSessionUser, requireProvider } from '@/lib/auth'
 import { ouvrirUneEcheance } from '@/lib/echeances'
 import { logAudit } from '@/lib/audit'
-import { round2 } from '@/lib/format'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { montantVerse, tauxAbattement } from '@/lib/abattement'
 import type { Pole } from '@/lib/types'
@@ -138,7 +137,7 @@ export async function updateMission(
   _prev: ActionResult,
   formData: FormData
 ): Promise<ActionResult> {
-  const { user } = await requireProvider()
+  const { user, provider } = await requireProvider()
   const id = String(formData.get('mission_id') ?? '')
   if (!id) return { error: 'Prestation introuvable.' }
 
@@ -147,9 +146,19 @@ export async function updateMission(
 
   const submit = formData.get('intent') === 'submit'
   const v = parsed.data
-  const total = round2(v.quantity * v.unit_amount_ht)
 
+  // Comme à la création : une ligne retouchée en brouillon repartait sinon au
+  // montant plein. La ligne PAES de Dounia, 32 h à 80 €, a gardé 2 560 € au
+  // lieu de 2 133,25 €, avec un taux affiché qui n'avait pas été appliqué.
   const supabase = await createServerSupabase()
+  const { data: cat } = await supabase
+    .from('inv_categories')
+    .select('pole')
+    .eq('id', v.category_id)
+    .maybeSingle()
+  const abattement = tauxAbattement(provider, cat?.pole as Pole | undefined)
+  const total = montantVerse(v.quantity * v.unit_amount_ht, abattement)
+
   const { error } = await supabase
     .from('inv_missions')
     .update({
@@ -161,6 +170,7 @@ export async function updateMission(
       pricing_type: v.pricing_type,
       quantity: v.quantity,
       unit_amount_ht: v.unit_amount_ht,
+      abatement_rate: abattement,
       total_ht: total,
       status: submit ? 'submitted' : 'draft',
       submitted_at: submit ? new Date().toISOString() : null,

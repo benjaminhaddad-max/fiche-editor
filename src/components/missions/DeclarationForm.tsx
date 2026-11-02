@@ -711,9 +711,15 @@ export function DeclarationForm(props: Props) {
                   <p className="mt-3 text-right text-sm text-navy">
                     {retenue(l.category_id) > 0 ? (
                       <>
-                        <span className="text-muted">{money(ligneTotal)} convenus</span>
-                        {` − ${retenue(l.category_id)} % (${motif}) → `}
+                        <span className="text-muted">
+                          {money(ligneTotal)} {motif === 'TVA' ? 'TTC' : 'convenus'}
+                        </span>
+                        {/* 16,67 % lu comme un taux de TVA : Dounia croyait sa
+                            facture fausse. C'est la part de TVA dans un TTC,
+                            la TVA elle-même reste à 20 %. */}
+                        {motif === 'TVA' ? ' → ' : ` − ${retenue(l.category_id)} % (${motif}) → `}
                         <strong className="font-display">{money(verse(l))}</strong>
+                        {motif === 'TVA' && ' HT'}
                       </>
                     ) : (
                       <>
@@ -750,7 +756,9 @@ export function DeclarationForm(props: Props) {
               Total : <strong>{money(total)}</strong>
               {convenu !== total ? (
                 <span className="ml-2 text-xs font-normal text-muted">
-                  {money(convenu)} convenus, moins {motif === 'TVA' ? 'la TVA' : 'les charges du contrat'}
+                  {motif === 'TVA'
+                    ? `HT, pour ${money(convenu)} TTC : la TVA de 20 % s’ajoute sur votre facture`
+                    : `${money(convenu)} convenus, moins les charges du contrat`}
                 </span>
               ) : sansTva ? (
                 <span className="ml-2 text-xs font-normal text-muted">
