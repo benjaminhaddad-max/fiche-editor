@@ -141,11 +141,10 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
   const detail = [...parPersonne.entries()].map(([personne, ls]) => ({
     personne,
     statut: EMPLOYMENT_LABEL[ls[0].statut],
-    brut: round2(ls.filter((l) => l.base === 'brut').reduce((s, l) => s + l.total, 0)),
-    net: round2(ls.filter((l) => l.base === 'net').reduce((s, l) => s + l.total, 0)),
+    net: round2(ls.reduce((s, l) => s + l.total, 0)),
     detail: ls.map(
       (l) =>
-        `${formatDate(l.date)} — ${l.detail} — ${money(l.total)} ${l.base}` +
+        `${formatDate(l.date)} — ${l.detail} — ${money(l.total)} net` +
         (l.abattement > 0 ? ` (${money(round2(l.quantity * l.unit))} convenus, abattement ${l.abattement} %)` : '')
     ),
   }))
@@ -157,7 +156,6 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
     attente.set(l.personne, { n: c.n + 1, total: round2(c.total + l.total) })
   }
 
-  const totalBrut = round2(detail.reduce((s, d) => s + d.brut, 0))
   const totalNet = round2(detail.reduce((s, d) => s + d.net, 0))
 
   await deliver({
@@ -165,7 +163,6 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
     ...(await templates()).socialRecap({
       label: cycle.label,
       lignes: detail,
-      totalBrut,
       totalNet,
       enAttente: [...attente.entries()].map(([personne, c]) => ({ personne, ...c })),
     }),
@@ -179,7 +176,7 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
   const db = createServiceClient()
   const { data: lot } = await db
     .from('inv_payroll_batches')
-    .insert({ cycle_month: mois, total_ht: round2(totalBrut + totalNet), lines: pretes.length, created_by: user.id })
+    .insert({ cycle_month: mois, total_ht: totalNet, lines: pretes.length, created_by: user.id })
     .select('id')
     .single()
   if (lot) {
@@ -199,14 +196,13 @@ export async function envoyerAuSocial(_prev: EnvoiSocial | null, fd: FormData): 
     entityType: 'user',
     entityId: lot?.id ?? user.id,
     action: 'paie_envoyee_au_social',
-    payload: { mois, destinataire: destinataire.email, lignes: pretes.length, totalBrut, totalNet },
+    payload: { mois, destinataire: destinataire.email, lignes: pretes.length, totalNet },
   })
   revalidatePath('/remunerations')
 
   return {
     message:
-      `Récapitulatif envoyé à ${destinataire.name} : ${pretes.length} ligne(s), ${money(totalBrut)} brut` +
-      (totalNet ? ` + ${money(totalNet)} en net` : '') +
+      `Récapitulatif envoyé à ${destinataire.name} : ${pretes.length} ligne(s), ${money(totalNet)} net à payer` +
       (attente.size ? `. ${attente.size} personne(s) ont encore des lignes qu'aucun manager n'a validées, elles sont signalées dans le message.` : '.'),
   }
 }

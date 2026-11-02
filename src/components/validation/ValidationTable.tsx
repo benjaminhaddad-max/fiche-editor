@@ -171,16 +171,18 @@ export function ValidationTable({
   // elle part au service paie. Le mot doit le dire.
   const tousSalaries = missions.length > 0 && missions.every((m) => m.salarie)
 
-  // « HT » ne veut rien dire pour qui n'émet pas de facture. Un salarié et
-  // un artiste-auteur déclarent un brut — et pour l'auteur, c'est un brut
-  // dont la société retiendra le précompte. Nolwenn lisait « Montant HT »
-  // sur des lignes de droits d'auteur et ne s'y retrouvait pas.
+  // « HT » ne veut rien dire pour qui n'émet pas de facture. Le montant d'un
+  // salarié est son net à payer ; celui d'un artiste-auteur est un brut dont
+  // la société retiendra le précompte. Nolwenn lisait « Montant HT » sur des
+  // lignes de droits d'auteur et ne s'y retrouvait pas.
   const unite =
     missions.length === 0 || missions.every((m) => !m.salarie && !m.auteur)
       ? 'HT'
-      : missions.every((m) => m.salarie || m.auteur)
-        ? 'brut'
-        : ''
+      : missions.every((m) => m.salarie)
+        ? 'net à payer'
+        : missions.every((m) => m.auteur)
+          ? 'brut'
+          : ''
   const colonneMontant = unite ? `Montant ${unite}` : 'Montant'
   const gens = [...new Set(missions.map((m) => m.provider_name))].sort((a, b) => a.localeCompare(b, 'fr'))
   const visibles = qui ? missions.filter((m) => m.provider_name === qui) : missions

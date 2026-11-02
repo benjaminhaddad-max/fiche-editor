@@ -13,10 +13,8 @@ export interface LigneRemuneration {
   facture: number
   /** Déjà réglé sur ces factures. */
   paye: number
-  /** Éléments variables transmis à la paie (salariés), exprimés en brut. */
+  /** Éléments variables transmis à la paie (salariés), en net à payer. */
   variables: number
-  /** Ce qui a été convenu en net — un forfait de CDD, par exemple. */
-  variablesNet: number
   /** Coût employeur lu sur le bulletin, quand il est arrivé. */
   cout: number | null
   net: number | null
@@ -68,7 +66,6 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
       facture: 0,
       paye: 0,
       variables: 0,
-      variablesNet: 0,
       cout: null,
       net: null,
       bulletin: false,
@@ -87,10 +84,7 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
     // Seuls les salariés ont des éléments à transmettre à la paie. Un
     // artiste-auteur émet une note : ses montants n'ont rien à faire ici.
     if (!l || !isSalaried(l.statut)) continue
-    // Le net et le brut ne s'additionnent pas : on les tient séparés jusqu'au
-    // bout, et c'est la paie qui fait la conversion.
-    if (m.pay_basis === 'net') l.variablesNet += Number(m.total_ht)
-    else l.variables += Number(m.total_ht)
+    l.variables += Number(m.total_ht)
   }
   for (const b of bulletins ?? []) {
     const l = lignes.get(b.provider_id)
@@ -107,8 +101,7 @@ export async function remunerationsDuMois(cycle: BillingCycle): Promise<LigneRem
       facture: round2(l.facture),
       paye: round2(l.paye),
       variables: round2(l.variables),
-      variablesNet: round2(l.variablesNet),
     }))
-    .filter((l) => l.facture || l.variables || l.variablesNet || l.bulletin || isSalaried(l.statut))
+    .filter((l) => l.facture || l.variables || l.bulletin || isSalaried(l.statut))
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
 }

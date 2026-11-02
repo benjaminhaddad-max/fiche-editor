@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const s = typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v
     return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const entete = ['Salarié', 'Statut', 'Type', 'Date', 'Désignation', 'Catégorie', 'Quantité', 'Prix unitaire', 'Montant', 'Manager']
+  const entete = ['Salarié', 'Statut', 'Type', 'Date', 'Désignation', 'Catégorie', 'Quantité', 'Prix unitaire', 'Net à payer', 'Manager']
   const corps = lignes.map((l) =>
     [
       l.personne,

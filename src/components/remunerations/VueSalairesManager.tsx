@@ -38,9 +38,6 @@ export async function VueSalairesManager({
   const attente = lignes.filter((l) => !estAcquise(l.status))
   const miennes = acquises.filter((l) => l.managerId === managerId)
   const total = round2(acquises.reduce((s, l) => s + l.total, 0))
-  // Pour un salarié le montant porté est ce qu'il touche : un net. Le brut
-  // n'apparaît que si quelqu'un a convenu d'un brut à part.
-  const nature = (l: typeof lignes) => (l.some((x) => x.base === 'brut') ? 'brut' : 'net')
 
   const parPersonne = new Map<string, typeof lignes>()
   for (const l of lignes) parPersonne.set(l.personne, [...(parPersonne.get(l.personne) ?? []), l])
@@ -58,7 +55,7 @@ export async function VueSalairesManager({
     <>
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatTile
-          label={`Acquis (${nature(acquises)})`}
+          label="Acquis (net à payer)"
           value={money(total)}
           sub={`${acquises.length} ligne(s) · ${parPersonne.size} personne(s)`}
           accent="emerald"
@@ -98,7 +95,7 @@ export async function VueSalairesManager({
                 </div>
                 <p className="font-display text-[18px] font-semibold text-navy">
                   {money(round2(acquis.reduce((s, l) => s + l.total, 0)))}
-                  <span className="ml-1.5 text-xs font-normal text-muted">{nature(acquis)}</span>
+                  <span className="ml-1.5 text-xs font-normal text-muted">net à payer</span>
                 </p>
               </div>
               <table className="w-full text-left">

@@ -139,9 +139,11 @@ export default async function BordereauxPage({
   const uniteBordereau =
     visibles.length === 0 || visibles.every(([, v]) => !v.salarie && !v.auteur)
       ? 'HT'
-      : visibles.every(([, v]) => v.salarie || v.auteur)
-        ? 'brut'
-        : ''
+      : visibles.every(([, v]) => v.salarie)
+        ? 'net à payer'
+        : visibles.every(([, v]) => v.auteur)
+          ? 'brut'
+          : ''
   const affiches = visibles.filter(([, v]) => correspondPrestataire(v.nom, cherche))
 
   // Ce que les contrats prévoient et que personne n'a porté sur le mois :

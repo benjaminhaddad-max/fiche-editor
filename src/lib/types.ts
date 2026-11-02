@@ -92,9 +92,12 @@ export type PayMode = 'fixe' | 'variable'
  * que personne ne cochait : tout remontait en brut au service paie alors
  * qu'avec un vacataire on se met d'accord sur un net à payer.
  *
- * À défaut de réglage : net pour un vacataire, c'est la règle de la maison ;
- * brut pour un salarié à salaire fixe, dont les éléments du mois s'expriment
- * en brut ; brut pour un auteur, dont la société retient le précompte. Rien
+ * Toujours net pour qui passe par la paie : le montant de la plateforme est
+ * ce que la personne touche, l'abattement du contrat en est déjà retiré. Écrit
+ * « brut », il a été transmis ainsi au cabinet, et les cotisations sont
+ * reparties de ce montant : Danial a perdu les 20 % une deuxième fois.
+ *
+ * Brut par défaut pour un auteur, dont la société retient le précompte. Rien
  * pour un indépendant : il facture, la question ne se pose pas.
  */
 export function baseDeRemuneration(p: {
@@ -102,8 +105,8 @@ export function baseDeRemuneration(p: {
   pay_basis?: string | null
 }): PayBasis | null {
   if (p.employment_type === 'independant') return null
-  if (p.pay_basis === 'brut' || p.pay_basis === 'net') return p.pay_basis
-  return p.employment_type === 'vacataire' ? 'net' : 'brut'
+  if (isSalaried(p.employment_type)) return 'net'
+  return p.pay_basis === 'net' ? 'net' : 'brut'
 }
 
 /** Faute de réglage, on considère qu'une personne déclare chaque mois. */

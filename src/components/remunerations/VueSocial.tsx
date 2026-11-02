@@ -24,11 +24,7 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
   // geste qui reste à l'administration.
   const pretes = lignes.filter((l) => estAcquise(l.status))
   const enCours = lignes.filter((l) => !estAcquise(l.status))
-  // Pour un salarié, le montant porté est ce qu'il touche : un net. Le brut
-  // ne subsiste que si quelqu'un a convenu d'un brut à part.
-  const somme = (l: typeof lignes, base: 'brut' | 'net') =>
-    round2(l.filter((x) => x.base === base).reduce((s, x) => s + x.total, 0))
-  const nature = (l: typeof lignes) => (l.some((x) => x.base === 'brut') ? 'brut' : 'net')
+  // Pour un salarié, le montant porté est ce qu'il touche : un net à payer.
   const parPersonne = new Map<string, typeof lignes>()
   for (const l of lignes) parPersonne.set(l.personne, [...(parPersonne.get(l.personne) ?? []), l])
 
@@ -43,13 +39,9 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatTile
-          label={`Prêt à envoyer (${nature(pretes)})`}
+          label="Prêt à envoyer (net à payer)"
           value={money(round2(pretes.reduce((s, l) => s + l.total, 0)))}
-          sub={
-            somme(pretes, 'brut') && somme(pretes, 'net')
-              ? `dont ${money(somme(pretes, 'net'))} en net · ${pretes.length} ligne(s)`
-              : `${pretes.length} ligne(s)`
-          }
+          sub={`${pretes.length} ligne(s)`}
           accent="emerald"
         />
         <StatTile label="En attente d’un manager" value={String(enCours.length)} accent={enCours.length ? 'amber' : 'slate'} />
@@ -75,12 +67,7 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                   {personne} <span className="ml-2 font-normal text-muted">{EMPLOYMENT_LABEL[ls[0].statut]}</span>
                 </p>
                 <p className="text-right text-sm font-semibold text-navy">
-                  {money(round2(ls.reduce((s, l) => s + l.total, 0)))} {nature(ls)}
-                  {somme(ls, 'brut') > 0 && somme(ls, 'net') > 0 && (
-                    <span className="mt-0.5 block text-xs font-medium text-gold-dark">
-                      dont {money(somme(ls, 'net'))} en net
-                    </span>
-                  )}
+                  {money(round2(ls.reduce((s, l) => s + l.total, 0)))} net à payer
                 </p>
               </div>
               <ul className="divide-y divide-line/60">
@@ -110,7 +97,7 @@ export async function VueSocial({ cycle }: { cycle: BillingCycle }) {
                       {!estAcquise(l.status) && <MissionStatusBadge status={l.status as MissionStatus} />}
                       <span className="w-28 text-right font-medium text-navy">
                         {money(l.total)}
-                        <span className="ml-1 text-[11px] font-normal text-muted">{l.base}</span>
+                        <span className="ml-1 text-[11px] font-normal text-muted">net</span>
                       </span>
                     </span>
                   </li>

@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { baseDeRemuneration, modeDeRemuneration, type Employment } from '@/lib/types'
+import { baseDeRemuneration, isSalaried, modeDeRemuneration, type Employment } from '@/lib/types'
 
 /**
  * Ce qui a été convenu avec la personne, une fois pour toutes.
@@ -18,6 +18,8 @@ export function ReglagesRemuneration({
 }) {
   const facture = provider.employment_type === 'independant'
   const base = baseDeRemuneration(provider)
+  // Qui passe par la paie est toujours au net à payer : rien à choisir.
+  const auteur = !facture && !isSalaried(provider.employment_type)
   const mode = modeDeRemuneration(provider)
 
   return (
@@ -30,7 +32,7 @@ export function ReglagesRemuneration({
       <form action={action} className="flex flex-wrap items-end gap-4">
         <input type="hidden" name="provider_id" value={provider.id} />
 
-        {!facture && (
+        {auteur && (
           <label className="text-xs text-muted">
             Base convenue
             <select name="pay_basis" defaultValue={base ?? 'brut'} className="field mt-1 block w-48">

@@ -13,8 +13,6 @@ export interface LignePaie {
   quantity: number
   unit: number
   total: number
-  /** Brut ou net : la paie doit savoir ce qu'elle lit. */
-  base: 'brut' | 'net'
   /** Pourcentage retiré du montant convenu, du fait du contrat. */
   abattement: number
   categorie: string
@@ -40,6 +38,7 @@ export const estAcquise = (status: string) =>
 /**
  * Éléments de paie d'un mois : prestations et bonus des vacataires et
  * alternants, validés ou en cours de validation, pas encore envoyés.
+ * Chaque montant est un net à payer : l'abattement en est déjà retiré.
  */
 /**
  * Les éléments variables à porter sur les bulletins.
@@ -61,7 +60,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
   let q = db
     .from('inv_missions')
     .select(
-      `id, kind, detail, start_date, quantity, unit_amount_ht, total_ht, abatement_rate, status, pay_basis, payroll_batch_id, manager_id,
+      `id, kind, detail, start_date, quantity, unit_amount_ht, total_ht, abatement_rate, status, payroll_batch_id, manager_id,
        provider:inv_providers!inner(legal_name, employment_type),
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
@@ -85,7 +84,6 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
     unit_amount_ht: number
     total_ht: number
     status: string
-    pay_basis: 'brut' | 'net' | null
     abatement_rate: number
     manager_id: string | null
     provider: { legal_name: string; employment_type: Employment }
@@ -102,7 +100,6 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
       quantity: Number(m.quantity),
       unit: Number(m.unit_amount_ht),
       total: Number(m.total_ht),
-      base: (m.pay_basis === 'net' ? 'net' : 'brut') as 'brut' | 'net',
       abattement: Number(m.abatement_rate ?? 0),
       categorie: m.category?.name ?? '—',
       manager: m.manager?.full_name ?? '—',

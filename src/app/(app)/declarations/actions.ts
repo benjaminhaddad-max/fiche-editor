@@ -286,7 +286,7 @@ export async function declarer(
       // La base vient de la fiche, où elle est convenue une fois. Elle partait
       // à « brut » par défaut, ligne par ligne, et c'est ce brut qui remontait
       // au service paie pour des vacataires payés sur un net convenu.
-      pay_basis: l.pay_basis || baseDeRemuneration(provider),
+      pay_basis: baseDeRemuneration(provider),
       pricing_type: l.kind === "bonus" ? "forfait_mission" : l.pricing_type,
       quantity: l.kind === "bonus" ? 1 : l.quantity,
       unit_amount_ht:
