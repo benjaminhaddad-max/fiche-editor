@@ -15,6 +15,9 @@ import { choisirMarque } from '@/app/(app)/marque-actions'
  * rail bleu, sans intitulé, se lisait comme un bandeau et pas comme un
  * bouton. Il porte donc son titre comme les autres sections du rail, et le
  * chevron dit que ça s'ouvre.
+ *
+ * Le rail est clair désormais : écrit en crème, le menu y devenait invisible,
+ * et Meryeme ne voyait que le titre, sans rien dessous.
  */
 export function SelecteurMarque({
   marques,
@@ -38,9 +41,9 @@ export function SelecteurMarque({
           name="marque"
           defaultValue={active}
           onChange={() => ref.current?.requestSubmit()}
-          className="w-full cursor-pointer appearance-none rounded-lg border border-cream/40 bg-cream/20 py-2 pl-2.5 pr-8
-                     text-[13px] font-semibold text-cream outline-none transition-colors
-                     hover:border-cream/70 hover:bg-cream/25 focus:border-cream/80"
+          className="w-full cursor-pointer appearance-none rounded-lg border border-navy/30 bg-white py-2 pl-2.5 pr-8
+                     text-[13px] font-semibold text-navy outline-none transition-colors
+                     hover:border-navy/60 focus:border-navy"
         >
           {marques.map((m) => (
             <option key={m.id} value={m.id} className="text-navy">
@@ -51,7 +54,7 @@ export function SelecteurMarque({
         <ChevronDown
           size={15}
           aria-hidden
-          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-cream/80"
+          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-navy/70"
         />
       </div>
     </form>
