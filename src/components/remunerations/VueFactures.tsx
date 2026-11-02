@@ -10,9 +10,10 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
 import { money } from '@/lib/format'
 import { chercherDoublons } from '@/lib/invoice/doublons'
+import { netAuteur } from '@/lib/invoice/net-auteur'
 import { getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
-import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
+import { estAuteur, type AiCheck, type Employment, type InvoiceStatus, type PennylaneStatus } from '@/lib/types'
 import { activeBrand, activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 
 interface Row {
@@ -30,8 +31,9 @@ interface Row {
   inbound_from: string | null
   inbound_match: string | null
   ai_check: AiCheck | null
-  provider: { legal_name: string; user_id: string | null } | null
+  provider: { legal_name: string; user_id: string | null; employment_type: Employment } | null
   apporteur: { full_name: string } | null
+  lignes: { total_ht: number; pay_basis: string | null }[]
 }
 
 /**
@@ -77,8 +79,9 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
       .select(
         `id, number, status, kind, issue_date, subtotal_ht, total_ttc, pennylane_status, pennylane_error,
          pdf_source, channel, inbound_from, inbound_match, ai_check,
-         provider:inv_providers(legal_name, user_id),
-         apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name)`
+         provider:inv_providers(legal_name, user_id, employment_type),
+         apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name),
+         lignes:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis)`
       )
       .eq('brand', (await activeBrandId()))
       .order('issue_date', { ascending: false }),
@@ -96,6 +99,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     provider: r.provider?.legal_name ?? '—',
     sansCompte: !r.provider?.user_id,
     apportePar: r.apporteur?.full_name ?? null,
+    auteur: estAuteur(r.provider?.employment_type) ? netAuteur(r.lignes ?? []) : null,
   }))
 
   const marque = await activeBrand()

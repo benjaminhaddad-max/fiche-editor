@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Download, Undo2 } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import {
@@ -12,6 +13,7 @@ import {
   type LotResultat,
 } from '@/app/(app)/admin/factures/actions'
 import { formatDate, money } from '@/lib/format'
+import type { NetAuteur } from '@/lib/invoice/net-auteur'
 import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
 
 export interface AdminInvoiceRow {
@@ -30,6 +32,8 @@ export interface AdminInvoiceRow {
   provider: string
   sansCompte: boolean
   apportePar: string | null
+  /** Rempli pour un artiste-auteur : le montant facturé n'est pas son virement. */
+  auteur: NetAuteur | null
 }
 
 type Geste = 'pennylane' | 'payer'
@@ -74,6 +78,8 @@ export function InvoiceTable({
       else n.add(id)
       return n
     })
+  // Colonne de droits d'auteur : rien à y lire sur une liste qui n'en a pas.
+  const avecAuteurs = rows.some((r) => r.auteur)
   const caches = [...selection].map((id) => <input key={id} type="hidden" name="invoice_id" value={id} />)
 
   return (
@@ -143,6 +149,7 @@ export function InvoiceTable({
                 <th className="px-4 py-3 font-medium">Numéro</th>
                 <th className="px-4 py-3 font-medium">Date</th>
                 <th className="px-4 py-3 text-right font-medium">TTC</th>
+                {avecAuteurs && <th className="px-4 py-3 text-right font-medium">Net DA à verser</th>}
                 <th className="px-4 py-3 font-medium">Où ça en est</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -160,7 +167,10 @@ export function InvoiceTable({
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-navy">{r.provider}</p>
+                    <p className="flex flex-wrap items-center gap-1.5 font-medium text-navy">
+                      {r.provider}
+                      {r.auteur && <Badge className="bg-violet-50 text-violet-800 ring-violet-200">DA</Badge>}
+                    </p>
                     <p className="text-xs text-muted">
                       {r.kind === 'misc' ? `Facture diverse${r.channel === 'email' ? ' reçue par email' : ''}` : 'Prestations'}
                       {r.sansCompte ? ' · sans compte' : ''}
@@ -213,6 +223,22 @@ export function InvoiceTable({
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-navy/70">{formatDate(r.issue_date)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">{money(r.total_ttc)}</td>
+                  {avecAuteurs && (
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      {r.auteur?.net != null ? (
+                        <span className="font-semibold text-navy">{money(r.auteur.net)}</span>
+                      ) : r.auteur ? (
+                        <>
+                          <p className="font-medium text-amber-700">À vérifier</p>
+                          {r.auteur.sansBase > 0 && (
+                            <p className="mt-0.5 text-xs text-muted">{money(r.auteur.sansBase)} sans brut/net</p>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     {/* Deux colonnes d'état côte à côte — le statut et
                         Pennylane — obligeaient à les croiser de tête pour
