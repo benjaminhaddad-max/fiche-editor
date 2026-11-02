@@ -7,6 +7,7 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { InvoiceDetail } from '@/components/invoices/InvoiceDetail'
 import { requireRole } from '@/lib/auth'
 import { formatDate } from '@/lib/format'
+import { activeBrand } from '@/lib/brand/actif'
 import { isPennylaneConfigured } from '@/lib/pennylane/client'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Invoice, InvoiceLine } from '@/lib/types'
@@ -45,6 +46,7 @@ export default async function AdminInvoicePage({
 
   // Le fournisseur Pennylane est retrouvé ou créé à l'envoi s'il manque.
   const pennylaneReady = isPennylaneConfigured()
+  const compta = (await activeBrand()).comptabilite
 
   return (
     <>
@@ -64,19 +66,21 @@ export default async function AdminInvoicePage({
           </Button>
         </a>
 
-        <form action={pushToPennylane}>
-          <input type="hidden" name="invoice_id" value={invoice.id} />
-          <SubmitButton
-            variant="secondary"
-            disabled={!pennylaneReady}
-            pendingLabel="Synchronisation…"
-          >
-            <RefreshCw size={16} />
-            {invoice.pennylane_status === 'synced'
-              ? 'Renvoyer en comptabilité'
-              : 'Envoyer en comptabilité'}
-          </SubmitButton>
-        </form>
+        {compta && (
+          <form action={pushToPennylane}>
+            <input type="hidden" name="invoice_id" value={invoice.id} />
+            <SubmitButton
+              variant="secondary"
+              disabled={!pennylaneReady}
+              pendingLabel="Synchronisation…"
+            >
+              <RefreshCw size={16} />
+              {invoice.pennylane_status === 'synced'
+                ? 'Renvoyer en comptabilité'
+                : 'Envoyer en comptabilité'}
+            </SubmitButton>
+          </form>
+        )}
 
         {invoice.status !== 'paid' && (
           <form action={markInvoicePaid}>
@@ -88,7 +92,7 @@ export default async function AdminInvoicePage({
         )}
       </div>
 
-      {!isPennylaneConfigured() && (
+      {compta && !isPennylaneConfigured() && (
         <div className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-sm text-navy/70">
           Synchronisation Pennylane désactivée : la variable{' '}
           <code className="rounded bg-cream-deep px-1 py-0.5 text-xs">
@@ -98,7 +102,7 @@ export default async function AdminInvoicePage({
         </div>
       )}
 
-      {isPennylaneConfigured() && !provider?.pennylane_supplier_id && (
+      {compta && isPennylaneConfigured() && !provider?.pennylane_supplier_id && (
         <div className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-sm text-navy/70">
           {provider?.legal_name} n’est pas encore relié à Pennylane : le fournisseur sera retrouvé par SIRET ou par
           nom, ou créé, au moment de l’envoi.{' '}
@@ -114,7 +118,7 @@ export default async function AdminInvoicePage({
         </div>
       )}
 
-      {invoice.pennylane_status === 'error' && invoice.pennylane_error && (
+      {compta && invoice.pennylane_status === 'error' && invoice.pennylane_error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="font-semibold">Erreur Pennylane :</span> {invoice.pennylane_error}
         </div>

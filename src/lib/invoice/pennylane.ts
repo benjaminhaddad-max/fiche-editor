@@ -19,8 +19,8 @@ import { getInvoicePdf, loadInvoiceForRender } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ibanValide, normaliserIban } from '@/lib/iban'
 import { societeDe, type InvoiceLine } from '@/lib/types'
-import { activeBrandId } from '@/lib/brand/actif'
-import { estSiretMaison } from '@/lib/brand/config'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
+import { BRANDS, estSiretMaison, normalizeBrandId } from '@/lib/brand/config'
 
 export interface SyncResult {
   ok: boolean
@@ -233,6 +233,13 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
     if (!loaded) throw new PennylaneError('Facture introuvable.')
     const { invoice, lines } = loaded
 
+    // Le compte Pennylane est celui de Diploma. Une école sans comptabilité
+    // n'a rien à y faire : le simple fait d'essayer y crée le fournisseur.
+    // On lit l'école de la facture, pas celle du déploiement.
+    if (!BRANDS[normalizeBrandId(invoice.brand)].comptabilite) {
+      return { ok: false, error: 'Cette école n’a pas de comptabilité Pennylane.' }
+    }
+
     let fournisseur: { id: number; ibanIgnore: boolean; nom: string }
     try {
       fournisseur = await resolveSupplier(invoice.provider_id)
@@ -341,7 +348,7 @@ export interface RetourEnvois {
  */
 export async function pousserEnAttente(max = 40): Promise<RetourEnvois> {
   const out: RetourEnvois = { tentees: 0, envoyees: [], echecs: [] }
-  if (!isPennylaneConfigured()) return out
+  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return out
 
   const db = createServiceClient()
   const { data } = await db
@@ -407,7 +414,7 @@ function memeNom(a: string, b: string): boolean {
  */
 export async function rafraichirPaiements(): Promise<RetourPaiements> {
   const out: RetourPaiements = { verifiees: 0, payees: [], rapprochees: [], erreurs: [] }
-  if (!isPennylaneConfigured()) return out
+  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return out
 
   const supabase = createServiceClient()
   const { data } = await supabase

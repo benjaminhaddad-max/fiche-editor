@@ -54,11 +54,14 @@ const ONGLETS = {
   transmises: { label: 'Reçues', ou: (r: AdminInvoiceRow) => r.status === 'sent' },
   echec: {
     label: 'Envoi à refaire',
-    ou: (r: AdminInvoiceRow) => r.status === 'validated' && r.pennylane_status !== 'synced',
+    ou: (r: AdminInvoiceRow, compta: boolean) =>
+      compta && r.status === 'validated' && r.pennylane_status !== 'synced',
   },
+  // Sans comptabilité, une facture vérifiée n'attend plus que son virement.
   compta: {
     label: 'En comptabilité',
-    ou: (r: AdminInvoiceRow) => r.status === 'validated' && r.pennylane_status === 'synced',
+    ou: (r: AdminInvoiceRow, compta: boolean) =>
+      r.status === 'validated' && (!compta || r.pennylane_status === 'synced'),
   },
   payees: { label: 'Payées', ou: (r: AdminInvoiceRow) => r.status === 'paid' },
   attente: { label: 'En attente du PDF', ou: (r: AdminInvoiceRow) => r.status === 'issued' },
@@ -95,7 +98,9 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     apportePar: r.apporteur?.full_name ?? null,
   }))
 
-  const par = (cle: keyof typeof ONGLETS) => rows.filter(ONGLETS[cle].ou)
+  const marque = await activeBrand()
+  const compta = marque.comptabilite
+  const par = (cle: keyof typeof ONGLETS) => rows.filter((r) => ONGLETS[cle].ou(r, compta))
   const courant = (onglet === 'diverses'
     ? 'diverses'
     : onglet && onglet in ONGLETS
@@ -109,7 +114,8 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
   const transmises = par('transmises')
   const aEnvoyer = par('echec')
   const enCompta = par('compta')
-  const inbound = (await activeBrand()).inboundEmail
+  const inbound = marque.inboundEmail
+  const etapeReglement = compta ? '2 — En comptabilité' : '2 — À payer'
 
   // Arrivées par email sans qu'on sache de qui : elles attendent un manager.
   const brutes = (data ?? []) as unknown as Row[]
@@ -156,28 +162,36 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
           <div className="min-w-0">
             <p className="ds-eyebrow">Prochaine étape</p>
             <p className="mt-1 font-display text-lg text-navy">
-              {transmises.length + aEnvoyer.length > 0
-                ? `${transmises.length + aEnvoyer.length} facture${transmises.length + aEnvoyer.length > 1 ? 's' : ''} en route vers la comptabilité`
-                : 'Rien en attente de votre part'}
+              {!compta
+                ? transmises.length + enCompta.length > 0
+                  ? `${transmises.length} à vérifier, ${enCompta.length} à payer`
+                  : 'Rien en attente de votre part'
+                : transmises.length + aEnvoyer.length > 0
+                  ? `${transmises.length + aEnvoyer.length} facture${transmises.length + aEnvoyer.length > 1 ? 's' : ''} en route vers la comptabilité`
+                  : 'Rien en attente de votre part'}
             </p>
             <p className="mt-0.5 text-sm text-muted">
-              {transmises.length > 0 || aEnvoyer.length > 0
+              {!compta
+                ? 'Vérifiez les factures reçues, puis marquez-les payées une fois le virement fait.'
+                : transmises.length > 0 || aEnvoyer.length > 0
                 ? `${money([...transmises, ...aEnvoyer].reduce((s, r) => s + Number(r.total_ttc), 0))} — elles partent en comptabilité demain matin toutes seules. Le bouton ne sert qu’à ne pas attendre.`
                 : 'Tout est en comptabilité. Les paiements remontent ensuite tout seuls.'}
             </p>
           </div>
-          <form action={actualiserPaiements}>
-            <SubmitButton variant="secondary" pendingLabel="Relecture…">
-              <RefreshCw size={15} />
-              Actualiser les paiements
-            </SubmitButton>
-          </form>
+          {compta && (
+            <form action={actualiserPaiements}>
+              <SubmitButton variant="secondary" pendingLabel="Relecture…">
+                <RefreshCw size={15} />
+                Actualiser les paiements
+              </SubmitButton>
+            </form>
+          )}
         </div>
         <div className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {[
             ['1 — Reçues, à vérifier', transmises],
-            ['Envoi à refaire', aEnvoyer],
-            ['2 — En comptabilité', enCompta],
+            ...(compta ? [['Envoi à refaire', aEnvoyer]] : []),
+            [etapeReglement, enCompta],
           ].map(([label, lot]) => (
             <div key={label as string} className="px-5 py-3">
               <p className="text-xs uppercase tracking-wide text-muted">{label as string}</p>
@@ -196,8 +210,8 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
         {(
           [
             ['transmises', '1 — Reçues', transmises.length],
-            ['echec', 'Envoi à refaire', aEnvoyer.length],
-            ['compta', '2 — En comptabilité', enCompta.length],
+            ...(compta ? ([['echec', 'Envoi à refaire', aEnvoyer.length]] as const) : []),
+            ['compta', etapeReglement, enCompta.length],
             ['payees', '3 — Payées', 0],
             ['diverses', 'Factures fournisseurs', 0],
             ['attente', 'En attente de leur PDF', par('attente').length],
@@ -232,7 +246,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
       {liste.length === 0 ? (
         <EmptyState title="Aucune facture ici" />
       ) : (
-        <InvoiceTable rows={liste} gestes={[...gestes]} doublons={Object.fromEntries(doublons)} />
+        <InvoiceTable rows={liste} gestes={[...gestes]} doublons={Object.fromEntries(doublons)} compta={compta} />
       )}
     </>
   )

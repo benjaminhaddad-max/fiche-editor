@@ -35,9 +35,14 @@ export interface AdminInvoiceRow {
 type Geste = 'pennylane' | 'payer'
 
 /** Où en est une facture, et ce qui la fera avancer. */
-function ETAPE(r: AdminInvoiceRow): { titre: string; suite: string } {
+function ETAPE(r: AdminInvoiceRow, compta: boolean): { titre: string; suite: string } {
   if (r.status === 'paid') return { titre: 'Payée', suite: 'Rien à faire.' }
   if (r.status === 'issued') return { titre: 'En attente de son PDF', suite: 'Le prestataire doit le déposer.' }
+  if (!compta) {
+    return r.status === 'sent'
+      ? { titre: 'Reçue', suite: 'À vérifier.' }
+      : { titre: 'Vérifiée', suite: 'À marquer payée une fois le virement fait.' }
+  }
   if (r.pennylane_status === 'error') return { titre: 'Refusée par Pennylane', suite: 'À renvoyer après correction.' }
   if (r.pennylane_status === 'synced') return { titre: 'En comptabilité', suite: 'En attente du règlement.' }
   if (r.status === 'sent') return { titre: 'Reçue', suite: 'À vérifier, puis envoyer en comptabilité.' }
@@ -48,11 +53,14 @@ export function InvoiceTable({
   rows,
   gestes,
   doublons = {},
+  compta = true,
 }: {
   rows: AdminInvoiceRow[]
   gestes: Geste[]
   /** Factures déjà en comptabilité au même montant, par facture. */
   doublons?: Record<string, { date: string; montant: number; libelle: string; payee: boolean }[]>
+  /** Sans comptabilité, vérifier une facture ne l'envoie nulle part. */
+  compta?: boolean
 }) {
   const [selection, setSelection] = useState<Set<string>>(new Set())
   const [refus, setRefus] = useState<string | null>(null)
@@ -81,8 +89,8 @@ export function InvoiceTable({
             {gestes.includes('pennylane') && (
               <form action={envoyer}>
                 {caches}
-                <SubmitButton size="sm" pendingLabel="Envoi en comptabilité…">
-                  Envoyer en comptabilité
+                <SubmitButton size="sm" pendingLabel={compta ? 'Envoi en comptabilité…' : 'Validation…'}>
+                  {compta ? 'Envoyer en comptabilité' : 'Valider'}
                 </SubmitButton>
               </form>
             )}
@@ -97,18 +105,18 @@ export function InvoiceTable({
           {/* Les deux gestes se ressemblaient à l'écran alors qu'un seul
               sort de la plateforme. On dit lequel fait quoi, là où on
               clique. */}
-          <p className="mt-2 border-t border-line pt-2 text-xs text-muted">
+          {compta && <p className="mt-2 border-t border-line pt-2 text-xs text-muted">
             <strong className="font-medium text-navy/80">Envoyer en comptabilité</strong> transfère la facture et
             son PDF dans Pennylane : c’est le seul geste qui compte.{' '}
             <strong className="font-medium text-navy/80">Marquer payées</strong> ne sert qu’aux virements faits
             hors Pennylane — sinon le règlement revient tout seul.
-          </p>
+          </p>}
         </div>
       )}
 
       {lot && (
         <div className={`mb-3 rounded-lg px-4 py-3 text-sm ${lot.erreurs.length ? 'bg-amber-50 text-amber-900' : 'bg-emerald-50 text-emerald-800'}`}>
-          {lot.ok} facture{lot.ok > 1 ? 's' : ''} envoyée{lot.ok > 1 ? 's' : ''} en comptabilité.
+          {lot.ok} facture{lot.ok > 1 ? 's' : ''} {compta ? `envoyée${lot.ok > 1 ? 's' : ''} en comptabilité` : `validée${lot.ok > 1 ? 's' : ''}`}.
           {lot.erreurs.map((e) => (
             <p key={e.numero} className="mt-1 text-xs">
               {e.numero} : {e.message}
@@ -209,9 +217,9 @@ export function InvoiceTable({
                     {/* Deux colonnes d'état côte à côte — le statut et
                         Pennylane — obligeaient à les croiser de tête pour
                         savoir ce qu'il restait à faire. Une seule phrase. */}
-                    <p className="text-sm font-medium text-navy">{ETAPE(r).titre}</p>
-                    <p className="mt-0.5 text-xs text-muted">{ETAPE(r).suite}</p>
-                    {r.pennylane_error && <p className="mt-1 max-w-56 text-xs text-red-600">{r.pennylane_error}</p>}
+                    <p className="text-sm font-medium text-navy">{ETAPE(r, compta).titre}</p>
+                    <p className="mt-0.5 text-xs text-muted">{ETAPE(r, compta).suite}</p>
+                    {compta && r.pennylane_error && <p className="mt-1 max-w-56 text-xs text-red-600">{r.pennylane_error}</p>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

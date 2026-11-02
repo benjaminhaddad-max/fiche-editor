@@ -1,4 +1,5 @@
 import { isPennylaneConfigured, listSupplierInvoices } from '@/lib/pennylane/client'
+import { activeBrand } from '@/lib/brand/actif'
 
 /** Une facture déjà passée en comptabilité, au même montant. */
 export interface Doublon {
@@ -62,15 +63,21 @@ export async function chercherDoublons(
 ): Promise<Map<string, Doublon[]>> {
   const jours = opts.jours ?? 60
   const out = new Map<string, Doublon[]>()
-  if (!isPennylaneConfigured() || candidats.length === 0) return out
+  if (candidats.length === 0) return out
+  const comptabilite = isPennylaneConfigured() && (await activeBrand()).comptabilite
+  if (!comptabilite && !opts.plateforme?.length) return out
 
-  let recentes: Awaited<ReturnType<typeof listSupplierInvoices>>
-  try {
-    recentes = await listSupplierInvoices({ pages: 3 })
-  } catch {
-    // Une comptabilité injoignable ne doit pas empêcher de travailler : sans
-    // réponse, on n'affirme rien plutôt que de rassurer à tort.
-    return out
+  // Sans comptabilité, seules ses propres factures font référence : celles
+  // de Pennylane sont les achats d'une autre école.
+  let recentes: Awaited<ReturnType<typeof listSupplierInvoices>> = []
+  if (comptabilite) {
+    try {
+      recentes = await listSupplierInvoices({ pages: 3 })
+    } catch {
+      // Une comptabilité injoignable ne doit pas empêcher de travailler : sans
+      // réponse, on n'affirme rien plutôt que de rassurer à tort.
+      return out
+    }
   }
 
   type Reference = {

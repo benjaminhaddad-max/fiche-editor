@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
+import { activeBrand } from '@/lib/brand/actif'
 import { rafraichirPaiements, syncInvoiceToPennylane } from '@/lib/invoice/pennylane'
 import { isPennylaneConfigured, setSupplierInvoicePaymentStatus } from '@/lib/pennylane/client'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
@@ -48,6 +49,14 @@ export async function envoyerPennylane(_prev: LotResultat | null, fd: FormData):
       .update({ status: 'validated', validated_at: new Date().toISOString(), validated_by: user.id })
       .in('id', liste)
       .eq('status', 'sent')
+  }
+  // Sans comptabilité, vérifier la facture est tout le geste : il n'y a nulle
+  // part où l'envoyer, elle attend son virement.
+  if (!(await activeBrand()).comptabilite) {
+    for (const id of liste) await logAudit(null, { actorId: user.id, entityType: 'invoice', entityId: id, action: 'validate' })
+    out.ok = liste.length
+    rafraichir()
+    return out
   }
   for (const id of liste) {
     const r = await syncInvoiceToPennylane(id)

@@ -5,11 +5,12 @@ import { requireRole } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Category } from '@/lib/types'
 import { saveCategory } from '../actions'
-import { activeBrandScope } from '@/lib/brand/actif'
+import { activeBrand, activeBrandScope } from '@/lib/brand/actif'
 
 export default async function CategoriesPage() {
   await requireRole('admin')
   const supabase = await createServerSupabase()
+  const { comptabilite } = await activeBrand()
 
   const { data } = await supabase
     .from('inv_categories')
@@ -22,12 +23,17 @@ export default async function CategoriesPage() {
     <>
       <PageHeader
         title="Catégories de missions"
-        description="Les types de prestation proposés aux prestataires, et leur ventilation comptable dans Pennylane."
+        description={
+          comptabilite
+            ? 'Les types de prestation proposés aux prestataires, et leur ventilation comptable dans Pennylane.'
+            : 'Les types de prestation proposés aux prestataires.'
+        }
       />
       <CategoryManager
         categories={(data ?? []) as Category[]}
         managers={await getManagers()}
         saveAction={saveCategory}
+        comptabilite={comptabilite}
       />
     </>
   )

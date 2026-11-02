@@ -16,11 +16,13 @@ function CategoryForm({
   category,
   managers,
   onDone,
+  comptabilite,
 }: {
   action: (prev: AdminResult, formData: FormData) => Promise<AdminResult>
   category?: Category
   managers: { id: string; full_name: string }[]
   onDone?: () => void
+  comptabilite: boolean
 }) {
   const [state, formAction] = useActionState<AdminResult, FormData>(action, {})
   const e = state.fieldErrors ?? {}
@@ -37,13 +39,23 @@ function CategoryForm({
         error={e.name}
         required
       />
-      <Input
-        id={`pl-${category?.id ?? 'new'}`}
-        name="pennylane_label"
-        label="Libellé Pennylane"
-        defaultValue={category?.pennylane_label ?? ''}
-        error={e.pennylane_label}
-      />
+      {/* Une catégorie peut être partagée avec une école qui a sa comptabilité :
+          l'enregistrer d'ici ne doit pas effacer ses réglages. */}
+      {!comptabilite && (
+        <>
+          <input type="hidden" name="pennylane_label" value={category?.pennylane_label ?? ''} />
+          <input type="hidden" name="pennylane_category_id" value={category?.pennylane_category_id ?? ''} />
+        </>
+      )}
+      {comptabilite && (
+        <Input
+          id={`pl-${category?.id ?? 'new'}`}
+          name="pennylane_label"
+          label="Libellé Pennylane"
+          defaultValue={category?.pennylane_label ?? ''}
+          error={e.pennylane_label}
+        />
+      )}
       <Input
         id={`prl-${category?.id ?? 'new'}`}
         name="provider_label"
@@ -52,15 +64,17 @@ function CategoryForm({
         defaultValue={category?.provider_label ?? ''}
         error={e.provider_label}
       />
-      <Input
-        id={`led-${category?.id ?? 'new'}`}
-        name="pennylane_category_id"
-        label="id_pennylane (catégorie Pennylane)"
-        inputMode="numeric"
-        hint="Sert à ventiler la facture dans Pennylane."
-        defaultValue={category?.pennylane_category_id ?? ''}
-        error={e.pennylane_category_id}
-      />
+      {comptabilite && (
+        <Input
+          id={`led-${category?.id ?? 'new'}`}
+          name="pennylane_category_id"
+          label="id_pennylane (catégorie Pennylane)"
+          inputMode="numeric"
+          hint="Sert à ventiler la facture dans Pennylane."
+          defaultValue={category?.pennylane_category_id ?? ''}
+          error={e.pennylane_category_id}
+        />
+      )}
       <Select
         id={`pole-${category?.id ?? 'new'}`}
         name="pole"
@@ -204,11 +218,14 @@ export function CategoryManager({
   categories,
   managers,
   saveAction,
+  comptabilite,
 }: {
   categories: Category[]
   /** Pour désigner qui vérifie les prestations de chaque catégorie. */
   managers: { id: string; full_name: string }[]
   saveAction: (prev: AdminResult, formData: FormData) => Promise<AdminResult>
+  /** Sans comptabilité, les réglages Pennylane n'ont pas d'objet. */
+  comptabilite: boolean
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -228,7 +245,12 @@ export function CategoryManager({
       {creating && (
         <Card className="mb-6 p-6">
           <h2 className="mb-5 text-sm font-semibold text-navy">Nouvelle catégorie</h2>
-          <CategoryForm action={saveAction} managers={managers} onDone={() => setCreating(false)} />
+          <CategoryForm
+            action={saveAction}
+            managers={managers}
+            onDone={() => setCreating(false)}
+            comptabilite={comptabilite}
+          />
         </Card>
       )}
 
@@ -239,9 +261,9 @@ export function CategoryManager({
               <tr>
                 <th className="px-4 py-3 font-medium">Nom</th>
                 <th className="px-4 py-3 font-medium">Pôle</th>
-                <th className="px-4 py-3 font-medium">Libellé Pennylane</th>
+                {comptabilite && <th className="px-4 py-3 font-medium">Libellé Pennylane</th>}
                 <th className="px-4 py-3 font-medium">Libellé prestataire</th>
-                <th className="px-4 py-3 font-medium">id_pennylane</th>
+                {comptabilite && <th className="px-4 py-3 font-medium">id_pennylane</th>}
                 <th className="px-4 py-3 text-center font-medium">Visible</th>
                 <th className="px-4 py-3 text-center font-medium">Active</th>
                 <th className="px-4 py-3" />
@@ -253,15 +275,19 @@ export function CategoryManager({
                   <tr className="hover:bg-cream-muted">
                     <td className="px-4 py-3 font-medium text-navy">{c.name}</td>
                     <td className="px-4 py-3 text-navy/70">{POLE_LABEL[c.pole]}</td>
-                    <td className="px-4 py-3 text-navy/70">
-                      {c.pennylane_label ?? '—'}
-                    </td>
+                    {comptabilite && (
+                      <td className="px-4 py-3 text-navy/70">
+                        {c.pennylane_label ?? '—'}
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-navy/70">{c.provider_label ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      {c.pennylane_category_id ?? (
-                        <span className="text-xs text-amber-600">manquant</span>
-                      )}
-                    </td>
+                    {comptabilite && (
+                      <td className="px-4 py-3">
+                        {c.pennylane_category_id ?? (
+                          <span className="text-xs text-amber-600">manquant</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex justify-center">
                         <ToggleCell
@@ -294,6 +320,7 @@ export function CategoryManager({
                           category={c}
                           managers={managers}
                           onDone={() => setEditing(null)}
+                          comptabilite={comptabilite}
                         />
                       </td>
                     </tr>
