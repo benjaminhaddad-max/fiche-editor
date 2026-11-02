@@ -8,6 +8,7 @@ import { templates } from '@/lib/email/templates'
 import { addDays, round2 } from '@/lib/format'
 import { regulariserEffectifs } from '@/lib/effectifs'
 import { relancerDeclarations } from '@/lib/relances'
+import { relancerFactures } from '@/lib/relance-factures'
 import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment, PAYES_EN_SALAIRE } from '@/lib/types'
@@ -139,7 +140,9 @@ async function cycleDUneMarque(
     fait.rappelCommissions = await uneFois(db, courant.month, 'rappel_commissions', () => rappelerCommissions(db, courant))
   }
   if (today === precedent.invoiceDeadline) {
-    fait.relances = await uneFois(db, precedent.month, 'relance_factures', () => relancerFactures(db, precedent))
+    fait.relances = await uneFois(db, precedent.month, 'relance_factures', async () =>
+      relancerFactures(db, precedent.month, await activeBrandId(), notifyStatementReminder)
+    )
   }
   fait.bonsEchus = await rappelerBonsEchus(db, today)
 
@@ -260,18 +263,6 @@ async function rappelerCommissions(db: Db, cycle: BillingCycle) {
     entityId: pascal.id,
   })
   return { envoyes: 1 }
-}
-
-async function relancerFactures(db: Db, cycle: BillingCycle) {
-  const { data } = await db
-    .from('inv_statements')
-    .select('id')
-    .eq('cycle_month', cycle.month)
-    .in('status', ['sent', 'contested', 'accepted'])
-    .is('invoice_id', null)
-  let n = 0
-  for (const s of data ?? []) if (await notifyStatementReminder(s.id)) n++
-  return { relances: n }
 }
 
 /**
