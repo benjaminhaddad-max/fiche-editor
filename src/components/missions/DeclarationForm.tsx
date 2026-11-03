@@ -14,7 +14,7 @@ import { ImportFactureRetard } from '@/components/missions/ImportFactureRetard'
 import type { DeclarationResult, ImportResult, LigneImportee } from '@/app/(app)/declarations/actions'
 import type { Employment, PayBasis, Pole, PricingType } from '@/lib/types'
 import { estAuteur, isSalaried } from '@/lib/types'
-import { PRECOMPTE_AUTEUR, netAuteur } from '@/lib/invoice/net-auteur'
+import { PRECOMPTE_AFFICHE, netAuteur } from '@/lib/invoice/net-auteur'
 
 export interface DeclCategory {
   id: string
@@ -775,7 +775,7 @@ export function DeclarationForm(props: Props) {
               ) : auteur ? (
                 <span className="ml-2 text-xs font-normal text-muted">
                   brut, soit {money(netEstime(total) ?? 0)} net estimé après le précompte de{' '}
-                  {Math.round(PRECOMPTE_AUTEUR * 100)} % (montant indicatif)
+                  {PRECOMPTE_AFFICHE} (montant indicatif)
                 </span>
               ) : sansTva ? (
                 <span className="ml-2 text-xs font-normal text-muted">

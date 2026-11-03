@@ -11,6 +11,7 @@ import { PRICING_UNIT } from '@/lib/labels'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 import { normalizeBrandId } from '@/lib/brand/config'
 import { MediboxInvoiceDocument } from '@/lib/invoice/pdf-medibox'
+import { PRECOMPTE_AFFICHE, type LignePrecompte } from '@/lib/invoice/net-auteur'
 
 // Helvetica est embarquee dans @react-pdf : pas d'appel reseau au rendu.
 const styles = StyleSheet.create({
@@ -146,9 +147,11 @@ export interface AuteurPdf {
   naissance: string | null
   /** Base de chaque prestation facturée (id de la prestation → brut ou net). */
   bases: Record<string, string | null>
-  /** Net à virer ; null tant qu'une ligne n'a pas de base brut ou net. */
+  /** Net à virer ; null seulement sans aucune ligne. */
   net: number | null
   sansBase: number
+  brutSoumis: number
+  precompte: LignePrecompte[]
 }
 
 export function InvoiceDocument({
@@ -282,7 +285,7 @@ export function InvoiceDocument({
             <Text style={styles.sectionTitle}>DROITS D’AUTEUR</Text>
             <Text style={styles.note}>
               {auteur.net !== null
-                ? `Net à verser après le précompte de 20 % : ${money(auteur.net)}`
+                ? `Net à verser après le précompte de ${PRECOMPTE_AFFICHE} : ${money(auteur.net)}`
                 : `Net à verser à vérifier : ${money(auteur.sansBase)} sans base brut ou net`}
             </Text>
           </View>

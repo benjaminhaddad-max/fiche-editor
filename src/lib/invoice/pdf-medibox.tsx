@@ -1,6 +1,6 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { formatDate, money } from '@/lib/format'
-import { PRECOMPTE_AUTEUR } from '@/lib/invoice/net-auteur'
+import { LIGNES_PRECOMPTE } from '@/lib/invoice/net-auteur'
 import { BRANDS } from '@/lib/brand/config'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 import type { AuteurPdf } from '@/lib/invoice/pdf'
@@ -51,6 +51,7 @@ const s = StyleSheet.create({
   conditions: { width: 210 },
   totaux: { width: 270 },
   totalRang: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
+  retenue: { fontSize: 8, color: '#4a4560' },
   totalFinal: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, paddingVertical: 6, paddingHorizontal: 6, backgroundColor: p.dark, color: '#ffffff' },
   totalFinalTexte: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#ffffff' },
   note: { color: '#4a4560', lineHeight: 1.5, marginTop: 2 },
@@ -69,12 +70,12 @@ function Info({ label, value }: { label: string; value: string | null | undefine
   )
 }
 
-/** Le montant versé d'une ligne d'auteur, tel que l'onglet factures le compte. */
-function verseLigne(line: InvoiceLine, auteur: AuteurPdf): number | null {
-  const base = line.mission_id ? auteur.bases[line.mission_id] : null
-  if (base === 'net') return Number(line.total_ht)
-  return Math.round(Number(line.total_ht) * (1 - PRECOMPTE_AUTEUR) * 100) / 100
-}
+const pourcent = (t: number) => `${(Math.round(t * 10000) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} %`
+
+/** « CSG 9,20 % sur 98,25 % du brut » : ce que Nolwenn reporte à l'Urssaf. */
+const LIBELLES_PRECOMPTE = LIGNES_PRECOMPTE.map(
+  (l) => `${l.libelle} ${pourcent(l.taux)}${l.assiette < 1 ? ` sur ${pourcent(l.assiette)} du brut` : ''}`
+)
 
 export function MediboxInvoiceDocument({
   invoice,
@@ -90,7 +91,6 @@ export function MediboxInvoiceDocument({
   const tva = issuer.vat_regime === 'normal'
   const mention = mentionTva(issuer.vat_regime)
   const brut = Number(invoice.subtotal_ht)
-  const precompte = auteur?.net != null ? Math.round((brut - auteur.net) * 100) / 100 : null
 
   return (
     <Document
@@ -151,10 +151,8 @@ export function MediboxInvoiceDocument({
           <Text style={[s.teteTexte, s.cUnit]}>Montant unitaire</Text>
           <Text style={[s.teteTexte, s.cQte]}>Quantité</Text>
           <Text style={[s.teteTexte, s.cMontant]}>{auteur ? 'Montant brut' : 'Montant total'}</Text>
-          {auteur && <Text style={[s.teteTexte, s.cMontant]}>Montant versé</Text>}
         </View>
         {lines.map((line) => {
-          const verse = auteur ? verseLigne(line, auteur) : null
           return (
             <View key={line.id} style={s.rang} wrap={false}>
               <Text style={s.cActivite}>{line.category_name}</Text>
@@ -165,7 +163,6 @@ export function MediboxInvoiceDocument({
               <Text style={s.cUnit}>{money(line.unit_amount_ht)}</Text>
               <Text style={s.cQte}>{Number(line.quantity)}</Text>
               <Text style={s.cMontant}>{money(line.total_ht)}</Text>
-              {auteur && <Text style={s.cMontant}>{verse === null ? 'à vérifier' : money(verse)}</Text>}
             </View>
           )
         })}
@@ -185,10 +182,19 @@ export function MediboxInvoiceDocument({
                   <Text>Montant brut</Text>
                   <Text>{money(brut)}</Text>
                 </View>
-                <View style={s.totalRang}>
-                  <Text>Précompte de {Math.round(PRECOMPTE_AUTEUR * 100)} %</Text>
-                  <Text>{precompte === null ? 'à vérifier' : `− ${money(precompte)}`}</Text>
-                </View>
+                {auteur.brutSoumis < brut && (
+                  <View style={s.totalRang}>
+                    <Text style={s.retenue}>dont soumis au précompte</Text>
+                    <Text style={s.retenue}>{money(auteur.brutSoumis)}</Text>
+                  </View>
+                )}
+                {auteur.precompte.map((l, i) => (
+                  <View key={l.libelle} style={s.totalRang}>
+                    <Text style={s.retenue}>{LIBELLES_PRECOMPTE[i]}</Text>
+                    {/* Helvetica n'a pas le signe moins typographique : il disparaissait. */}
+                    <Text>- {money(l.montant)}</Text>
+                  </View>
+                ))}
                 <View style={s.totalFinal}>
                   <Text style={s.totalFinalTexte}>NET À PAYER</Text>
                   <Text style={s.totalFinalTexte}>{auteur.net === null ? 'à vérifier' : money(auteur.net)}</Text>
@@ -215,10 +221,11 @@ export function MediboxInvoiceDocument({
 
         <View style={s.mentions}>
           {!auteur && mention && <Text>{mention}</Text>}
-          {auteur && auteur.sansBase > 0 && (
+          {auteur && (
             <Text>
-              {money(auteur.sansBase)} de lignes sans base brut ou net : le net à payer est à vérifier avant le
-              virement.
+              Cotisations et contributions sociales précomptées par le diffuseur et versées à l’Urssaf (taux
+              2026). La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont pris en
+              charge par l’État.
             </Text>
           )}
           {!auteur && (
