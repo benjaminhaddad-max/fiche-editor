@@ -73,8 +73,7 @@ function Info({ label, value }: { label: string; value: string | null | undefine
 function verseLigne(line: InvoiceLine, auteur: AuteurPdf): number | null {
   const base = line.mission_id ? auteur.bases[line.mission_id] : null
   if (base === 'net') return Number(line.total_ht)
-  if (base === 'brut') return Math.round(Number(line.total_ht) * (1 - PRECOMPTE_AUTEUR) * 100) / 100
-  return null
+  return Math.round(Number(line.total_ht) * (1 - PRECOMPTE_AUTEUR) * 100) / 100
 }
 
 export function MediboxInvoiceDocument({

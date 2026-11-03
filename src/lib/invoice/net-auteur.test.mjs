@@ -26,8 +26,8 @@ test('l’arrondi tombe au centime : Kevin', () => {
   assert.equal(netAuteur([brut(20), brut(160), brut(139.86), brut(190)]).net, 407.89)
 })
 
-test('une ligne sans base ne donne aucun net : Faustine', () => {
-  assert.deepEqual(netAuteur([vide(140), brut(33), brut(175)]), { net: null, sansBase: 140 })
+test('une ligne sans base perd ses 20 % comme un brut : Paul', () => {
+  assert.deepEqual(netAuteur([vide(140), brut(33), brut(175)]), { net: 278.4, sansBase: 0 })
 })
 
 test('sans ligne, rien à affirmer', () => {

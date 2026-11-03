@@ -2,29 +2,26 @@
 export const PRECOMPTE_AUTEUR = 0.2
 
 export interface NetAuteur {
-  /** Le montant à virer. Absent tant qu'une ligne n'a pas de base. */
+  /** Le montant à virer. Absent seulement quand la facture n'a aucune ligne. */
   net: number | null
-  /** Le total des lignes dont on ignore si elles sont en brut ou en net. */
+  /** Plus utilisé : une ligne sans base compte désormais comme un brut. */
   sansBase: number
 }
 
 /**
  * Le net à verser d'une facture de droits d'auteur.
  *
- * Une ligne sans base ne se devine pas : les deux lectures donnent deux
- * virements différents, et Faustine ou Kaoutar en ont de telles. Le net reste
- * alors vide, et l'écran dit qu'il est à vérifier plutôt que d'afficher un
- * montant qui rassure à tort.
+ * Règle de Ben (03/11) : le précompte de 20 % s'applique à tous. Seule une
+ * ligne déclarée en net est versée telle quelle ; une ligne sans base est lue
+ * comme un brut. Avant, ces lignes laissaient le net « à vérifier », et
+ * Nolwenn ne pouvait pas payer Paul, Kaoutar ou Mathilde.
  */
 export function netAuteur(lignes: { total_ht: number; pay_basis: string | null }[]): NetAuteur {
   let net = 0
-  let sansBase = 0
   for (const l of lignes) {
     const montant = Number(l.total_ht)
-    if (l.pay_basis === 'net') net += montant
-    else if (l.pay_basis === 'brut') net += montant * (1 - PRECOMPTE_AUTEUR)
-    else sansBase += montant
+    net += l.pay_basis === 'net' ? montant : montant * (1 - PRECOMPTE_AUTEUR)
   }
   const arrondi = (n: number) => Math.round(n * 100) / 100
-  return { net: sansBase > 0 || lignes.length === 0 ? null : arrondi(net), sansBase: arrondi(sansBase) }
+  return { net: lignes.length === 0 ? null : arrondi(net), sansBase: 0 }
 }
