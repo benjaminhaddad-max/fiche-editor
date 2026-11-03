@@ -138,12 +138,22 @@ function Address({ lines }: { lines: (string | null | undefined)[] }) {
   )
 }
 
+/** Ce qu'ajoute la facture d'un artiste-auteur. */
+export interface AuteurPdf {
+  secu: string | null
+  /** Net à virer ; null tant qu'une ligne n'a pas de base brut ou net. */
+  net: number | null
+  sansBase: number
+}
+
 export function InvoiceDocument({
   invoice,
   lines,
+  auteur,
 }: {
   invoice: Invoice
   lines: InvoiceLine[]
+  auteur?: AuteurPdf
 }) {
   const issuer = invoice.issuer_snapshot
   const mention = mentionTva(issuer.vat_regime)
@@ -196,6 +206,7 @@ export function InvoiceDocument({
                 [issuer.postal_code, issuer.city].filter(Boolean).join(' '),
                 issuer.country,
                 issuer.siret ? `SIRET : ${issuer.siret}` : null,
+                auteur?.secu ? `N° de sécurité sociale : ${auteur.secu}` : null,
                 issuer.vat_number ? `TVA : ${issuer.vat_number}` : null,
                 issuer.email,
                 issuer.phone,
@@ -261,6 +272,17 @@ export function InvoiceDocument({
           </View>
         </View>
 
+        {auteur && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>DROITS D’AUTEUR</Text>
+            <Text style={styles.note}>
+              {auteur.net !== null
+                ? `Net à verser après le précompte de 20 % : ${money(auteur.net)}`
+                : `Net à verser à vérifier : ${money(auteur.sansBase)} sans base brut ou net`}
+            </Text>
+          </View>
+        )}
+
         {(issuer.iban || issuer.bic) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>RÈGLEMENT PAR VIREMENT</Text>
@@ -294,7 +316,8 @@ export function InvoiceDocument({
 
 export async function renderInvoicePdf(
   invoice: Invoice,
-  lines: InvoiceLine[]
+  lines: InvoiceLine[],
+  auteur?: AuteurPdf
 ): Promise<Buffer> {
-  return renderToBuffer(<InvoiceDocument invoice={invoice} lines={lines} />)
+  return renderToBuffer(<InvoiceDocument invoice={invoice} lines={lines} auteur={auteur} />)
 }

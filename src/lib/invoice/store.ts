@@ -1,7 +1,8 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { BRANDS, marqueFacturable, normalizeBrandId } from '@/lib/brand'
-import { renderInvoicePdf } from '@/lib/invoice/pdf'
-import type { Invoice, InvoiceLine } from '@/lib/types'
+import { renderInvoicePdf, type AuteurPdf } from '@/lib/invoice/pdf'
+import { netAuteur } from '@/lib/invoice/net-auteur'
+import { estAuteur, type Employment, type Invoice, type InvoiceLine } from '@/lib/types'
 
 export const INVOICE_BUCKET = 'invoices'
 
@@ -42,6 +43,31 @@ export async function loadInvoiceForRender(
   return { invoice: invoice as Invoice, lines: (lines ?? []) as InvoiceLine[] }
 }
 
+/**
+ * Ce que la facture d'un artiste-auteur doit dire en plus : son numéro de
+ * sécurité sociale, que Nolwenn reporte à l'Urssaf pour le précompte, et le
+ * net à lui virer. Lus sur la fiche et les prestations au moment du rendu :
+ * l'instantané de l'émetteur ne les porte pas.
+ */
+async function auteurDe(invoice: Invoice): Promise<AuteurPdf | undefined> {
+  const supabase = createServiceClient()
+  const { data: fiche } = await supabase
+    .from('inv_providers')
+    .select('employment_type, social_security_number')
+    .eq('id', invoice.provider_id)
+    .maybeSingle()
+  if (!estAuteur(fiche?.employment_type as Employment | undefined)) return undefined
+
+  const { data: lignes } = await supabase
+    .from('inv_missions')
+    .select('total_ht, pay_basis')
+    .eq('invoice_id', invoice.id)
+  return {
+    secu: (fiche?.social_security_number as string | null)?.trim() || null,
+    ...netAuteur((lignes ?? []) as { total_ht: number; pay_basis: string | null }[]),
+  }
+}
+
 /** Genere le PDF et le range dans le bucket. Renvoie le buffer. */
 export async function generateAndStorePdf(invoiceId: string): Promise<Buffer> {
   const loaded = await loadInvoiceForRender(invoiceId)
@@ -59,7 +85,7 @@ export async function generateAndStorePdf(invoiceId: string): Promise<Buffer> {
     )
   }
 
-  const pdf = await renderInvoicePdf(loaded.invoice, loaded.lines)
+  const pdf = await renderInvoicePdf(loaded.invoice, loaded.lines, await auteurDe(loaded.invoice))
   const path = invoicePdfPath(loaded.invoice)
   const supabase = createServiceClient()
 
