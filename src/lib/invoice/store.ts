@@ -53,18 +53,21 @@ async function auteurDe(invoice: Invoice): Promise<AuteurPdf | undefined> {
   const supabase = createServiceClient()
   const { data: fiche } = await supabase
     .from('inv_providers')
-    .select('employment_type, social_security_number')
+    .select('employment_type, social_security_number, birth_date')
     .eq('id', invoice.provider_id)
     .maybeSingle()
   if (!estAuteur(fiche?.employment_type as Employment | undefined)) return undefined
 
   const { data: lignes } = await supabase
     .from('inv_missions')
-    .select('total_ht, pay_basis')
+    .select('id, total_ht, pay_basis')
     .eq('invoice_id', invoice.id)
+  const prestations = (lignes ?? []) as { id: string; total_ht: number; pay_basis: string | null }[]
   return {
     secu: (fiche?.social_security_number as string | null)?.trim() || null,
-    ...netAuteur((lignes ?? []) as { total_ht: number; pay_basis: string | null }[]),
+    naissance: (fiche?.birth_date as string | null) ?? null,
+    bases: Object.fromEntries(prestations.map((l) => [l.id, l.pay_basis])),
+    ...netAuteur(prestations),
   }
 }
 

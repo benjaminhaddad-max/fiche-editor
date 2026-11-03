@@ -9,6 +9,8 @@ import {
 import { formatDate, formatPeriod, money } from '@/lib/format'
 import { PRICING_UNIT } from '@/lib/labels'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
+import { normalizeBrandId } from '@/lib/brand/config'
+import { MediboxInvoiceDocument } from '@/lib/invoice/pdf-medibox'
 
 // Helvetica est embarquee dans @react-pdf : pas d'appel reseau au rendu.
 const styles = StyleSheet.create({
@@ -141,6 +143,9 @@ function Address({ lines }: { lines: (string | null | undefined)[] }) {
 /** Ce qu'ajoute la facture d'un artiste-auteur. */
 export interface AuteurPdf {
   secu: string | null
+  naissance: string | null
+  /** Base de chaque prestation facturée (id de la prestation → brut ou net). */
+  bases: Record<string, string | null>
   /** Net à virer ; null tant qu'une ligne n'a pas de base brut ou net. */
   net: number | null
   sansBase: number
@@ -319,5 +324,9 @@ export async function renderInvoicePdf(
   lines: InvoiceLine[],
   auteur?: AuteurPdf
 ): Promise<Buffer> {
+  // Medibox a son propre modèle de facture : pas celui de Diploma recoloré.
+  if (normalizeBrandId(invoice.brand) === 'medibox') {
+    return renderToBuffer(<MediboxInvoiceDocument invoice={invoice} lines={lines} auteur={auteur} />)
+  }
   return renderToBuffer(<InvoiceDocument invoice={invoice} lines={lines} auteur={auteur} />)
 }
