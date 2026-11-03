@@ -33,3 +33,20 @@ test('une ligne sans base ne donne aucun net : Faustine', () => {
 test('sans ligne, rien à affirmer', () => {
   assert.deepEqual(netAuteur([]), { net: null, sansBase: 0 })
 })
+
+// Le net estimé du formulaire de déclaration passe par le même calcul.
+const estime = (b) => netAuteur([brut(b)]).net
+
+test('net estimé : décimales et centime, comme au paiement', () => {
+  assert.equal(estime(211), 168.8)
+  assert.equal(estime(139.86), 111.89)
+  assert.equal(estime(0.01), 0.01)
+})
+
+test('net estimé : un très gros brut ne dérive pas', () => {
+  assert.equal(estime(1234567.89), 987654.31)
+})
+
+test('net estimé : un brut nul donne zéro, pas une erreur', () => {
+  assert.equal(estime(0), 0)
+})

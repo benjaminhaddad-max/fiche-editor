@@ -13,7 +13,8 @@ import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import { ImportFactureRetard } from '@/components/missions/ImportFactureRetard'
 import type { DeclarationResult, ImportResult, LigneImportee } from '@/app/(app)/declarations/actions'
 import type { Employment, PayBasis, Pole, PricingType } from '@/lib/types'
-import { isSalaried } from '@/lib/types'
+import { estAuteur, isSalaried } from '@/lib/types'
+import { PRECOMPTE_AUTEUR, netAuteur } from '@/lib/invoice/net-auteur'
 
 export interface DeclCategory {
   id: string
@@ -253,6 +254,12 @@ export function DeclarationForm(props: Props) {
     [lignes, props.abattements]
   )
   const motif = props.motifAbattement ?? 'contrat'
+  // Un auteur saisit son brut, la société en retient le précompte : il doit
+  // voir ce qui lui arrivera vraiment. Même calcul que l'onglet factures de
+  // l'administration (netAuteur), pour que les deux chiffres ne divergent
+  // jamais. Indicatif : le taux reste à confirmer par la comptabilité.
+  const auteur = estAuteur(employment)
+  const netEstime = (brut: number) => netAuteur([{ total_ht: brut, pay_basis: 'brut' }]).net
 
   const parPole = useMemo(() => {
     const g = new Map<Pole, DeclCategory[]>()
@@ -724,7 +731,12 @@ export function DeclarationForm(props: Props) {
                     ) : (
                       <>
                         Total de la ligne : <strong className="font-display">{money(ligneTotal)}</strong>
-                        {!sansTva && ' HT'}
+                        {auteur ? ' brut' : !sansTva && ' HT'}
+                        {auteur && ligneTotal > 0 && (
+                          <span className="ml-2 text-xs text-muted">
+                            net estimé {money(netEstime(ligneTotal) ?? 0)}
+                          </span>
+                        )}
                       </>
                     )}
                   </p>
@@ -759,6 +771,11 @@ export function DeclarationForm(props: Props) {
                   {motif === 'TVA'
                     ? `HT, pour ${money(convenu)} TTC : la TVA de 20 % s’ajoute sur votre facture`
                     : `${money(convenu)} convenus, moins les charges du contrat`}
+                </span>
+              ) : auteur ? (
+                <span className="ml-2 text-xs font-normal text-muted">
+                  brut, soit {money(netEstime(total) ?? 0)} net estimé après le précompte de{' '}
+                  {Math.round(PRECOMPTE_AUTEUR * 100)} % (montant indicatif)
                 </span>
               ) : sansTva ? (
                 <span className="ml-2 text-xs font-normal text-muted">
