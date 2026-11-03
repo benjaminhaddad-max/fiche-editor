@@ -50,6 +50,8 @@ export async function createInvitation(
 export interface ExchangeResult {
   hashedToken?: string
   email?: string
+  /** L'école du profil invité : c'est là que la personne doit arriver. */
+  brand?: string
   error?: string
 }
 
@@ -75,7 +77,7 @@ export async function exchangeInvitation(token: string): Promise<ExchangeResult>
 
   const { data: user } = await supabase
     .from('inv_users')
-    .select('email, is_active')
+    .select('email, is_active, brand')
     .eq('id', invitation.user_id)
     .maybeSingle()
 
@@ -98,7 +100,7 @@ export async function exchangeInvitation(token: string): Promise<ExchangeResult>
     .update({ exchanges: invitation.exchanges + 1 })
     .eq('id', invitation.id)
 
-  return { hashedToken: link.properties.hashed_token, email: user.email }
+  return { hashedToken: link.properties.hashed_token, email: user.email, brand: user.brand }
 }
 
 /** Consomme définitivement l'invitation, une fois le mot de passe défini. */
