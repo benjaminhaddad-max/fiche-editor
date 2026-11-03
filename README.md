@@ -94,6 +94,33 @@ Deux prérequis avant de pouvoir synchroniser une facture :
 Sans `PENNYLANE_API_TOKEN`, la plateforme fonctionne normalement : seul le bouton
 de synchronisation est désactivé.
 
+## Justificatifs de dépenses (reçus de carte et d'abonnement)
+
+Les reçus (Anthropic, OpenAI, Cursor, Google, Uber, Deliveroo…) arrivent sur
+la même boîte de dépôt que les factures. L'IA les reconnaît (`classerDocument`
+→ `recu`), en lit le fournisseur, la date, le montant TTC et la devise
+(`src/lib/justificatifs/recu.ts`), puis cherche le mouvement Pennylane qui
+attend un justificatif : même montant, à cinq jours près, au nom du
+fournisseur (`correspondance.ts`, testé par `npm test`).
+
+- **Rapprochement sûr** (reçu en euros, un seul mouvement au centime, même
+  nom) : déposé tout seul. L'API v2 ne pose pas un fichier sur une
+  transaction ; le reçu est importé en facture d'achat
+  (`POST /supplier_invoices/import`), puis rattaché au mouvement
+  (`POST /supplier_invoices/{id}/matched_transactions`). Scopes :
+  `file_attachments:all`, `supplier_invoices:all`, et `suppliers:all` quand
+  le fournisseur n'existe pas encore — les mêmes que pour les prestataires.
+- **Le reste** (plusieurs mouvements possibles, reçu en devise, nom
+  différent) : liste « Reçus à rattacher » de l'onglet Dépenses, un clic
+  par reçu. Un reçu sans mouvement est recherché à chaque relève horaire
+  pendant dix jours.
+- **Le 5 du mois**, la tâche quotidienne fige l'état du mois écoulé
+  (`inv_etats_justificatifs`) : manquants, rattachés seuls, fournisseurs
+  récurrents sur trois mois. L'envoi au comptable est **éteint par défaut**
+  (réglage dans l'onglet Dépenses, table `inv_reglages`).
+
+Tables : `supabase/49_justificatifs.sql`.
+
 ## Facture : générée ou déposée
 
 Chaque prestataire choisit dans son profil :

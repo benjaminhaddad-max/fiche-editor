@@ -1,4 +1,4 @@
-import { isPennylaneConfigured } from '@/lib/pennylane/client'
+import { appelPennylane, isPennylaneConfigured } from '@/lib/pennylane/client'
 import { activeBrand } from '@/lib/brand/actif'
 
 /**
@@ -23,6 +23,13 @@ const SANS_PIECE_ATTENDUE = [
   /REMISE CHEQUE/i,
   /FRAIS BANCAIRES/i,
   /COMMISSION D INTERVENTION/i,
+  // Les frais de change que Swan prélève à côté de chaque paiement en
+  // devise : deux cent quarante-cinq lignes en octobre 2026, toutes
+  // justifiées par le reçu du paiement lui-même.
+  /Card transaction in foreign currency/i,
+  /FRAIS PAIEMENT HORS ZONE/i,
+  /\bCHQ IMP\b/i,
+  /NET PAYE/i,
 ]
 
 export const pieceAttendue = (libelle: string): boolean =>
@@ -39,6 +46,7 @@ export interface Depense {
   justificatifManquant: boolean
   /** Un virement interne ou une cotisation n'a pas de facture à produire. */
   pieceAttendue: boolean
+  porteur?: string | null
 }
 
 /** Un émetteur qui revient : la même facture manque dix fois, pas une. */
@@ -69,9 +77,83 @@ interface Brute {
   label: string | null
   amount: string
   attachment_required?: boolean
-  supplier?: { name?: string | null } | null
+  supplier?: { id?: number | null; name?: string | null } | null
   categories?: { label?: string | null }[] | null
+  pro_account_expense?: { employee?: { first_name?: string | null; last_name?: string | null } | null } | null
 }
+
+/** Un mouvement sortant tel que le reste du code le lit. */
+export interface Mouvement {
+  id: number
+  date: string
+  libelle: string
+  montant: number
+  categorie: string | null
+  fournisseur: string | null
+  fournisseurId: number | null
+  /** Le porteur de la carte, quand le paiement vient d'une carte pro. */
+  porteur: string | null
+  justificatifManquant: boolean
+  pieceAttendue: boolean
+}
+
+/**
+ * Les sorties du compte entre deux dates, toutes pages lues.
+ *
+ * Octobre 2026 compte mille huit cent soixante-dix-neuf mouvements : la
+ * limite de huit pages qui tenait jusqu'ici n'en lisait que huit cents, et
+ * l'écran annonçait deux fois moins de justificatifs manquants qu'il n'y en
+ * avait. On lit jusqu'à cinquante pages ; au-delà, on le dit plutôt que de
+ * rendre un compte faux.
+ */
+export async function lireMouvements(debut: string, fin: string, opts: { cache?: number } = {}): Promise<Mouvement[]> {
+  const filtre = encodeURIComponent(
+    JSON.stringify([
+      { field: 'date', operator: 'gteq', value: debut },
+      { field: 'date', operator: 'lteq', value: fin },
+    ])
+  )
+  const out: Mouvement[] = []
+  let curseur: string | null = null
+  for (let i = 0; ; i++) {
+    if (i >= 50) throw new Error('Plus de cinq mille mouvements sur la période : lecture interrompue.')
+    const url = `${BASE_URL}/transactions?limit=100&filter=${filtre}${curseur ? `&cursor=${encodeURIComponent(curseur)}` : ''}`
+    const res = await appelPennylane(url, {
+      headers: { Authorization: `Bearer ${process.env.PENNYLANE_API_TOKEN}` },
+      ...(opts.cache === 0 ? { cache: 'no-store' as const } : { next: { revalidate: opts.cache ?? 3600 } }),
+    })
+    if (!res.ok) throw new Error(`Pennylane ${res.status}`)
+    const json = (await res.json()) as { items?: Brute[]; has_more?: boolean; next_cursor?: string | null }
+    for (const t of json.items ?? []) {
+      const montant = Number(t.amount)
+      if (montant >= 0) continue
+      const attendue = pieceAttendue(t.label ?? '')
+      const e = t.pro_account_expense?.employee
+      out.push({
+        id: t.id,
+        date: t.date,
+        libelle: (t.label ?? '—').replace(/\s*\(label généré\)\s*$/, ''),
+        montant: -montant,
+        categorie: t.categories?.[0]?.label ?? null,
+        fournisseur: t.supplier?.name ?? null,
+        fournisseurId: t.supplier?.id ?? null,
+        porteur: e ? [e.first_name, e.last_name].filter(Boolean).join(' ') || null : null,
+        justificatifManquant: t.attachment_required === true && attendue,
+        pieceAttendue: attendue,
+      })
+    }
+    if (!json.has_more || !json.next_cursor) break
+    curseur = json.next_cursor
+  }
+  return out
+}
+
+/**
+ * Un libellé bancaire porte le nom de l'émetteur puis une référence qui
+ * change à chaque fois : on regroupe sur les deux premiers mots.
+ */
+export const emetteur = (l: string) =>
+  l.toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 2).join(' ') || '—'
 
 /**
  * Ce qui est sorti du compte sur un mois, tel que la banque l'a vu.
@@ -108,51 +190,16 @@ export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
   const [an, m] = mois.split('-').map(Number)
   const debut = `${mois}-01`
   const fin = new Date(Date.UTC(an, m, 0)).toISOString().slice(0, 10)
-  const filtre = encodeURIComponent(
-    JSON.stringify([
-      { field: 'date', operator: 'gteq', value: debut },
-      { field: 'date', operator: 'lteq', value: fin },
-    ])
-  )
 
-  const lignes: Depense[] = []
-  let curseur: string | null = null
+  let lignes: Depense[]
   try {
-    for (let i = 0; i < 8; i++) {
-      const url = `${BASE_URL}/transactions?limit=100&filter=${filtre}${curseur ? `&cursor=${encodeURIComponent(curseur)}` : ''}`
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${process.env.PENNYLANE_API_TOKEN}` },
-        // Une heure : la comptabilité d'un mois écoulé ne bouge plus guère,
-        // et le bouton d'actualisation existe pour le reste.
-        next: { revalidate: 3600 },
-      })
-      if (!res.ok) throw new Error(String(res.status))
-      const json = (await res.json()) as { items?: Brute[]; has_more?: boolean; next_cursor?: string | null }
-      for (const t of json.items ?? []) {
-        const montant = Number(t.amount)
-        if (montant >= 0) continue
-        lignes.push({
-          id: t.id,
-          date: t.date,
-          libelle: (t.label ?? '—').replace(/\s*\(label généré\)\s*$/, ''),
-          montant: -montant,
-          categorie: t.categories?.[0]?.label ?? null,
-          fournisseur: t.supplier?.name ?? null,
-          justificatifManquant: t.attachment_required === true && pieceAttendue(t.label ?? ''),
-          pieceAttendue: pieceAttendue(t.label ?? ''),
-        })
-      }
-      if (!json.has_more || !json.next_cursor) break
-      curseur = json.next_cursor
-    }
+    // Une heure : la comptabilité d'un mois écoulé ne bouge plus guère,
+    // et le bouton d'actualisation existe pour le reste.
+    lignes = await lireMouvements(debut, fin)
   } catch {
     return vide
   }
 
-  // Un libellé bancaire porte le nom de l'émetteur puis une référence qui
-  // change à chaque fois : on regroupe sur les deux premiers mots.
-  const emetteur = (l: string) =>
-    l.toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 2).join(' ') || '—'
   const sourcesMap = new Map<string, SourceRecurrente>()
   for (const l of lignes.filter((x) => x.justificatifManquant)) {
     const k = emetteur(l.libelle)

@@ -2,9 +2,10 @@ import { identifierExpediteur } from '@/lib/inbound/expediteur'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
-import { classerDocument, enregistrerBulletin } from '@/lib/paie/bulletins'
+import { classerDocument, enregistrerBulletin, type TypeDocument } from '@/lib/paie/bulletins'
+import { enregistrerRecu } from '@/lib/justificatifs/rapprochement'
 import { createServiceClient } from '@/lib/supabase/service'
-import { activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 export interface Courriel {
   /** Adresses pouvant être celle du manager (From, Reply-To, en-têtes de transfert). */
@@ -28,7 +29,8 @@ const MAX_PDF = 15 * 1024 * 1024
  * rattachée à la main. Rien ne disparaît en silence.
  *
  * Chaque PDF est identifié au passage : une facture rejoint les factures,
- * un bulletin de paie l'espace de la personne concernée.
+ * un bulletin de paie l'espace de la personne concernée, un reçu de carte
+ * ou d'abonnement va chercher son mouvement dans Pennylane.
  */
 export async function traiterCourriel(c: Courriel): Promise<Issue> {
   const db = createServiceClient()
@@ -68,11 +70,29 @@ export async function traiterCourriel(c: Courriel): Promise<Issue> {
       continue
     }
 
-    let type: 'facture' | 'bulletin' | 'autre' = 'facture'
+    let type: TypeDocument = 'facture'
     try {
       type = await classerDocument(piece.contenu)
     } catch (err) {
       console.error('[depot] classement', err)
+    }
+
+    // Un reçu n'attend personne : il est déjà payé. Il peut venir de
+    // n'importe qui — c'est même le but, que les fournisseurs écrivent
+    // directement ici — et on ne répond pas : un accusé à chaque course
+    // Uber noierait l'équipe. Une école sans comptabilité ici le traite en
+    // facture, comme avant.
+    if (type === 'recu' && (await activeBrand()).comptabilite) {
+      const r = await enregistrerRecu({
+        pdf: piece.contenu,
+        filename: piece.nom,
+        emailMessageId: c.messageId,
+        inboundFrom: expediteur,
+      })
+      if (r.ok) continue
+      // Un reçu qu'on n'a pas pu garder suit le chemin d'une facture, comme
+      // avant : mieux vaut une facture à trier qu'une pièce perdue.
+      console.error('[depotfactures] reçu, repris en facture :', piece.nom, r.error)
     }
 
     if (type === 'bulletin') {

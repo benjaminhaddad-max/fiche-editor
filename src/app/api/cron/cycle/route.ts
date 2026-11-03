@@ -15,6 +15,8 @@ import { isSalaried, type Employment, PAYES_EN_SALAIRE } from '@/lib/types'
 import { sendSms } from '@/lib/email/sms'
 import { activeBrand, activeBrandId, sousMarque } from '@/lib/brand/actif'
 import { servedBrandIds } from '@/lib/brand'
+import { calculerEtat, envoyerEtat, moisPrecedent } from '@/lib/justificatifs/etat'
+import { lireReglages } from '@/lib/justificatifs/reglages'
 
 export const maxDuration = 300
 
@@ -31,6 +33,7 @@ type Db = ReturnType<typeof createServiceClient>
  *   L−1               relance des salariés qui n'ont rien renseigné
  *   L−2               début de la vérification : rappel aux managers
  *   le 2              relance des factures manquantes (email + SMS)
+ *   le 5              état des justificatifs du mois écoulé (envoi au comptable s'il est allumé)
  *   dernier jour      forfaits mensuels des contrats → prestations
  *   chaque jour       adresses vérifiées auprès de Brevo : qui ne reçoit rien
  *                     état de paiement relu dans Pennylane
@@ -145,6 +148,31 @@ async function cycleDUneMarque(
     )
   }
   fait.bonsEchus = await rappelerBonsEchus(db, today)
+
+  // Le 5 : Pennylane a relu la banque, les reçus du mois sont arrivés.
+  // L'état se calcule sur le mois civil, pas sur le cycle de facturation :
+  // c'est ainsi que le comptable lit la banque.
+  if (today.endsWith('-05') && (await activeBrand()).comptabilite) {
+    const mois = moisPrecedent(today.slice(0, 7))
+    // Le calcul n'écrit que l'état : on peut le rejouer. Seul l'envoi est
+    // réservé une fois par mois — et seulement s'il a de quoi partir.
+    try {
+      const etat = await calculerEtat(mois)
+      const libelle = new Date(`${mois}-01T12:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      fait.justificatifs = etat
+        ? {
+            manquants: etat.manquants,
+            rattachesAuto: etat.rattachesAuto,
+            // Éteint, on ne réserve rien : rallumé, l'envoi repart au 5 suivant.
+            envoi: (await lireReglages()).envoiEtat
+              ? await uneFois(db, mois, 'etat_justificatifs', () => envoyerEtat(etat, libelle))
+              : { envoye: false, raison: 'envoi éteint' },
+          }
+        : { ignore: 'comptabilité non configurée' }
+    } catch (err) {
+      fait.justificatifs = { erreur: err instanceof Error ? err.message : String(err) }
+    }
+  }
 
   return fait
 }

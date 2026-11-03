@@ -3,6 +3,10 @@ import { Card, EmptyState } from '@/components/ui/Page'
 import { formatDate, money } from '@/lib/format'
 import { depensesDuMois } from '@/lib/pennylane/depenses'
 import type { BillingCycle } from '@/lib/cycle'
+import { activeBrand } from '@/lib/brand/actif'
+import { manquantsParFournisseur, texteRelance } from '@/lib/justificatifs/etat'
+import { EtatEtRecurrents, RecusARattacher } from '@/components/remunerations/justificatifs/VueJustificatifs'
+import { TexteACopier } from '@/components/remunerations/justificatifs/Boutons'
 
 /**
  * Ce qui est sorti du compte ce mois-ci, catégorisé.
@@ -30,6 +34,8 @@ export async function VueDepenses({ cycle }: { cycle: BillingCycle }) {
 
   const aCompleter = d.lignes.filter((l) => l.justificatifManquant || (!l.categorie && l.pieceAttendue))
   const sansPiece = d.lignes.filter((l) => !l.pieceAttendue)
+  const marque = await activeBrand()
+  const parFournisseur = manquantsParFournisseur(d.lignes)
 
   return (
     <>
@@ -72,31 +78,40 @@ export async function VueDepenses({ cycle }: { cycle: BillingCycle }) {
         </ul>
       </Card>
 
-      {d.sources.length > 0 && (
+      <RecusARattacher inboundEmail={marque.inboundEmail} />
+
+      {parFournisseur.length > 0 && (
         <Card className="mb-6 overflow-hidden">
           <div className="border-b border-line bg-cream-muted px-5 py-3">
-            <p className="text-sm font-semibold text-navy">D’où viennent les justificatifs manquants</p>
+            <p className="text-sm font-semibold text-navy">
+              Justificatifs manquants de {cycle.label}, par fournisseur
+            </p>
             <p className="mt-0.5 text-xs text-muted">
               Les mêmes émetteurs reviennent : récupérer une fois leurs factures du mois règle des dizaines de
-              lignes d’un coup. C’est aussi là qu’il faudra nommer un responsable par poste.
+              lignes d’un coup. Chaque fournisseur a son texte de relance, prêt à copier — rien ne part d’ici.
             </p>
           </div>
-          <ul className="divide-y divide-line/60">
-            {d.sources.slice(0, 15).map((src) => (
-              <li key={src.cle} className="flex items-center justify-between gap-4 px-5 py-2.5 text-sm">
-                <span className="min-w-0">
-                  <span className="font-medium text-navy">{src.cle}</span>
-                  <span className="block text-xs text-muted">
-                    {src.nombre} mouvement{src.nombre > 1 ? 's' : ''}
-                    {src.categorie ? ` · ${src.categorie}` : ' · sans catégorie'}
+          <ul className="max-h-[36rem] divide-y divide-line/60 overflow-y-auto">
+            {parFournisseur.map((f) => (
+              <li key={f.cle} className="px-5 py-2.5 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="min-w-0">
+                    <span className="font-medium text-navy">{f.cle}</span>
+                    <span className="block text-xs text-muted">
+                      {f.nombre} paiement{f.nombre > 1 ? 's' : ''}
+                      {f.porteurs.length > 0 ? ` · carte de ${f.porteurs.join(', ')}` : ''}
+                    </span>
                   </span>
-                </span>
-                <span className="whitespace-nowrap font-semibold text-navy">{money(src.total)}</span>
+                  <span className="whitespace-nowrap font-semibold text-navy">{money(f.total)}</span>
+                </div>
+                <TexteACopier texte={texteRelance(f, cycle.label, marque.inboundEmail, marque.company.name)} />
               </li>
             ))}
           </ul>
         </Card>
       )}
+
+      <EtatEtRecurrents cycle={cycle} inboundEmail={marque.inboundEmail} />
 
       {aCompleter.length > 0 && (
         <Card className="mb-6 overflow-hidden">

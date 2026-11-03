@@ -18,7 +18,9 @@ const norm = (s: string | null | undefined) =>
     .trim()
 
 /** Type de document, pour aiguiller ce qui arrive dans la boîte. */
-export async function classerDocument(pdf: Buffer): Promise<'facture' | 'bulletin' | 'autre'> {
+export type TypeDocument = 'facture' | 'recu' | 'bulletin' | 'autre'
+
+export async function classerDocument(pdf: Buffer): Promise<TypeDocument> {
   const client = new Anthropic()
   const res = await client.messages.create({
     // Un simple aiguillage : le modèle rapide suffit et coûte dix fois moins.
@@ -31,7 +33,7 @@ export async function classerDocument(pdf: Buffer): Promise<'facture' | 'bulleti
           type: 'object',
           additionalProperties: false,
           properties: {
-            type: { type: 'string', enum: ['facture', 'bulletin', 'autre'] },
+            type: { type: 'string', enum: ['facture', 'recu', 'bulletin', 'autre'] },
           },
           required: ['type'],
         },
@@ -45,8 +47,12 @@ export async function classerDocument(pdf: Buffer): Promise<'facture' | 'bulleti
           {
             type: 'text',
             text:
-              'Ce document est-il une facture (émise par un fournisseur ou un prestataire), ' +
-              'un bulletin de paie (fiche de salaire d’un salarié), ou autre chose ?',
+              'Ce document est-il une facture à régler (émise par un fournisseur ou un prestataire), ' +
+              'un reçu (« recu » : achat déjà payé par carte ou prélevé automatiquement — abonnement ' +
+              'logiciel, crédits d’API, publicité en ligne, course VTC, livraison de repas, achat en ' +
+              'ligne ; il porte souvent « Receipt », « Paid », « Payé », « Reçu » ou les derniers ' +
+              'chiffres d’une carte), un bulletin de paie (fiche de salaire d’un salarié), ou autre chose ? ' +
+              'Une facture d’abonnement déjà réglée par carte ou prélèvement est un reçu.',
           },
         ],
       },
@@ -54,7 +60,7 @@ export async function classerDocument(pdf: Buffer): Promise<'facture' | 'bulleti
   })
   const bloc = res.content.find((b) => b.type === 'text')
   if (!bloc || bloc.type !== 'text') return 'autre'
-  return (JSON.parse(bloc.text) as { type: 'facture' | 'bulletin' | 'autre' }).type
+  return (JSON.parse(bloc.text) as { type: TypeDocument }).type
 }
 
 export interface LectureBulletin {

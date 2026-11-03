@@ -56,6 +56,9 @@ async function appel(url: string, init?: RequestInit): Promise<Response> {
   }
 }
 
+/** Le même appel patient, pour les lectures faites ailleurs (mouvements). */
+export const appelPennylane = (url: string, init?: RequestInit) => appel(url, init)
+
 async function parseError(res: Response): Promise<never> {
   let body: unknown
   const text = await res.text()
@@ -118,6 +121,8 @@ export interface ImportSupplierInvoiceInput {
   label?: string
   external_reference?: string
   invoice_lines: PennylaneInvoiceLine[]
+  /** EUR par défaut ; un reçu en dollars garde sa devise. */
+  currency?: string
 }
 
 /** Etape 2 : creation de la facture d'achat. Renvoie l'id Pennylane. */
@@ -356,4 +361,23 @@ export async function getSupplierInvoice(id: number): Promise<PennylaneInvoiceSt
   })
   if (!res.ok) await parseError(res)
   return (await res.json()) as PennylaneInvoiceState
+}
+
+/**
+ * Rattacher une facture d'achat à un mouvement bancaire : c'est ainsi que
+ * Pennylane considère le mouvement justifié.
+ *
+ * L'API ne sait pas poser un fichier directement sur une transaction. Le
+ * chemin documenté (v2, « Match a transaction to a supplier invoice ») est
+ * d'importer la pièce en facture d'achat, puis de lui rattacher le
+ * mouvement. Scope : supplier_invoices:all — celui qu'on utilise déjà pour
+ * importer les factures des prestataires.
+ */
+export async function matchTransaction(supplierInvoiceId: number, transactionId: number): Promise<void> {
+  const res = await appel(`${BASE_URL}/supplier_invoices/${supplierInvoiceId}/matched_transactions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transaction_id: transactionId }),
+  })
+  if (!res.ok) await parseError(res)
 }
