@@ -18,11 +18,16 @@ CREATE TABLE IF NOT EXISTS inv_justificatifs (
   montant_tva           numeric(12,2),
   taux_tva              numeric(5,2),
   numero                text,
+  carte                 text,
+  -- L'heure d'arrivée du mail : elle désigne le paiement à la minute près.
+  recu_le               timestamptz,
   -- D'où il vient.
   pdf_path              text NOT NULL,
   filename              text NOT NULL,
   email_message_id      text,
   inbound_from          text,
+  -- 'depot' : boîte de dépôt ; 'gmail' : relevé dans la boîte de Ben.
+  source                text NOT NULL DEFAULT 'depot',
   -- Où il en est.
   statut                text NOT NULL DEFAULT 'a_rattacher'
                         CHECK (statut IN ('a_rattacher', 'rattache', 'ignore')),

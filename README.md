@@ -96,8 +96,12 @@ de synchronisation est désactivé.
 
 ## Justificatifs de dépenses (reçus de carte et d'abonnement)
 
-Les reçus (Anthropic, OpenAI, Cursor, Google, Uber, Deliveroo…) arrivent sur
-la même boîte de dépôt que les factures. L'IA les reconnaît (`classerDocument`
+Les reçus (Anthropic, OpenAI, Cursor, Google, Uber, Deliveroo…) sont relevés
+là où ils arrivent déjà : la boîte de Ben, en lecture seule, pour les
+fournisseurs prioritaires (au moins deux mois sur trois sans justificatif, du
+plus gros débit au plus petit — `src/lib/justificatifs/gmail.ts`, variables
+`RECUS_GMAIL_EMAIL` et `RECUS_GMAIL_PASSWORD`, mot de passe d'application
+Google), et la boîte de dépôt. L'IA les reconnaît (`classerDocument`
 → `recu`), en lit le fournisseur, la date, le montant TTC et la devise
 (`src/lib/justificatifs/recu.ts`), puis cherche le mouvement Pennylane qui
 attend un justificatif : même montant, à cinq jours près, au nom du
@@ -110,6 +114,12 @@ fournisseur (`correspondance.ts`, testé par `npm test`).
   (`POST /supplier_invoices/{id}/matched_transactions`). Scopes :
   `file_attachments:all`, `supplier_invoices:all`, et `suppliers:all` quand
   le fournisseur n'existe pas encore — les mêmes que pour les prestataires.
+- **En devise** (recharges Anthropic en dollars) : le montant ne peut pas
+  coïncider, c'est l'heure qui désigne le paiement — même carte, dans le
+  quart d'heure du mail de reçu (`created_at` du mouvement Pennylane).
+- **Miroir** : chaque reçu entre aussi dans Pennylane, rattaché ou non
+  (facture d'achat marquée réglée), et reste visible ici dans l'onglet
+  Dépenses.
 - **Le reste** (plusieurs mouvements possibles, reçu en devise, nom
   différent) : liste « Reçus à rattacher » de l'onglet Dépenses, un clic
   par reçu. Un reçu sans mouvement est recherché à chaque relève horaire

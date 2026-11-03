@@ -16,6 +16,10 @@ export interface RecuLu {
   date: string | null
   montant: number | null
   devise: string
+  /** Les quatre derniers chiffres de la carte, quand le reçu les imprime. */
+  carte?: string | null
+  /** L'heure d'arrivée du mail de reçu (ISO) : Stripe l'envoie à la minute du paiement. */
+  horodatage?: string | null
 }
 
 export interface MouvementCandidat {
@@ -24,6 +28,10 @@ export interface MouvementCandidat {
   libelle: string
   montant: number
   fournisseur: string | null
+  /** L'heure où la banque a vu passer le paiement (created_at de Pennylane, ISO). */
+  creeLe?: string | null
+  /** Les quatre derniers chiffres de la carte pro. */
+  carte?: string | null
 }
 
 export interface Candidat {
@@ -36,9 +44,18 @@ export interface Candidat {
   /** Le nom du reçu se retrouve dans le libellé ou le fournisseur. */
   nomCoherent: boolean
   ecartJours: number
+  /** Minutes entre le mail de reçu et le passage du paiement en banque. */
+  ecartMinutes: number | null
 }
 
 export const TOLERANCE_JOURS = 5
+/**
+ * Swan pousse un paiement carte à la seconde où il est autorisé, et Stripe
+ * envoie le reçu dans la foulée : le 23 octobre 2026, 16 h 20 min 24 s en
+ * banque pour le reçu Anthropic de 16 h 21 min 44 s. Un quart d'heure
+ * suffit largement, et sépare deux recharges du même jour.
+ */
+export const TOLERANCE_MINUTES = 15
 
 /** Ces mots-là ne disent rien de qui a été payé. */
 const VIDES = new Set([
@@ -104,13 +121,26 @@ export function candidats(recu: RecuLu, mouvements: MouvementCandidat[]): Candid
   for (const m of mouvements) {
     const ecart = jours(recu.date, m.date)
     if (ecart > TOLERANCE_JOURS) continue
+    // Une autre carte, c'est un autre paiement.
+    if (recu.carte && m.carte && recu.carte !== m.carte) continue
+    const minutes =
+      recu.horodatage && m.creeLe ? Math.abs(Date.parse(recu.horodatage) - Date.parse(m.creeLe)) / 60_000 : null
     const coherent = nomCoherent(recu, m)
     const exact = euros && Math.abs(m.montant - recu.montant) < 0.005
     const proche = euros
       ? Math.abs(m.montant - recu.montant) <= Math.max(0.5, recu.montant * 0.02)
       : m.montant >= recu.montant * change(recu.devise)[0] && m.montant <= recu.montant * change(recu.devise)[1]
     if (exact || (coherent && proche)) {
-      out.push({ id: m.id, date: m.date, libelle: m.libelle, montant: m.montant, montantExact: exact, nomCoherent: coherent, ecartJours: ecart })
+      out.push({
+        id: m.id,
+        date: m.date,
+        libelle: m.libelle,
+        montant: m.montant,
+        montantExact: exact,
+        nomCoherent: coherent,
+        ecartJours: ecart,
+        ecartMinutes: minutes === null || !Number.isFinite(minutes) ? null : Math.round(minutes),
+      })
     }
   }
   // En devise, le plus proche du cours moyen d'abord.
@@ -121,20 +151,34 @@ export function candidats(recu: RecuLu, mouvements: MouvementCandidat[]): Candid
       Number(b.montantExact && b.nomCoherent) - Number(a.montantExact && a.nomCoherent) ||
       Number(b.montantExact) - Number(a.montantExact) ||
       Number(b.nomCoherent) - Number(a.nomCoherent) ||
+      (a.ecartMinutes ?? 1e9) - (b.ecartMinutes ?? 1e9) ||
       (euros ? 0 : ecartCours(a) - ecartCours(b)) ||
       a.ecartJours - b.ecartJours
   )
 }
 
 /**
- * Le seul cas qui part sans qu'on regarde : un reçu en euros, un seul
- * mouvement au même montant au centime dans la fenêtre, et ce mouvement
- * porte le nom du fournisseur. Deux paiements Anthropic identiques à deux
- * jours d'écart, c'est déjà un choix — il revient à quelqu'un.
+ * Les cas qui partent sans qu'on regarde.
+ *
+ * En euros : un seul mouvement au même montant au centime dans la fenêtre,
+ * au nom du fournisseur. Deux paiements identiques à deux jours d'écart, on
+ * les départage par l'heure si le reçu la donne — sinon c'est un choix, et
+ * il revient à quelqu'un.
+ *
+ * En devise, le montant ne peut pas coïncider : la banque a converti. Les
+ * recharges Anthropic en dollars passent par dizaines dans la semaine, à
+ * quelques centimes près. Ce qui les distingue, c'est l'heure : un seul
+ * mouvement au bon nom, dans la fourchette de change, dans le quart d'heure
+ * du reçu.
  */
 export function rapprochementSur(recu: RecuLu, liste: Candidat[]): Candidat | null {
-  if (recu.devise !== 'EUR') return null
-  const exacts = liste.filter((c) => c.montantExact)
-  if (exacts.length !== 1 || !exacts[0].nomCoherent) return null
-  return exacts[0]
+  const proches = (l: Candidat[]) => l.filter((c) => c.ecartMinutes !== null && c.ecartMinutes <= TOLERANCE_MINUTES)
+  if (recu.devise === 'EUR') {
+    const exacts = liste.filter((c) => c.montantExact && c.nomCoherent)
+    if (exacts.length === 1 && liste.filter((c) => c.montantExact).length === 1) return exacts[0]
+    const alHeure = proches(exacts)
+    return alHeure.length === 1 ? alHeure[0] : null
+  }
+  const alHeure = proches(liste.filter((c) => c.nomCoherent))
+  return alHeure.length === 1 ? alHeure[0] : null
 }

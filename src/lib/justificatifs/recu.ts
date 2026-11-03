@@ -15,6 +15,8 @@ export interface LectureRecu {
   montantTva: number | null
   tauxTva: number | null
   numero: string | null
+  /** Les quatre derniers chiffres de la carte débitée. */
+  carte: string | null
   avertissement: string | null
 }
 
@@ -37,9 +39,10 @@ const SCHEMA = {
     montant_tva: { type: ['number', 'null'], description: 'Montant de TVA ou de taxe (0 si aucune).' },
     taux_tva: { type: ['number', 'null'], description: 'Taux de TVA principal en pourcentage (20, 10, 5.5, 0).' },
     numero: texte('Numéro du reçu ou de la facture.'),
+    carte: texte('Les quatre derniers chiffres de la carte débitée (ex. « 7514 »), chiffres seulement.'),
     avertissement: texte('Une phrase si le document n’est pas un reçu de paiement ou s’il est illisible.'),
   },
-  required: ['fournisseur', 'marque', 'date', 'montant', 'devise', 'montant_tva', 'taux_tva', 'numero', 'avertissement'],
+  required: ['fournisseur', 'marque', 'date', 'montant', 'devise', 'montant_tva', 'taux_tva', 'numero', 'carte', 'avertissement'],
 } as const
 
 /**
@@ -86,6 +89,7 @@ export async function lireRecu(pdf: Buffer): Promise<LectureRecu> {
     montantTva: num(lu.montant_tva),
     tauxTva: num(lu.taux_tva),
     numero: vide(lu.numero),
+    carte: (vide(lu.carte) ?? '').replace(/\D/g, '').slice(-4) || null,
     avertissement: vide(lu.avertissement),
   }
 }

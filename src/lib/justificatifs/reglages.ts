@@ -13,13 +13,24 @@ import { activeBrandId } from '@/lib/brand/actif'
 export interface ReglagesJustificatifs {
   /** Un rapprochement sûr part tout seul dans Pennylane. */
   depotAuto: boolean
+  /** Chaque reçu entre dans Pennylane, rattaché ou non : le miroir d'ici. */
+  miroirPennylane: boolean
+  /** Les reçus des fournisseurs récurrents sont relevés dans la boîte de Ben. */
+  releveGmail: boolean
   /** L'état du 5 part par mail. */
   envoiEtat: boolean
   /** À qui il part. Vide : il ne part pas, même allumé. */
   destinataireEtat: string
 }
 
-const DEFAUTS: ReglagesJustificatifs = { depotAuto: true, envoiEtat: false, destinataireEtat: '' }
+const DEFAUTS: ReglagesJustificatifs = {
+  depotAuto: true,
+  miroirPennylane: true,
+  // Allumée, elle ne fait rien tant que l'accès à la boîte n'est pas branché.
+  releveGmail: true,
+  envoiEtat: false,
+  destinataireEtat: '',
+}
 const CLE = 'justificatifs'
 
 export async function lireReglages(): Promise<ReglagesJustificatifs> {

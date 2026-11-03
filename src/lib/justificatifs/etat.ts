@@ -16,7 +16,7 @@ export interface ManquantsFournisseur {
   lignes: { date: string; montant: number; libelle: string }[]
 }
 
-/** Un émetteur qui manque mois après mois : c'est son adresse de facturation qu'il faut changer. */
+/** Un émetteur qui manque mois après mois : c'est chez lui qu'il faut aller chercher les reçus. */
 export interface Recurrent {
   cle: string
   /** Sur combien des trois derniers mois il manque. */
@@ -153,7 +153,8 @@ export async function calculerEtat(mois: string): Promise<EtatJustificatifs | nu
     parFournisseur: manquantsParFournisseur(lignes).map((f) => ({ ...f, lignes: f.lignes.slice(0, 60) })),
     recurrents: [...recurrents.values()]
       .filter((r) => r.mois >= 2)
-      .sort((a, b) => b.mois - a.mois || b.nombre - a.nombre || b.total - a.total)
+      // Ben : « les plus récurrents, là où il y a le plus de débit ».
+      .sort((a, b) => b.total - a.total || b.nombre - a.nombre)
       .slice(0, 40),
   }
 
@@ -215,4 +216,20 @@ export async function envoyerEtat(etat: EtatJustificatifs, libelleMois: string):
     .eq('brand', await activeBrandId())
     .eq('mois', etat.mois)
   return { envoye: true, a }
+}
+
+/**
+ * Les fournisseurs à aller chercher en premier : ceux qui reviennent au
+ * moins deux mois sur trois sans justificatif, du plus gros débit au plus
+ * petit.
+ *
+ * On reprend le dernier état s'il a moins de quarante jours ; sinon on le
+ * calcule sur les trois derniers mois — c'est ce qui arrive avant le
+ * premier 5 du mois.
+ */
+export async function fournisseursPrioritaires(): Promise<Recurrent[]> {
+  const dernier = await dernierEtat()
+  if (dernier && Date.now() - Date.parse(dernier.calculeLe) < 40 * 86_400_000) return dernier.recurrents
+  const mois = moisPrecedent(new Date().toISOString().slice(0, 7))
+  return (await calculerEtat(mois))?.recurrents ?? []
 }

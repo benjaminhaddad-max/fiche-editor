@@ -52,3 +52,24 @@ test('un reçu en dollars n’est jamais déposé seul', () => {
   assert.equal(l.length, 1)
   assert.equal(rapprochementSur(r, l), null)
 })
+
+test('un reçu en dollars se désigne par la carte et l’heure', () => {
+  // Le reçu Anthropic du 23/10/2026 : mail à 16 h 21 min 44 s, paiement vu en banque à 16 h 20 min 24 s.
+  const r = { ...recu(120.06, '2026-10-23', 'Anthropic, PBC', 'Anthropic', 'USD'), carte: '7514', horodatage: '2026-10-23T16:21:44Z' }
+  const l = candidats(r, [
+    { ...mvt(1, '2026-10-24', 107.31, 'ANTHROPIC'), carte: '7514', creeLe: '2026-10-23T16:20:24Z' },
+    { ...mvt(2, '2026-10-24', 108.06, 'ANTHROPIC'), carte: '7514', creeLe: '2026-10-23T13:41:04Z' },
+    { ...mvt(3, '2026-10-23', 107.62, 'ANTHROPIC'), carte: '3374', creeLe: '2026-10-23T16:22:00Z' },
+  ])
+  assert.equal(l.length, 2, 'la carte 3374 est écartée')
+  assert.equal(rapprochementSur(r, l)?.id, 1)
+})
+
+test('deux euros identiques le même jour : l’heure départage', () => {
+  const r = { ...recu(21.6, '2026-10-27', 'Anthropic, PBC', 'Claude'), horodatage: '2026-10-27T09:00:30Z' }
+  const l = candidats(r, [
+    { ...mvt(1, '2026-10-27', 21.6, 'ANTHROPIC* CLAUDE SUB'), creeLe: '2026-10-27T08:59:58Z' },
+    { ...mvt(2, '2026-10-27', 21.6, 'ANTHROPIC* CLAUDE SUB'), creeLe: '2026-10-27T15:10:00Z' },
+  ])
+  assert.equal(rapprochementSur(r, l)?.id, 1)
+})

@@ -77,6 +77,8 @@ export async function enregistrerReglagesJustificatifs(fd: FormData): Promise<vo
   await ecrireReglages(
     {
       depotAuto: fd.get('depot_auto') === 'on',
+      miroirPennylane: fd.get('miroir') === 'on',
+      releveGmail: fd.get('releve_gmail') === 'on',
       envoiEtat: fd.get('envoi_etat') === 'on',
       destinataireEtat: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinataire) ? destinataire : '',
     },

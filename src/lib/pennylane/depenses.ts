@@ -79,7 +79,11 @@ interface Brute {
   attachment_required?: boolean
   supplier?: { id?: number | null; name?: string | null } | null
   categories?: { label?: string | null }[] | null
-  pro_account_expense?: { employee?: { first_name?: string | null; last_name?: string | null } | null } | null
+  created_at?: string | null
+  pro_account_expense?: {
+    employee?: { first_name?: string | null; last_name?: string | null } | null
+    card_masked_number?: string | null
+  } | null
 }
 
 /** Un mouvement sortant tel que le reste du code le lit. */
@@ -93,6 +97,10 @@ export interface Mouvement {
   fournisseurId: number | null
   /** Le porteur de la carte, quand le paiement vient d'une carte pro. */
   porteur: string | null
+  /** Les quatre derniers chiffres de la carte pro. */
+  carte: string | null
+  /** L'heure où la banque a vu passer le paiement. */
+  creeLe: string | null
   justificatifManquant: boolean
   pieceAttendue: boolean
 }
@@ -138,6 +146,8 @@ export async function lireMouvements(debut: string, fin: string, opts: { cache?:
         fournisseur: t.supplier?.name ?? null,
         fournisseurId: t.supplier?.id ?? null,
         porteur: e ? [e.first_name, e.last_name].filter(Boolean).join(' ') || null : null,
+        carte: t.pro_account_expense?.card_masked_number?.slice(-4) ?? null,
+        creeLe: t.created_at ?? null,
         justificatifManquant: t.attachment_required === true && attendue,
         pieceAttendue: attendue,
       })

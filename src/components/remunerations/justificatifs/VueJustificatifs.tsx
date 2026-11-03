@@ -8,6 +8,7 @@ import { listerJustificatifs, type Justificatif } from '@/lib/justificatifs/rapp
 import { rapprochementSur } from '@/lib/justificatifs/correspondance'
 import { dernierEtat, lireEtat } from '@/lib/justificatifs/etat'
 import { lireReglages } from '@/lib/justificatifs/reglages'
+import { gmailBranche } from '@/lib/justificatifs/gmail'
 import {
   enregistrerReglagesJustificatifs,
   ignorerJustificatif,
@@ -48,8 +49,9 @@ export async function RecusARattacher({ inboundEmail }: { inboundEmail: string |
             Reçus à rattacher{enAttente.length > 0 ? ` (${enAttente.length})` : ''}
           </p>
           <p className="mt-0.5 text-xs text-muted">
-            Les reçus d’abonnement et de carte envoyés à {inboundEmail ?? 'la boîte de dépôt'} cherchent leur
-            mouvement : même montant, à cinq jours près, au nom du fournisseur.{' '}
+            Les reçus d’abonnement et de carte — relevés dans la boîte de Ben ou envoyés à{' '}
+            {inboundEmail ?? 'la boîte de dépôt'} — cherchent leur mouvement : même montant, à cinq jours près,
+            au nom du fournisseur ; en devise, la même carte dans le quart d’heure du reçu.{' '}
             {reglages.depotAuto
               ? 'Quand un seul mouvement correspond au centime, le reçu part tout seul dans Pennylane.'
               : 'Le dépôt automatique est éteint : chaque reçu attend un clic.'}
@@ -167,6 +169,7 @@ export async function EtatEtRecurrents({ cycle, inboundEmail }: { cycle: Billing
   const [enregistre, dernier, reglages] = await Promise.all([lireEtat(cycle.month), dernierEtat(), lireReglages()])
   const etat = enregistre?.etat ?? null
   const recurrents = (etat ?? dernier)?.recurrents ?? []
+  const releveBranchee = gmailBranche()
 
   return (
     <>
@@ -221,11 +224,12 @@ export async function EtatEtRecurrents({ cycle, inboundEmail }: { cycle: Billing
 
       <Card className="mb-6 overflow-hidden">
         <div className="border-b border-line bg-cream-muted px-5 py-3">
-          <p className="text-sm font-semibold text-navy">Fournisseurs récurrents sans justificatif</p>
+          <p className="text-sm font-semibold text-navy">Fournisseurs prioritaires sans justificatif</p>
           <p className="mt-0.5 text-xs text-muted">
-            Ceux qui manquent au moins deux mois sur les trois derniers, les plus fréquents d’abord. Une fois
-            pour toutes : changer leur adresse de facturation pour {inboundEmail ?? 'la boîte de dépôt'}, et
-            leurs reçus arriveront et se rattacheront seuls.
+            Ceux qui manquent au moins deux mois sur les trois derniers, du plus gros débit au plus petit.
+            Leurs reçus sont cherchés directement dans la boîte où ils arrivent déjà
+            {releveBranchee ? '' : ' — dès que son accès sera branché'} ; ceux envoyés à{' '}
+            {inboundEmail ?? 'la boîte de dépôt'} sont pris aussi.
           </p>
         </div>
         {recurrents.length === 0 ? (
@@ -259,6 +263,27 @@ export async function EtatEtRecurrents({ cycle, inboundEmail }: { cycle: Billing
               <span className="block text-xs text-muted">
                 Un reçu en euros dont un seul mouvement a le même montant, à cinq jours près et au même nom,
                 part tout seul.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" name="miroir" defaultChecked={reglages.miroirPennylane} className="mt-1" />
+            <span>
+              <span className="font-medium text-navy">Chaque reçu entre aussi dans Pennylane</span>
+              <span className="block text-xs text-muted">
+                Même sans mouvement trouvé : il y entre en facture d’achat marquée réglée, et sera rattaché
+                à son paiement dès qu’il apparaît.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" name="releve_gmail" defaultChecked={reglages.releveGmail} className="mt-1" />
+            <span>
+              <span className="font-medium text-navy">Relever les reçus dans la boîte de Ben</span>
+              <span className="block text-xs text-muted">
+                {releveBranchee
+                  ? 'En lecture seule, chaque heure : seulement les mails à PDF des fournisseurs prioritaires.'
+                  : 'Accès à la boîte pas encore branché (RECUS_GMAIL_EMAIL et RECUS_GMAIL_PASSWORD) : rien n’est relevé.'}
               </span>
             </span>
           </label>

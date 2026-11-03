@@ -381,3 +381,19 @@ export async function matchTransaction(supplierInvoiceId: number, transactionId:
   })
   if (!res.ok) await parseError(res)
 }
+
+/**
+ * Une facture d'achat déjà présente, par numéro ou par référence externe.
+ *
+ * Un reçu relevé deux fois, ou déjà déposé dans Pennylane par un autre
+ * chemin, ne doit pas y entrer une seconde fois : ce serait une charge en
+ * double dans les comptes.
+ */
+export async function chercherFactureAchat(champ: 'invoice_number' | 'external_reference', valeur: string): Promise<PennylaneInvoiceResume[]> {
+  const filtre = encodeURIComponent(JSON.stringify([{ field: champ, operator: 'eq', value: valeur }]))
+  const res = await appel(`${BASE_URL}/supplier_invoices?limit=20&filter=${filtre}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  })
+  if (!res.ok) await parseError(res)
+  return ((await res.json()) as { items?: PennylaneInvoiceResume[] }).items ?? []
+}
