@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { FlecheMois } from '@/components/ui/FlecheMois'
 import { PageHeader } from '@/components/ui/Page'
 import type { TabItem } from '@/components/ui/Tabs'
 import { VueMois } from '@/components/remunerations/VueMois'
@@ -68,19 +68,9 @@ export default async function RemunerationsPage({
 
       {courant !== 'deposer' && (
         <div className="mb-5 flex flex-wrap items-center gap-3 text-sm">
-          <Link
-            href={`/remunerations?vue=${courant}&mois=${previousCycle(cycle).month}`}
-            className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep"
-          >
-            ←
-          </Link>
+          <FlecheMois href={`/remunerations?vue=${courant}&mois=${previousCycle(cycle).month}`} sens="prec" />
           <p className="font-semibold capitalize text-navy">{cycle.label}</p>
-          <Link
-            href={`/remunerations?vue=${courant}&mois=${nextCycle(cycle).month}`}
-            className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep"
-          >
-            →
-          </Link>
+          <FlecheMois href={`/remunerations?vue=${courant}&mois=${nextCycle(cycle).month}`} sens="suiv" />
         </div>
       )}
 

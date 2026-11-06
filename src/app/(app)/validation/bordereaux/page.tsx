@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import { Suspense } from 'react'
 import { Send } from 'lucide-react'
+import { FlecheMois } from '@/components/ui/FlecheMois'
 import { CalendrierMois } from '@/components/cycle/CalendrierMois'
 import { LigneBordereau, type LigneDetail } from '@/components/bordereaux/LigneBordereau'
 import { Card, EmptyState, StatTile } from '@/components/ui/Page'
@@ -166,13 +166,9 @@ export default async function BordereauxPage({
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 text-sm">
-          <Link href={`/validation/bordereaux?mois=${prec.month}${suffixe}`} className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep">
-            ←
-          </Link>
+          <FlecheMois href={`/validation/bordereaux?mois=${prec.month}${suffixe}`} sens="prec" />
           <p className="font-semibold capitalize text-navy">{cycle.label}</p>
-          <Link href={`/validation/bordereaux?mois=${suiv.month}${suffixe}`} className="rounded-lg px-2 py-1 text-navy/60 hover:bg-cream-deep">
-            →
-          </Link>
+          <FlecheMois href={`/validation/bordereaux?mois=${suiv.month}${suffixe}`} sens="suiv" />
           <span className="text-muted">
             {envoye
               ? `bordereaux envoyés le ${formatDateLong(cycle.statementDate)} · factures jusqu’au ${formatDateLong(cycle.invoiceDeadline)}`
