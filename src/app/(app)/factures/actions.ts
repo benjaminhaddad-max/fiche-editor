@@ -96,6 +96,33 @@ export async function createInvoice(
     }
   }
 
+  // Une facture, un bordereau, et celui du mois le plus récent. Un mois
+  // plus ancien resté ouvert a peut-être été réglé hors plateforme : Dounia
+  // a refacturé ainsi son septembre, déjà payé, avec son octobre.
+  const { data: portees } = await supabase
+    .from('inv_missions')
+    .select('statement_id, statement:inv_statements(cycle_month)')
+    .in('id', missionIds)
+  const bordereaux = new Set((portees ?? []).map((m) => m.statement_id as string))
+  if (bordereaux.size > 1) {
+    return { error: 'Une facture ne couvre qu’un seul bordereau, donc un seul mois. Faites une facture par mois.' }
+  }
+  const moisFacture = ((portees ?? [])[0] as unknown as { statement: { cycle_month: string } | null } | undefined)
+    ?.statement?.cycle_month
+  const { data: plusRecent } = await supabase
+    .from('inv_statements')
+    .select('cycle_month')
+    .eq('provider_id', provider.id)
+    .gt('cycle_month', moisFacture ?? '')
+    .limit(1)
+  if (moisFacture && (plusRecent ?? []).length > 0) {
+    return {
+      error:
+        'Ce bordereau est d’un mois précédent : il a peut-être déjà été réglé. Écrivez à la comptabilité depuis la messagerie avant de le facturer.',
+    }
+  }
+  const bordereauFacture = [...bordereaux][0] ?? null
+
   const { data: invoiceId, error } = await supabase.rpc('inv_create_invoice', {
     p_provider_id: provider.id,
     p_mission_ids: missionIds,
@@ -121,15 +148,18 @@ export async function createInvoice(
     console.error('[createInvoice:pdf]', err)
   }
 
-  if (statementId) {
+  // Le bordereau vient des lignes elles-mêmes, pas du formulaire : sans lui,
+  // la facture de Dounia n'était rattachée à aucun bordereau.
+  const cible = bordereauFacture ?? statementId
+  if (cible) {
     await createServiceClient()
       .from('inv_invoices')
-      .update({ statement_id: statementId })
+      .update({ statement_id: cible })
       .eq('id', invoiceId as string)
     await createServiceClient()
       .from('inv_statements')
       .update({ invoice_id: invoiceId as string, status: 'invoiced' })
-      .eq('id', statementId)
+      .eq('id', cible)
       .eq('provider_id', provider.id)
   }
 

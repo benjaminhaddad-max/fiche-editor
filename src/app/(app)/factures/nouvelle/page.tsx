@@ -13,8 +13,13 @@ interface Row {
   start_date: string
   end_date: string | null
   total_ht: number
+  statement_id: string
+  statement: { cycle_month: string } | null
   category: { name: string; provider_label: string | null } | null
 }
+
+const MOIS = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+const libelleMois = (m: string) => MOIS.format(new Date(`${m}-15T00:00:00Z`))
 
 export default async function NewInvoicePage({
   searchParams,
@@ -36,18 +41,35 @@ export default async function NewInvoicePage({
   // lignes trois jours trop tôt.
   //
   // Le bordereau est le document qui dit ce qu'on facture : rien avant lui.
-  let query = supabase
+  const query = supabase
     .from('inv_missions')
-    .select('id, detail, start_date, end_date, total_ht, category:inv_categories(name, provider_label)')
+    .select(
+      'id, detail, start_date, end_date, total_ht, statement_id, statement:inv_statements(cycle_month), category:inv_categories(name, provider_label)'
+    )
     .eq('provider_id', provider.id)
     .eq('status', 'approved')
     .is('invoice_id', null)
     .not('statement_id', 'is', null)
     .order('start_date')
-  if (bordereau) query = query.eq('statement_id', bordereau)
   const { data } = await query
+  const toutes = (data ?? []) as unknown as Row[]
 
-  const missions: BillableMission[] = ((data ?? []) as unknown as Row[]).map((m) => ({
+  // Une facture, un bordereau : celui du mois le plus récent.
+  //
+  // Sans bordereau choisi, la page proposait toutes les lignes ouvertes, de
+  // tous les mois. Dounia a ainsi refacturé en novembre son septembre, déjà
+  // réglé hors de la plateforme, avec son octobre : 14 639 € au lieu de
+  // 7 132 €. Un bordereau plus ancien resté ouvert ne se facture plus seul —
+  // la comptabilité doit d'abord dire s'il a déjà été réglé.
+  const mois = [...new Set(toutes.map((m) => m.statement?.cycle_month ?? ''))].filter(Boolean).sort()
+  const dernier = mois[mois.length - 1]
+  const courant = toutes.find((m) => m.statement?.cycle_month === dernier)?.statement_id
+  const choisi = bordereau && toutes.some((m) => m.statement_id === bordereau && m.statement?.cycle_month === dernier)
+    ? bordereau
+    : courant
+  const anciens = mois.slice(0, -1)
+
+  const missions: BillableMission[] = toutes.filter((m) => m.statement_id === choisi).map((m) => ({
     id: m.id,
     detail: m.detail,
     start_date: m.start_date,
@@ -77,6 +99,14 @@ export default async function NewInvoicePage({
         </div>
       )}
 
+      {anciens.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Des prestations de {anciens.map(libelleMois).join(', ')} n’ont pas été facturées ici. Elles ont peut-être déjà
+          été réglées autrement : elles ne figurent pas sur cette facture. Si ce n’est pas le cas, écrivez à la
+          comptabilité depuis la messagerie.
+        </div>
+      )}
+
       {missions.length === 0 ? (
         <EmptyState
           title="Aucune prestation à facturer"
@@ -92,7 +122,7 @@ export default async function NewInvoicePage({
           action={createInvoice}
           missions={missions}
           vatRate={Number(provider.vat_rate)}
-          statementId={bordereau}
+          statementId={choisi}
           defaultMode={mode === 'uploaded' ? 'uploaded' : provider.invoice_mode}
         />
       )}
