@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { logAudit } from '@/lib/audit'
 import { activeBrandId } from '@/lib/brand/actif'
 import { deliver, sendInvitation } from '@/lib/email/notify'
-import { sendSms } from '@/lib/email/sms'
+import { normalizePhone, sendSms } from '@/lib/email/sms'
 import { templates } from '@/lib/email/templates'
 import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { ouvrirIdentite } from '@/lib/personnes'
@@ -443,6 +443,12 @@ const SchemaFiche = z.object({
   profil: z.enum(PROFILS as [ProfilSocial, ...ProfilSocial[]]),
   entree: z.string().trim().optional(),
   sortie: z.string().trim().optional(),
+  telephone: z
+    .string()
+    .trim()
+    .max(30)
+    .optional()
+    .refine((t) => !t || normalizePhone(t), 'Numéro de téléphone invalide.'),
 })
 
 export async function modifierSalarie(_p: Resultat, fd: FormData): Promise<Resultat> {
@@ -453,7 +459,7 @@ export async function modifierSalarie(_p: Resultat, fd: FormData): Promise<Resul
   const db = createServiceClient()
   const { data: fiche } = await db
     .from('inv_providers')
-    .select('id, brand, employment_type, social_profile, silae_matricule')
+    .select('id, brand, employment_type, social_profile, silae_matricule, phone')
     .eq('id', v.provider_id)
     .eq('brand', await activeBrandId())
     .maybeSingle()
@@ -466,6 +472,9 @@ export async function modifierSalarie(_p: Resultat, fd: FormData): Promise<Resul
       employment_type: fiche.employment_type === 'salarie_enseignant' && v.profil === 'fixe' ? 'salarie_enseignant' : EMPLOI_DU_PROFIL[v.profil],
       social_entry_date: v.entree || null,
       social_exit_date: v.sortie || null,
+      phone: v.telephone || null,
+      // Shirel a relu et enregistré la fiche : elle n'est plus « à vérifier ».
+      social_a_verifier: false,
     })
     .eq('id', v.provider_id)
   if (error) return { error: error.code === '23505' ? 'Ce matricule est déjà porté par une autre fiche.' : error.message }
@@ -474,7 +483,7 @@ export async function modifierSalarie(_p: Resultat, fd: FormData): Promise<Resul
     entityType: 'provider',
     entityId: v.provider_id,
     action: 'social_fiche',
-    payload: { avant: { matricule: fiche.silae_matricule, profil: fiche.social_profile }, apres: { matricule: v.matricule || null, profil: v.profil, entree: v.entree || null, sortie: v.sortie || null } },
+    payload: { avant: { matricule: fiche.silae_matricule, profil: fiche.social_profile }, apres: { matricule: v.matricule || null, profil: v.profil, entree: v.entree || null, sortie: v.sortie || null, telephone_change: (v.telephone || null) !== fiche.phone } },
   })
   revalidatePath('/social/salaries')
   return { success: 'Fiche enregistrée.' }
@@ -547,14 +556,6 @@ export async function enregistrerParametres(_p: Resultat, fd: FormData): Promise
         envoi: moment('f_envoi'),
         limiteNetPaye: jour.parse(g('f_limite')),
         versement: jour.parse(g('f_versement')),
-      },
-      vacataires: {
-        relanceJoursAvantFin: z.coerce.number<number>().int().min(0).max(10).parse(g('v_relance_jours')),
-        relanceHeure: heure.parse(g('v_relance_heure')),
-        cloture: moment('v_cloture'),
-        validation: moment('v_validation'),
-        envoi: moment('v_envoi'),
-        versement: jour.parse(g('v_versement')),
       },
       email: g('email') === 'on',
       sms: g('sms') === 'on',

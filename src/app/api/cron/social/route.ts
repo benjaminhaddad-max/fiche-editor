@@ -4,7 +4,7 @@ import { activeBrandId, sousMarque } from '@/lib/brand/actif'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
-import { etapes, maintenantParis, moisPrecedentDe, repere, type Etape } from '@/lib/social/calendrier'
+import { etapes, maintenantParis, repere, type Etape } from '@/lib/social/calendrier'
 import { tableauDuMois } from '@/lib/social/donnees'
 import { lireParametres } from '@/lib/social/parametres'
 import { demanderElements } from '@/lib/social/relances'
@@ -23,8 +23,7 @@ const libelleMois = (m: string) =>
  *
  * Les heures viennent des réglages (Espace Social → Paramètres) : demande
  * le 25 au matin, relance le soir, dernière relance le 26 à midi, clôture
- * le 26 à minuit pour les fixes et alternants ; relance deux jours avant la
- * fin du mois et clôture le 1er à midi pour les vacataires. À la clôture,
+ * le 26 à minuit — pour tout le monde, vacataires compris. À la clôture,
  * l'équipe paie reçoit l'état du mois.
  *
  * L'envoi à Net Paye n'est pas joué ici : il part sur clic de Shirel,
@@ -60,19 +59,10 @@ async function jouer(db: Db, date: string, maintenant: string): Promise<Record<s
   const fait: Record<string, unknown> = {}
   const mois = date.slice(0, 7)
 
-  // Fixes : le mois en cours. Vacataires : la relance porte sur le mois en
-  // cours, la clôture sur le mois écoulé (elle tombe le 1er du suivant).
-  const aJouer: [GroupeSocial, string, Etape][] = [
-    ...etapes('fixes', mois, calendrier).map((e) => ['fixes', mois, e] as [GroupeSocial, string, Etape]),
-    ...etapes('vacataires', mois, calendrier).filter((e) => e.cle === 'relance').map((e) => ['vacataires', mois, e] as [GroupeSocial, string, Etape]),
-    ...etapes('vacataires', moisPrecedentDe(mois), calendrier)
-      .filter((e) => e.cle === 'cloture')
-      .map((e) => ['vacataires', moisPrecedentDe(mois), e] as [GroupeSocial, string, Etape]),
-    // Une clôture des vacataires avancée au vendredi tombe dans le mois même.
-    ...etapes('vacataires', mois, calendrier)
-      .filter((e) => e.cle === 'cloture' && e.date.slice(0, 7) === mois)
-      .map((e) => ['vacataires', mois, e] as [GroupeSocial, string, Etape]),
-  ]
+  // Un seul calendrier : fixes et vacataires sur le mois en cours.
+  const aJouer: [GroupeSocial, string, Etape][] = (['fixes', 'vacataires'] as GroupeSocial[]).flatMap((g) =>
+    etapes(g, mois, calendrier).map((e) => [g, mois, e] as [GroupeSocial, string, Etape])
+  )
 
   for (const [groupe, period, e] of aJouer) {
     if (!e.automatique) continue

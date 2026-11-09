@@ -25,6 +25,8 @@ export interface Salarie {
   matricule: string | null
   entree: string | null
   sortie: string | null
+  /** Profil ou email devinés à l'import, pas encore relus. */
+  aVerifier?: boolean
 }
 
 export interface Saisie {

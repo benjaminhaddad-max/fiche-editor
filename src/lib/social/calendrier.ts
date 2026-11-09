@@ -3,12 +3,12 @@ import { joursFeries } from '@/lib/cycle'
 /**
  * Le calendrier de l'Espace Social (§2 du plan de Shirel).
  *
- * Deux calendriers, tous les deux réglés dans l'admin : rien de ce qui suit
- * n'est une date en dur, seulement la valeur proposée tant que personne ne
- * l'a changée.
+ * Un seul calendrier, pour tout le monde — fixes, alternants et vacataires :
+ * la paie de novembre se prépare fin novembre et se verse le 30 novembre.
+ * Rien de ce qui suit n'est une date en dur, seulement la valeur proposée
+ * tant que personne ne l'a changée dans Espace Social → Paramètres.
  *
- *   Fixes et alternants — paie du mois en cours, versée le 30
- *     le 25 à 8 h       ouverture : demande par email et SMS
+ *     le 25 à 8 h       demande des éléments par email et SMS
  *     le 25 à 18 h      relance des non-répondants
  *     le 26 à 12 h      dernière relance
  *     le 26 à minuit    clôture de la saisie
@@ -17,12 +17,8 @@ import { joursFeries } from '@/lib/cycle'
  *     le 28             limite de réception chez Net Paye
  *     le 30             versement
  *
- *   Vacataires — paie du mois précédent, versée en début de mois
- *     tout le mois M    missions au fil de l'eau
- *     fin de M − 2 j    relance
- *     le 1er de M+1     clôture à midi, validation l'après-midi
- *     le 2              envoi à Net Paye (sur clic de Shirel)
- *     début de M+1      versement (date à confirmer avec Net Paye)
+ * Les missions d'un vacataire comptent sur la paie qui les suit : celles
+ * validées après l'envoi du mois partent avec la paie du mois suivant.
  *
  * Une date qui tombe un week-end ou un jour férié est avancée au jour ouvré
  * précédent, y compris le versement du 30 (en février : le dernier jour).
@@ -47,21 +43,9 @@ export interface CalendrierFixes {
   versement: number
 }
 
-export interface CalendrierVacataires {
-  /** La relance part tant de jours avant la fin du mois travaillé. */
-  relanceJoursAvantFin: number
-  relanceHeure: number
-  /** Ces moments-là tombent le mois suivant celui travaillé. */
-  cloture: Moment
-  validation: Moment
-  envoi: Moment
-  /** Jour du versement, le mois suivant (à confirmer avec Net Paye). */
-  versement: number
-}
-
 export interface CalendrierSocial {
+  /** Le calendrier du mois, le même pour tous les salariés (le nom est resté). */
   fixes: CalendrierFixes
-  vacataires: CalendrierVacataires
   /** Canaux des demandes et relances. */
   email: boolean
   sms: boolean
@@ -78,14 +62,6 @@ export const CALENDRIER_DEFAUT: CalendrierSocial = {
     limiteNetPaye: 28,
     versement: 30,
   },
-  vacataires: {
-    relanceJoursAvantFin: 2,
-    relanceHeure: 10,
-    cloture: { jour: 1, heure: 12 },
-    validation: { jour: 1, heure: 14 },
-    envoi: { jour: 2, heure: 10 },
-    versement: 5,
-  },
   email: true,
   sms: true,
 }
@@ -95,7 +71,6 @@ export function completerCalendrier(partiel: unknown): CalendrierSocial {
   const p = (partiel ?? {}) as Partial<CalendrierSocial>
   return {
     fixes: { ...CALENDRIER_DEFAUT.fixes, ...(p.fixes ?? {}) },
-    vacataires: { ...CALENDRIER_DEFAUT.vacataires, ...(p.vacataires ?? {}) },
     email: p.email ?? CALENDRIER_DEFAUT.email,
     sms: p.sms ?? CALENDRIER_DEFAUT.sms,
   }
@@ -167,7 +142,7 @@ export function maintenantParis(now: Date = new Date()): { date: string; heure: 
 
 const m = (mois: string, mo: Moment) => ({ date: jourDuMois(mois, mo.jour), heure: mo.heure })
 
-/** Les étapes du mois M pour les fixes et alternants. */
+/** Les étapes de la paie du mois M, pour tout le monde. */
 export function etapesFixes(mois: string, cal: CalendrierSocial): Etape[] {
   const f = cal.fixes
   return [
@@ -182,29 +157,9 @@ export function etapesFixes(mois: string, cal: CalendrierSocial): Etape[] {
   ]
 }
 
-/** Les étapes du mois travaillé M pour les vacataires (clôture en M+1). */
-export function etapesVacataires(mois: string, cal: CalendrierSocial): Etape[] {
-  const v = cal.vacataires
-  const suivant = moisSuivant(mois)
-  const [y, mm] = mois.split('-').map(Number)
-  const dernier = new Date(Date.UTC(y, mm, 0)).getUTCDate()
-  return [
-    {
-      cle: 'relance',
-      libelle: 'Relance : missions et éléments du mois',
-      date: jourDuMois(mois, dernier - v.relanceJoursAvantFin),
-      heure: v.relanceHeure,
-      automatique: true,
-    },
-    { cle: 'cloture', libelle: 'Clôture des déclarations', ...m(suivant, v.cloture), automatique: true },
-    { cle: 'validation', libelle: 'Validation par Shirel', ...m(suivant, v.validation), automatique: false },
-    { cle: 'envoi', libelle: 'Envoi à Net Paye', ...m(suivant, v.envoi), automatique: false },
-    { cle: 'versement', libelle: 'Versement (à confirmer)', date: jourDuMois(suivant, v.versement), heure: 12, automatique: false },
-  ]
-}
-
-export function etapes(groupe: 'fixes' | 'vacataires', mois: string, cal: CalendrierSocial): Etape[] {
-  return groupe === 'fixes' ? etapesFixes(mois, cal) : etapesVacataires(mois, cal)
+/** Les étapes du mois : le même calendrier pour les fixes et les vacataires. */
+export function etapes(_groupe: 'fixes' | 'vacataires', mois: string, cal: CalendrierSocial): Etape[] {
+  return etapesFixes(mois, cal)
 }
 
 /** Le moment de clôture de la saisie du mois M, au format `repere`. */
@@ -214,19 +169,14 @@ export function clotureDe(groupe: 'fixes' | 'vacataires', mois: string, cal: Cal
 }
 
 /**
- * Le mois qu'un salarié renseigne en ce moment.
- *
- * Fixes : le mois en cours jusqu'à sa clôture (le 26 au soir), puis le
- * suivant — les congés prévus après la clôture se déclarent à l'avance.
- * Vacataires : le mois écoulé jusqu'à sa clôture (le 1er à midi), puis le
- * mois en cours.
+ * Le mois qu'un salarié renseigne en ce moment : le mois en cours jusqu'à
+ * sa clôture (le 26 au soir), puis le suivant — les congés prévus après la
+ * clôture se déclarent à l'avance. Pareil pour tout le monde.
  */
 export function moisASaisir(groupe: 'fixes' | 'vacataires', cal: CalendrierSocial, now: Date = new Date()): string {
   const ici = maintenantParis(now)
   const courant = ici.date.slice(0, 7)
-  if (groupe === 'fixes') return ici.repere < clotureDe('fixes', courant, cal) ? courant : moisSuivant(courant)
-  const precedent = moisPrecedentDe(courant)
-  return ici.repere < clotureDe('vacataires', precedent, cal) ? precedent : courant
+  return ici.repere < clotureDe(groupe, courant, cal) ? courant : moisSuivant(courant)
 }
 
 /** La saisie du mois M est-elle encore ouverte au salarié ? */

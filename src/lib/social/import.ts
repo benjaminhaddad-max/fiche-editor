@@ -27,6 +27,8 @@ export interface ResultatImport {
   conflits: string[]
   absents_de_silae: string[]
   profil_a_verifier: string[]
+  /** Fiche trouvée dans une autre école : rien n'est créé, Shirel tranche. */
+  autre_ecole: string[]
 }
 
 interface Fiche {
@@ -42,7 +44,7 @@ interface Fiche {
 export async function importerSalaries(lignes: LigneImport[], appliquer: boolean): Promise<ResultatImport> {
   const db = createServiceClient()
   const brand = await activeBrandId()
-  const [{ data: fiches }, { data: comptes }] = await Promise.all([
+  const [{ data: fiches }, { data: comptes }, { data: ailleurs }] = await Promise.all([
     db
       .from('inv_providers')
       .select(
@@ -50,8 +52,15 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
       )
       .eq('brand', brand),
     // Les comptes transverses (direction, « all ») comptent aussi : Ben est salarié de Diploma.
-    db.from('inv_users').select('id, full_name, email, role, is_active').in('brand', [brand, 'all']).eq('is_active', true),
+    db.from('inv_users').select('id, full_name, email, phone, role, is_active').in('brand', [brand, 'all']).eq('is_active', true),
+    // Une personne déjà rangée dans une autre école (Imane chez Linova) ne
+    // reçoit pas de doublon ici.
+    db
+      .from('inv_providers')
+      .select('legal_name, brand, user:inv_users!inv_providers_user_id_fkey(full_name)')
+      .neq('brand', brand),
   ])
+  const autres = (ailleurs ?? []) as unknown as { legal_name: string; brand: string; user: { full_name: string } | null }[]
   const toutes = (fiches ?? []) as unknown as Fiche[]
   // Une fiche par compte, toutes écoles confondues (user_id est unique).
   const { data: liees } = await db.from('inv_providers').select('user_id').not('user_id', 'is', null)
@@ -60,10 +69,19 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
     id: string
     full_name: string
     email: string
+    phone: string | null
     role: string
   }[]
 
-  const r: ResultatImport = { mis_a_jour: [], rattaches: [], crees: [], conflits: [], absents_de_silae: [], profil_a_verifier: [] }
+  const r: ResultatImport = {
+    mis_a_jour: [],
+    rattaches: [],
+    crees: [],
+    conflits: [],
+    absents_de_silae: [],
+    profil_a_verifier: [],
+    autre_ecole: [],
+  }
   const vus = new Set<string>()
 
   for (const l of lignes) {
@@ -94,8 +112,10 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
         continue
       }
       const profil = l.profil ?? fiche.social_profile ?? profilDeLEmploi(fiche.employment_type) ?? 'fixe'
-      if (!l.profil && !fiche.social_profile && !profilDeLEmploi(fiche.employment_type)) r.profil_a_verifier.push(l.nom)
+      const devine = !l.profil && !fiche.social_profile && !profilDeLEmploi(fiche.employment_type)
+      if (devine) r.profil_a_verifier.push(l.nom)
       const maj: Record<string, unknown> = { silae_matricule: l.matricule, social_profile: profil }
+      if (devine || !fiche.user?.email) maj.social_a_verifier = true
       if (l.entree) maj.social_entry_date = l.entree
       if (l.sortie) maj.social_exit_date = l.sortie
       if (l.profil) maj.employment_type = EMPLOI_DU_PROFIL[l.profil]
@@ -107,6 +127,13 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
         }
       }
       ;(fiche.silae_matricule === l.matricule ? r.mis_a_jour : r.rattaches).push(`${l.nom} → ${fiche.legal_name}`)
+      continue
+    }
+
+    // Pas de fiche ici, mais une dans une autre école : on ne double pas.
+    const ecole = !compte && autres.find((f) => [f.legal_name, f.user?.full_name ?? ''].some((n) => n && memePersonne(n, l.nom)))
+    if (ecole) {
+      r.autre_ecole.push(`${l.nom} (${l.matricule}) : déjà une fiche chez ${ecole.brand}, rien n’est créé ici.`)
       continue
     }
 
@@ -122,6 +149,9 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
           user_id: compte?.id ?? null,
           legal_name: compte?.full_name ?? l.nom,
           contact_email: compte?.email ?? l.email,
+          phone: compte?.phone ?? null,
+          // Profil deviné ou email inconnu : Shirel relit la fiche.
+          social_a_verifier: !l.profil || !(compte?.email ?? l.email),
           employment_type: EMPLOI_DU_PROFIL[profil],
           social_profile: profil,
           silae_matricule: l.matricule,

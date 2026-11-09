@@ -35,18 +35,18 @@ function ChampJour({ id, label, jour, aide }: { id: string; label: string; jour:
 }
 
 /**
- * Tout ce qui se règle sans redéploiement : les deux calendriers, la
+ * Tout ce qui se règle sans redéploiement : le calendrier, la
  * correspondance variable → code Silae, Net Paye, l'équipe paie.
  */
 export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boolean }) {
   const [r, action] = useActionState<Resultat, FormData>(enregistrerParametres, {})
   const f = p.calendrier.fixes
-  const v = p.calendrier.vacataires
   return (
     <form action={action} className="flex flex-col gap-6">
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="flex flex-col gap-3 p-5">
-          <h2 className="font-semibold text-navy">Fixes et alternants — paie du mois en cours</h2>
+          <h2 className="font-semibold text-navy">Calendrier de la paie du mois</h2>
+          <p className="-mt-1 text-xs text-muted">Le même pour tout le monde : fixes, alternants et vacataires.</p>
           <ChampMoment id="f_ouverture" label="Demande des éléments" m={f.ouverture} aide="email et SMS" />
           <ChampMoment id="f_relance" label="Relance des non-répondants" m={f.relance} />
           <ChampMoment id="f_derniere" label="Dernière relance" m={f.derniereRelance} />
@@ -57,16 +57,18 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
           <ChampJour id="f_versement" label="Versement des salaires" jour={f.versement} aide="31 = dernier jour du mois" />
         </Card>
         <Card className="flex flex-col gap-3 p-5">
-          <h2 className="font-semibold text-navy">Vacataires — paie du mois précédent</h2>
-          <div className="grid grid-cols-[1fr_5rem_5rem] items-end gap-2">
-            <div className="pb-2 text-sm text-navy">Relance avant la fin du mois travaillé</div>
-            <Input id="v_relance_jours" name="v_relance_jours" type="number" min="0" max="10" label="Jours avant" defaultValue={v.relanceJoursAvantFin} required />
-            <Input id="v_relance_heure" name="v_relance_heure" type="number" min="0" max="24" label="Heure" defaultValue={v.relanceHeure} required />
-          </div>
-          <ChampMoment id="v_cloture" label="Clôture (mois suivant)" m={v.cloture} />
-          <ChampMoment id="v_validation" label="Validation (mois suivant)" m={v.validation} />
-          <ChampMoment id="v_envoi" label="Envoi à Net Paye (mois suivant)" m={v.envoi} aide="sur clic, après validation" />
-          <ChampJour id="v_versement" label="Versement (mois suivant)" jour={v.versement} aide="à confirmer avec Net Paye" />
+          <h2 className="font-semibold text-navy">Comment ça se lit</h2>
+          <p className="text-sm text-navy/80">
+            Exemple pour novembre : la demande part le 25 novembre, chacun répond jusqu’au 26 au soir, vous validez le 27 et
+            envoyez à Net Paye, et tout le monde est payé le 30 novembre. C’est la paie de novembre pour tous.
+          </p>
+          <p className="text-sm text-navy/80">
+            Vacataires : leurs missions validées du mois partent avec cette paie. Une mission validée après l’envoi part avec la
+            paie du mois suivant.
+          </p>
+          <p className="text-xs text-muted">
+            Une date qui tombe un week-end ou un jour férié est avancée au jour ouvré précédent.
+          </p>
           <div className="mt-2 flex flex-wrap gap-5 text-sm text-navy">
             <label className="flex items-center gap-2">
               <input type="checkbox" name="email" defaultChecked={p.calendrier.email} className="h-4 w-4 accent-navy" />
@@ -77,9 +79,7 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
               … et par SMS
             </label>
           </div>
-          <p className="text-xs text-muted">
-            Une date qui tombe un week-end ou un jour férié est avancée au jour ouvré précédent.
-          </p>
+          <p className="text-xs text-muted">Le SMS part au téléphone de la fiche du salarié (Espace Social → Salariés).</p>
         </Card>
       </div>
 

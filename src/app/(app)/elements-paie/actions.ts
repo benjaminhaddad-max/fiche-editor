@@ -119,6 +119,11 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
     return { error: 'Transport : le justificatif du mois est obligatoire (PDF ou photo).' }
   }
 
+  // L'arrêt de travail aussi : pas de jours d'arrêt sans le document.
+  if (v.sick_leave_days > 0 && !arretDoc.id && !avant?.sick_leave_document) {
+    return { error: 'Arrêt de travail : l’arrêt est obligatoire (PDF ou photo).' }
+  }
+
   const heures = Math.round(hs.lignes.reduce((t, l) => t + l.heures, 0) * 100) / 100
   const { error } = await db.from('inv_payroll_inputs').upsert(
     {

@@ -77,7 +77,8 @@ export function ImportSalaries() {
           <Liste titre="Matricule déjà connu, fiche mise à jour" items={r.mis_a_jour} />
           <Liste titre="Rattachés à une fiche ou un compte existant" items={r.rattaches} />
           <Liste titre="Fiches salarié créées (sans compte : envoyer l’accès ensuite)" items={r.crees} />
-          <Liste titre="Profil à vérifier (mis à « fixe » par défaut)" items={r.profil_a_verifier} ton="alerte" />
+          <Liste titre="Profil à vérifier (mis à « fixe » par défaut, marqué « à vérifier »)" items={r.profil_a_verifier} ton="alerte" />
+          <Liste titre="Déjà rangés dans une autre école (rien n’est créé)" items={r.autre_ecole} ton="alerte" />
           <Liste titre="À trancher à la main" items={r.conflits} ton="alerte" />
           <Liste titre="Dans Invoice mais absents de ce fichier (rien n’est supprimé)" items={r.absents_de_silae} ton="alerte" />
         </div>
@@ -92,11 +93,16 @@ export function LigneSalarie({ s }: { s: Salarie }) {
   const [a, acces] = useActionState<Resultat, FormData>(envoyerAcces, {})
   return (
     <div className="flex flex-col gap-2 px-4 py-3">
-      <form action={action} className="grid items-end gap-3 sm:grid-cols-[1fr_7rem_9rem_9rem_9rem_auto]">
+      <form action={action} className="grid items-end gap-3 sm:grid-cols-[1fr_7rem_9rem_10rem_9rem_9rem_auto]">
         <input type="hidden" name="provider_id" value={s.providerId} />
         <div className="min-w-0">
-          <p className="truncate font-medium text-navy">{s.nom}</p>
-          <p className="truncate text-xs text-muted">{s.email ?? 'pas de compte'}</p>
+          <p className="truncate font-medium text-navy">
+            {s.nom}
+            {s.aVerifier && (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">à vérifier</span>
+            )}
+          </p>
+          <p className="truncate text-xs text-muted">{s.email ?? 'pas de compte ni d’email'}</p>
         </div>
         <Input id={`m-${s.providerId}`} name="matricule" label="Matricule" defaultValue={s.matricule ?? ''} placeholder="00000" />
         <Select id={`p-${s.providerId}`} name="profil" label="Profil" defaultValue={s.profil}>
@@ -106,6 +112,7 @@ export function LigneSalarie({ s }: { s: Salarie }) {
             </option>
           ))}
         </Select>
+        <Input id={`t-${s.providerId}`} name="telephone" type="tel" label="Téléphone (SMS)" defaultValue={s.telephone ?? ''} placeholder="06 12 34 56 78" />
         <Input id={`e-${s.providerId}`} name="entree" type="date" label="Entrée" defaultValue={s.entree ?? ''} />
         <Input id={`s-${s.providerId}`} name="sortie" type="date" label="Sortie" defaultValue={s.sortie ?? ''} />
         <SubmitButton size="sm" variant="secondary" pendingLabel="…">

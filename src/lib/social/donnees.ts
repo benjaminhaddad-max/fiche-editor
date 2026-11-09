@@ -5,7 +5,7 @@ import { controler, lireSaisie, type Anomalie, type Salarie, type Saisie } from 
 import { groupeDuProfil, type GroupeSocial, type ProfilSocial } from './types'
 
 export const COLONNES_FICHE =
-  'id, user_id, legal_name, phone, employment_type, silae_matricule, social_profile, social_entry_date, social_exit_date, user:inv_users!inv_providers_user_id_fkey(full_name, email, is_active)'
+  'id, user_id, legal_name, phone, employment_type, silae_matricule, social_profile, social_entry_date, social_exit_date, social_a_verifier, user:inv_users!inv_providers_user_id_fkey(full_name, email, phone, is_active)'
 
 interface FicheBrute {
   id: string
@@ -16,7 +16,8 @@ interface FicheBrute {
   social_profile: ProfilSocial | null
   social_entry_date: string | null
   social_exit_date: string | null
-  user: { full_name: string; email: string; is_active: boolean } | null
+  social_a_verifier?: boolean
+  user: { full_name: string; email: string; phone: string | null; is_active: boolean } | null
 }
 
 export function salarieDeLaFiche(f: FicheBrute): Salarie {
@@ -25,11 +26,13 @@ export function salarieDeLaFiche(f: FicheBrute): Salarie {
     userId: f.user_id,
     nom: f.user?.full_name ?? f.legal_name,
     email: f.user?.email ?? null,
-    telephone: f.phone,
+    // Le SMS part au numéro de la fiche, sinon à celui du compte.
+    telephone: f.phone || f.user?.phone || null,
     profil: f.social_profile ?? 'fixe',
     matricule: f.silae_matricule,
     entree: f.social_entry_date,
     sortie: f.social_exit_date,
+    aVerifier: !!f.social_a_verifier,
   }
 }
 

@@ -49,11 +49,12 @@ test('un jour férié avance aussi : le 1er novembre 2026 (dimanche) et le 11', 
   assert.equal(cal.jourDuMois('2026-11', 11), '2026-11-10')
 })
 
-test('vacataires d’octobre : relance 2 jours avant la fin, clôture le 1er novembre avancé', () => {
-  const e = Object.fromEntries(cal.etapesVacataires('2026-10', C).map((x) => [x.cle, x.date]))
-  assert.equal(e.relance, '2026-10-29')
-  assert.equal(e.cloture, '2026-10-30') // le 1er novembre est férié et dimanche
-  assert.equal(e.envoi, '2026-11-02')
+test('vacataires sur le même calendrier : novembre se clôt le 26, versé le 30', () => {
+  const f = Object.fromEntries(cal.etapes('fixes', '2026-11', C).map((x) => [x.cle, x.date]))
+  const v = Object.fromEntries(cal.etapes('vacataires', '2026-11', C).map((x) => [x.cle, x.date]))
+  assert.deepEqual(v, f)
+  assert.equal(v.ouverture, '2026-11-25')
+  assert.equal(v.versement, '2026-11-30')
 })
 
 test('le mois à saisir suit la clôture', () => {
@@ -61,16 +62,16 @@ test('le mois à saisir suit la clôture', () => {
   assert.equal(cal.moisASaisir('fixes', C, new Date('2026-11-26T22:00:00Z')), '2026-11')
   // 27 novembre, 0 h 30 : novembre est clos, on saisit décembre.
   assert.equal(cal.moisASaisir('fixes', C, new Date('2026-11-26T23:30:00Z')), '2026-12')
-  // Vacataires le 1er décembre 2026 à 10 h : encore novembre.
-  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-12-01T09:00:00Z')), '2026-11')
-  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-12-01T13:00:00Z')), '2026-12')
+  // Les vacataires suivent le même mois.
+  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-11-20T09:00:00Z')), '2026-11')
+  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-11-26T23:30:00Z')), '2026-12')
 })
 
 test('les réglages partiels gardent le reste par défaut', () => {
-  const c = cal.completerCalendrier({ vacataires: { versement: 3 } })
-  assert.equal(c.vacataires.versement, 3)
-  assert.equal(c.vacataires.cloture.jour, 1)
+  const c = cal.completerCalendrier({ fixes: { versement: 29 }, vacataires: { versement: 3 } })
+  assert.equal(c.fixes.versement, 29)
   assert.equal(c.fixes.ouverture.jour, 25)
+  assert.equal(c.vacataires, undefined)
 })
 
 const SAL = { providerId: 'p', userId: null, nom: 'Sofia Klai', email: null, telephone: null, profil: 'alternant', matricule: '00063', entree: null, sortie: null }

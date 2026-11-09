@@ -24,8 +24,8 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams
   const groupe: GroupeSocial = sp.groupe === 'vacataires' ? 'vacataires' : 'fixes'
   const ici = maintenantParis()
-  // Les vacataires se valident au début du mois suivant : on ouvre sur le mois écoulé.
-  const parDefaut = groupe === 'vacataires' && Number(ici.date.slice(8, 10)) <= 15 ? moisPrecedentDe(ici.date.slice(0, 7)) : ici.date.slice(0, 7)
+  // Tout le monde est payé sur le mois en cours : on ouvre sur lui.
+  const parDefaut = ici.date.slice(0, 7)
   const mois = sp.mois && /^\d{4}-\d{2}$/.test(sp.mois) ? sp.mois : parDefaut
 
   const [lignes, params] = await Promise.all([tableauDuMois(mois, groupe), lireParametres()])

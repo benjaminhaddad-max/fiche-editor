@@ -12,8 +12,10 @@ import { PROFIL_LABEL, PROFILS } from '@/lib/social/types'
  */
 export default async function SalariesPage() {
   const user = await requireEquipeSocial()
-  const tous = await salaries()
+  // Les fiches à relire d'abord.
+  const tous = (await salaries()).sort((a, b) => Number(!!b.aVerifier) - Number(!!a.aVerifier))
   const sansMatricule = tous.filter((s) => !s.matricule).length
+  const aVerifier = tous.filter((s) => s.aVerifier).length
 
   return (
     <>
@@ -30,7 +32,8 @@ export default async function SalariesPage() {
 
       <p className="mb-3 text-sm text-muted">
         {tous.length} salarié(s) — {PROFILS.map((p) => `${tous.filter((s) => s.profil === p).length} ${PROFIL_LABEL[p].toLowerCase()}`).join(', ')}
-        {sansMatricule ? ` · ${sansMatricule} sans matricule` : ''}.
+        {sansMatricule ? ` · ${sansMatricule} sans matricule` : ''}
+        {aVerifier ? ` · ${aVerifier} à vérifier (profil ou email devinés : corrigez si besoin puis « Enregistrer »)` : ''}.
       </p>
 
       {tous.length ? (

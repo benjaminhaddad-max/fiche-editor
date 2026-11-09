@@ -161,7 +161,7 @@ export function ElementsForm({
             <div>
               <span className="field-label">Arrêt (volet employeur)</span>
               <input type="file" name="arret" accept="application/pdf,image/*" className={fichier} />
-              <p className="field-hint">{existant?.sick_leave_document ? 'Déjà déposé.' : 'PDF ou photo.'}</p>
+              <p className="field-hint">{existant?.sick_leave_document ? 'Déjà déposé ; un nouveau fichier le remplace.' : 'Obligatoire dès qu’il y a des jours d’arrêt. PDF ou photo.'}</p>
             </div>
           </div>
         </Section>
