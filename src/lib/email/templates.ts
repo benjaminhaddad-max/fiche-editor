@@ -708,6 +708,81 @@ export async function templates(brand?: BrandId) {
     ),
   }),
 
+  /**
+   * La veille de clôture, 4 h avant la fin : ce que chaque manager n'a pas
+   * validé (et qui ne sera donc pas sur le bordereau), plus les factures
+   * commencées mais jamais transmises faute de PDF.
+   */
+  veilleVerificationAdmin: (p: {
+    adminName: string
+    label: string
+    reviewEnd: string
+    attente: { nom: string; n: number; total: number; prestataires: { nom: string; n: number; total: number }[] }[]
+    sansPdf: { prestataire: string; number: string; total: number; depuis: string }[]
+  }) => {
+    const n = p.attente.reduce((s, g) => s + g.n, 0)
+    const total = p.attente.reduce((s, g) => s + g.total, 0)
+    return {
+      subject:
+        n > 0
+          ? `Clôture ce soir : ${n} prestation${n > 1 ? 's' : ''} non validée${n > 1 ? 's' : ''} (${money(total)} HT), ${p.attente.length} manager${p.attente.length > 1 ? 's' : ''}`
+          : `Clôture ce soir : ${p.sansPdf.length} facture${p.sansPdf.length > 1 ? 's' : ''} en attente du PDF`,
+      html: layout(m,
+        `Vérification de ${p.label} : clôture ce soir`,
+        `<p style="margin:0 0 12px;">Bonjour ${p.adminName},</p>
+         ${
+           n > 0
+             ? `<p style="margin:0 0 12px;">La vérification se termine ce soir (${formatDateLong(p.reviewEnd)}) à minuit.
+                  Ce qui n’est pas validé d’ici là ne part pas sur le bordereau de demain : le prestataire ne sera pas payé ce mois-ci.</p>
+                ${p.attente
+                  .map(
+                    (g) => `<p style="margin:14px 0 4px;"><strong>${g.nom}</strong> — ${g.n} prestation${g.n > 1 ? 's' : ''}, ${money(g.total)} HT</p>
+                      <ul style="margin:0 0 8px;padding-left:18px;">
+                        ${g.prestataires
+                          .map((pr) => `<li style="margin:0 0 4px;">${pr.nom} · ${money(pr.total)} HT${pr.n > 1 ? ` (${pr.n} lignes)` : ''}</li>`)
+                          .join('')}
+                      </ul>`
+                  )
+                  .join('')}`
+             : `<p style="margin:0 0 12px;">Toutes les prestations du mois sont validées.</p>`
+         }
+         ${
+           p.sansPdf.length > 0
+             ? `<p style="margin:18px 0 4px;"><strong>Factures en attente du PDF</strong> : le prestataire l’a créée mais n’a pas déposé son PDF.
+                  Elle n’est ni transmise ni payée tant qu’il ne l’a pas fait.</p>
+                <ul style="margin:0 0 8px;padding-left:18px;">
+                  ${p.sansPdf
+                    .map((f) => `<li style="margin:0 0 4px;">${f.prestataire} · ${f.number} · ${money(f.total)} · créée le ${formatDate(f.depuis)}</li>`)
+                    .join('')}
+                </ul>`
+             : ''
+         }`,
+        { label: 'Ouvrir la validation', href: `${APP_URL}/validation` }
+      ),
+    }
+  },
+
+  veilleVerificationManager: (p: {
+    name: string
+    label: string
+    attente: { n: number; total: number; prestataires: { nom: string; n: number; total: number }[] }
+  }) => ({
+    subject: `Ce soir minuit : ${p.attente.n} prestation${p.attente.n > 1 ? 's' : ''} de ${p.label} encore à valider`,
+    html: layout(m,
+      'Dernières heures pour valider',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">La vérification de ${p.label} se termine ce soir à minuit. Il vous reste
+          <strong>${p.attente.n} prestation${p.attente.n > 1 ? 's' : ''}</strong> (${money(p.attente.total)} HT) à valider :</p>
+       <ul style="margin:0 0 12px;padding-left:18px;">
+         ${p.attente.prestataires
+           .map((pr) => `<li style="margin:0 0 4px;">${pr.nom} · ${money(pr.total)} HT${pr.n > 1 ? ` (${pr.n} lignes)` : ''}</li>`)
+           .join('')}
+       </ul>
+       <p style="margin:0;">Ce qui n’est pas validé ce soir ne part pas sur le bordereau de demain : le prestataire attendra le mois suivant.</p>`,
+      { label: 'Valider maintenant', href: `${APP_URL}/validation` }
+    ),
+  }),
+
   commissionsReminder: (p: { name: string; label: string; avant: string; depot: string; href: string }) => ({
     subject: `Commissions de ${p.label} : à vérifier sur HubDiploma avant le ${formatDate(p.avant)}`,
     html: layout(m, 
