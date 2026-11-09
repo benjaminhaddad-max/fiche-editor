@@ -9,6 +9,8 @@ export interface FactureBloquee {
   total: number
   motif: string
   depuis: string | null
+  /** Partie dans Pennylane, mais avec un point à vérifier (catégorie devinée, SIRET douteux). */
+  partie: boolean
 }
 
 /**
@@ -28,16 +30,19 @@ export async function facturesBloquees(): Promise<FactureBloquee[]> {
   if (!(await activeBrand()).comptabilite) return []
   const { data } = await createServiceClient()
     .from('inv_invoices')
-    .select('id, number, total_ttc, pennylane_error, validated_at, provider:inv_providers(legal_name)')
+    .select('id, number, total_ttc, pennylane_status, pennylane_error, validated_at, provider:inv_providers(legal_name)')
     .eq('brand', await activeBrandId())
     .in('status', ['sent', 'validated'])
-    .eq('pennylane_status', 'error')
+    // Bloquées, ou parties avec un avertissement : une catégorie devinée ne
+    // bloque plus l'envoi, mais elle doit se voir.
+    .or('pennylane_status.eq.error,and(pennylane_status.eq.synced,pennylane_error.not.is.null)')
     .order('validated_at', { ascending: true })
 
   return ((data ?? []) as unknown as {
     id: string
     number: string
     total_ttc: number
+    pennylane_status: string
     pennylane_error: string | null
     validated_at: string | null
     provider: { legal_name: string } | null
@@ -48,5 +53,6 @@ export async function facturesBloquees(): Promise<FactureBloquee[]> {
     total: Number(f.total_ttc),
     motif: f.pennylane_error ?? 'Erreur inconnue',
     depuis: f.validated_at,
+    partie: f.pennylane_status === 'synced',
   }))
 }

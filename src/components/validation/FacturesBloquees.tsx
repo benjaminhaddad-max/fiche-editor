@@ -8,7 +8,45 @@ import { formatDate, money } from '@/lib/format'
  * pas payées tant que la cause n'est pas réglée. L'alerte ne se ferme pas,
  * elle disparaît quand la facture est partie.
  */
-export function FacturesBloquees({ factures }: { factures: FactureBloquee[] }) {
+export function FacturesBloquees({ factures: toutes }: { factures: FactureBloquee[] }) {
+  const factures = toutes.filter((f) => !f.partie)
+  const aVerifier = toutes.filter((f) => f.partie)
+  return (
+    <>
+      <Bloquees factures={factures} />
+      <AVerifier factures={aVerifier} />
+    </>
+  )
+}
+
+/** Parties dans Pennylane, mais avec une catégorie devinée ou un SIRET douteux. */
+function AVerifier({ factures }: { factures: FactureBloquee[] }) {
+  if (factures.length === 0) return null
+  return (
+    <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+      <p className="flex items-center gap-2 font-semibold text-amber-900">
+        <AlertTriangle size={17} />
+        {factures.length} facture{factures.length > 1 ? 's' : ''} partie{factures.length > 1 ? 's' : ''} dans Pennylane,
+        à vérifier
+      </p>
+      <ul className="mt-3 divide-y divide-amber-200/70 text-sm">
+        {factures.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+            <span className="min-w-0">
+              <Link href={`/admin/factures/${f.id}`} className="font-medium text-navy underline-offset-2 hover:underline">
+                {f.prestataire} · {f.number}
+              </Link>
+              <span className="block text-xs text-amber-900/80">{f.motif}</span>
+            </span>
+            <span className="shrink-0 text-xs text-navy/70">{money(f.total)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function Bloquees({ factures }: { factures: FactureBloquee[] }) {
   if (factures.length === 0) return null
   const total = factures.reduce((s, f) => s + f.total, 0)
 

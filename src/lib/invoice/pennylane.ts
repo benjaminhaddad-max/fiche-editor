@@ -148,7 +148,7 @@ async function alignerIban(
 
 async function resolveSupplier(
   providerId: string
-): Promise<{ id: number; ibanIgnore: boolean; nom: string }> {
+): Promise<{ id: number; ibanIgnore: boolean; nom: string; avertissement?: string }> {
   const supabase = createServiceClient()
   const { data: p } = await supabase
     .from('inv_providers')
@@ -185,23 +185,29 @@ async function resolveSupplier(
     fournisseurs.find((f) => norm(f.name) === norm(p.legal_name))
 
   let id: number
-  if (trouve) {
-    // Un fournisseur trouvé par le SIREN n'est pas forcément la bonne
-    // personne : deux fiches peuvent porter le même numéro par erreur de
-    // saisie. On le vérifie avant de s'y attacher, pas après le virement.
-    const complet = await getSupplier(trouve.id)
-    if (!memeFournisseur(complet.name ?? trouve.name, complet.iban, p)) {
-      throw new PennylaneError(
-        `Le SIRET de ${p.legal_name} désigne « ${complet.name} » dans la comptabilité, ` +
-          'et ni le nom ni l’IBAN ne correspondent. Vérifiez le SIRET de sa fiche avant d’envoyer sa facture.'
-      )
-    }
+  let avertissement: string | undefined
+  // Un fournisseur trouvé par le SIREN n'est pas forcément la bonne
+  // personne : deux fiches peuvent porter le même numéro par erreur de
+  // saisie. On le vérifie avant de s'y attacher, pas après le virement.
+  const complet = trouve ? await getSupplier(trouve.id) : null
+  const autrePersonne = Boolean(trouve && complet && !memeFournisseur(complet.name ?? trouve.name, complet.iban, p))
+  if (trouve && !autrePersonne) {
     id = trouve.id
   } else {
+    // Le SIRET désigne quelqu'un d'autre (Matheo Mettoudi avait saisi celui
+    // de Diane) : on ne s'attache surtout pas à ce fournisseur, ce serait la
+    // payer elle. Mais on ne bloque plus la facture non plus — elle restait
+    // validée ici et absente de la comptabilité, donc jamais payée. On crée
+    // le fournisseur à son nom et à son IBAN, sans le SIRET douteux.
+    if (autrePersonne) {
+      avertissement =
+        `SIRET de ${p.legal_name} à vérifier : il désigne « ${complet?.name} » dans la comptabilité. ` +
+        'Fournisseur créé à son nom, sans SIRET.'
+    }
     const email = p.contact_email ?? (p as unknown as { user: { email: string } | null }).user?.email
     id = await createSupplier({
       name: p.legal_name,
-      ...(/^\d{14}$/.test(siret) ? { establishment_no: siret, reg_no: siret.slice(0, 9) } : {}),
+      ...(!autrePersonne && /^\d{14}$/.test(siret) ? { establishment_no: siret, reg_no: siret.slice(0, 9) } : {}),
       ...(p.vat_number ? { vat_number: p.vat_number } : {}),
       // Un IBAN à la clé fausse ferait refuser toute la fiche fournisseur :
       // on crée le fournisseur sans, et on le signale sur la facture.
@@ -215,7 +221,7 @@ async function resolveSupplier(
   }
 
   await supabase.from('inv_providers').update({ pennylane_supplier_id: id }).eq('id', providerId)
-  return { id, ibanIgnore: Boolean(p.iban) && !ibanValide(p.iban), nom: p.legal_name }
+  return { id, ibanIgnore: Boolean(p.iban) && !ibanValide(p.iban), nom: p.legal_name, avertissement }
 }
 
 /**
@@ -240,7 +246,7 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
       return { ok: false, error: 'Cette école n’a pas de comptabilité Pennylane.' }
     }
 
-    let fournisseur: { id: number; ibanIgnore: boolean; nom: string }
+    let fournisseur: { id: number; ibanIgnore: boolean; nom: string; avertissement?: string }
     try {
       fournisseur = await resolveSupplier(invoice.provider_id)
     } catch (err) {
@@ -250,13 +256,11 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
       )
     }
 
-    const uncategorised = lines.filter((l) => !l.pennylane_category_id)
-    if (uncategorised.length > 0) {
-      throw new PennylaneError(
-        `Catégorie sans id_pennylane : ${[...new Set(uncategorised.map((l) => l.category_name))].join(', ')}. ` +
-          'Complétez-la dans Catégories de missions.'
-      )
-    }
+    // Une catégorie sans id_pennylane bloquait toute la facture : validée
+    // ici, absente de la comptabilité, donc jamais payée. Sept factures
+    // d'octobre 2026 ont dormi ainsi. Elle part désormais, avec une
+    // catégorie devinée — ou aucune —, et on le dit sur la facture.
+    const devinees = await devinerCategories(lines, invoice.brand)
 
     // ---- 1. le PDF
     const pdf = await getInvoicePdf(invoiceId)
@@ -289,11 +293,18 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
     // ---- 3. la ventilation analytique
     // Non bloquante : la facture existe deja dans Pennylane, on ne la perd pas
     // parce que la categorisation a echoue. L'admin peut resynchroniser.
-    let categoryWarning: string | null = fournisseur.ibanIgnore
-      ? `IBAN de ${fournisseur.nom} non repris dans Pennylane : sa clé de contrôle est fausse. Demandez-lui de le corriger dans ses informations, puis complétez la fiche fournisseur.`
-      : null
+    let categoryWarning: string | null =
+      [
+        fournisseur.ibanIgnore
+          ? `IBAN de ${fournisseur.nom} non repris dans Pennylane : sa clé de contrôle est fausse. Demandez-lui de le corriger dans ses informations, puis complétez la fiche fournisseur.`
+          : null,
+        fournisseur.avertissement ?? null,
+        devinees.avertissement,
+      ]
+        .filter(Boolean)
+        .join(' ') || null
     try {
-      const weights = categoryWeights(lines)
+      const weights = categoryWeights(devinees.lignes)
       if (weights.length > 0) {
         await setSupplierInvoiceCategories(pennylaneInvoiceId, weights)
       }
@@ -323,6 +334,75 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
       .update({ pennylane_status: 'error', pennylane_error: message })
       .eq('id', invoiceId)
     return { ok: false, error: message }
+  }
+}
+
+/** Préfixe de l'avertissement porté par une facture partie avec une catégorie devinée. */
+export const CATEGORIE_DEVINEE = 'Catégorie Pennylane devinée'
+
+/**
+ * Donne une catégorie Pennylane aux lignes qui n'en ont pas.
+ *
+ * Dans l'ordre : une catégorie du même pôle qui en a une ; pour un frais
+ * (Pass Navigo, repas), la catégorie la plus lourde de la même facture — il
+ * suit le travail qu'il a servi à faire ; pour le reste du pôle « autres »
+ * (salons, JPO), la catégorie « Autres ». Sinon rien : la facture part
+ * quand même, simplement non ventilée.
+ */
+async function devinerCategories(
+  lines: InvoiceLine[],
+  brand: string
+): Promise<{ lignes: InvoiceLine[]; avertissement: string | null }> {
+  const manquantes = lines.filter((l) => !l.pennylane_category_id)
+  if (manquantes.length === 0) return { lignes: lines, avertissement: null }
+
+  const db = createServiceClient()
+  const { data: cats } = await db
+    .from('inv_categories')
+    .select('name, pole, pennylane_category_id, sort_order')
+    .in('brand', [brand, 'all'])
+    .order('sort_order')
+  const toutes = (cats ?? []) as { name: string; pole: string | null; pennylane_category_id: number | null }[]
+  const poleDe = new Map(toutes.map((c) => [c.name, c.pole]))
+  const parPole = new Map<string, { id: number; name: string }>()
+  for (const c of toutes) {
+    if (c.pole && c.pole !== 'autres' && c.pennylane_category_id && !parPole.has(c.pole)) {
+      parPole.set(c.pole, { id: Number(c.pennylane_category_id), name: c.name })
+    }
+  }
+  // « Autres » a son propre numéro : c'est la catégorie de repli du pôle.
+  const autres = toutes.find((c) => c.name === 'Autres' && c.pennylane_category_id)
+  if (autres) parPole.set('autres', { id: Number(autres.pennylane_category_id), name: autres.name })
+
+  const poids = new Map<number, { total: number; name: string }>()
+  for (const l of lines) {
+    if (!l.pennylane_category_id) continue
+    const p = poids.get(l.pennylane_category_id) ?? { total: 0, name: l.category_name ?? '' }
+    p.total += Number(l.total_ht)
+    poids.set(l.pennylane_category_id, p)
+  }
+  const dominante = [...poids.entries()].sort((a, b) => b[1].total - a[1].total)[0]
+
+  const choix = new Map<string, string>()
+  const lignes = lines.map((l) => {
+    if (l.pennylane_category_id) return l
+    const nom = l.category_name ?? '—'
+    const pole = poleDe.get(nom)
+    const memePole = pole && pole !== 'autres' ? parPole.get(pole) : undefined
+    const laDominante = dominante ? { id: dominante[0], name: dominante[1].name } : undefined
+    // Un frais suit le travail qu'il a servi à faire ; le reste du pôle
+    // « autres » (salons, JPO…) va sur la catégorie « Autres ».
+    const estFrais = /frais|rembours|transport|navigo|repas/i.test(nom)
+    const devinee =
+      memePole ?? (estFrais ? laDominante ?? parPole.get('autres') : parPole.get('autres') ?? laDominante)
+    choix.set(nom, devinee ? `${nom} → ${devinee.name}` : `${nom} → aucune`)
+    return devinee ? { ...l, pennylane_category_id: devinee.id } : l
+  })
+
+  return {
+    lignes,
+    avertissement: `${CATEGORIE_DEVINEE} (catégorie sans id_pennylane) : ${[...choix.values()].join(', ')}. ` +
+      'Vérifiez la ventilation dans Pennylane et complétez la catégorie dans Catégories de missions.',
   }
 }
 

@@ -260,21 +260,26 @@ export async function templates(brand?: BrandId) {
    */
   facturesBloquees: (p: {
     adminName: string
-    factures: { prestataire: string; number: string; total: number; motif: string }[]
+    factures: { prestataire: string; number: string; total: number; motif: string; partie: boolean }[]
   }) => {
-    const total = p.factures.reduce((s, f) => s + f.total, 0)
-    const n = p.factures.length
+    const bloquees = p.factures.filter((f) => !f.partie)
+    const total = bloquees.reduce((s, f) => s + f.total, 0)
+    const n = bloquees.length
     return {
-      subject: `${n} facture${n > 1 ? 's' : ''} validée${n > 1 ? 's' : ''} bloquée${n > 1 ? 's' : ''} avant Pennylane — ${money(total)} non payés`,
+      subject:
+        n > 0
+          ? `${n} facture${n > 1 ? 's' : ''} validée${n > 1 ? 's' : ''} bloquée${n > 1 ? 's' : ''} avant Pennylane — ${money(total)} non payés`
+          : `${p.factures.length} facture${p.factures.length > 1 ? 's' : ''} partie${p.factures.length > 1 ? 's' : ''} dans Pennylane à vérifier`,
       html: layout(m,
-        'Des factures ne partent pas en comptabilité',
+        'Factures à surveiller avant paiement',
         `<p style="margin:0 0 12px;">Bonjour ${p.adminName},</p>
-         <p style="margin:0 0 12px;">Ces factures sont validées mais Pennylane ne les a pas reçues :
-            elles ne seront pas payées tant que la cause n’est pas réglée.</p>
+         <p style="margin:0 0 12px;">Les factures marquées « bloquée » sont validées mais Pennylane ne les a pas
+            reçues : elles ne seront pas payées tant que la cause n’est pas réglée. Les autres sont parties,
+            avec un point à vérifier.</p>
          <ul style="margin:0 0 12px;padding-left:18px;">
            ${p.factures
              .map(
-               (f) => `<li style="margin:0 0 8px;"><strong>${f.prestataire}</strong> · ${f.number} · ${money(f.total)}<br>
+               (f) => `<li style="margin:0 0 8px;"><strong>${f.prestataire}</strong> · ${f.number} · ${money(f.total)} · ${f.partie ? 'à vérifier' : 'bloquée'}<br>
                  <span style="font-size:13px;color:#8a3b2e;">${f.motif}</span></li>`
              )
              .join('')}
