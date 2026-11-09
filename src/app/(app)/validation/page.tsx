@@ -17,6 +17,8 @@ import { PrestationsNav } from '@/components/prestations/PrestationsNav'
 import { RecherchePrestataire } from '@/components/prestations/RecherchePrestataire'
 import { correspondPrestataire } from '@/lib/recherche-prestataire'
 import { PenLine } from 'lucide-react'
+import { FacturesBloquees } from '@/components/validation/FacturesBloquees'
+import { facturesBloquees } from '@/lib/invoice/bloquees'
 
 export default async function ValidationPage({
   searchParams,
@@ -116,13 +118,14 @@ export default async function ValidationPage({
   const choix = manager ?? user.id
   const filtre = choix === 'tous' ? {} : { managerId: choix }
 
-  const [parFiltreAdmin, parFiltreManager, tousAdmin, tousManager, managers] =
+  const [parFiltreAdmin, parFiltreManager, tousAdmin, tousManager, managers, bloquees] =
     await Promise.all([
       getMissionsByStatus(['manager_approved'], filtre),
       getMissionsByStatus(['submitted'], filtre),
       getMissionsByStatus(['manager_approved']),
       getMissionsByStatus(['submitted']),
       getManagers(),
+      facturesBloquees(),
     ])
 
   // Une recherche de prestataire porte sur TOUS les managers : cherché par son
@@ -174,6 +177,8 @@ export default async function ValidationPage({
           </Link>
         }
       />
+
+      <FacturesBloquees factures={bloquees} />
 
       <PanneauVerification lignes={etat} reviewEnd={cycle.reviewEnd} />
 

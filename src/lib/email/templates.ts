@@ -253,6 +253,38 @@ export async function templates(brand?: BrandId) {
     ),
   }),
 
+  /**
+   * Les factures validées que Pennylane refuse. Chaque matin tant qu'il en
+   * reste : une facture bloquée ici n'est payée par personne, et rien
+   * d'autre ne le dit.
+   */
+  facturesBloquees: (p: {
+    adminName: string
+    factures: { prestataire: string; number: string; total: number; motif: string }[]
+  }) => {
+    const total = p.factures.reduce((s, f) => s + f.total, 0)
+    const n = p.factures.length
+    return {
+      subject: `${n} facture${n > 1 ? 's' : ''} validée${n > 1 ? 's' : ''} bloquée${n > 1 ? 's' : ''} avant Pennylane — ${money(total)} non payés`,
+      html: layout(m,
+        'Des factures ne partent pas en comptabilité',
+        `<p style="margin:0 0 12px;">Bonjour ${p.adminName},</p>
+         <p style="margin:0 0 12px;">Ces factures sont validées mais Pennylane ne les a pas reçues :
+            elles ne seront pas payées tant que la cause n’est pas réglée.</p>
+         <ul style="margin:0 0 12px;padding-left:18px;">
+           ${p.factures
+             .map(
+               (f) => `<li style="margin:0 0 8px;"><strong>${f.prestataire}</strong> · ${f.number} · ${money(f.total)}<br>
+                 <span style="font-size:13px;color:#8a3b2e;">${f.motif}</span></li>`
+             )
+             .join('')}
+         </ul>
+         <p style="margin:0;">Une fois la cause réglée, elles repartent toutes seules le lendemain matin.</p>`,
+        { label: 'Voir les factures bloquées', href: `${APP_URL}/validation` }
+      ),
+    }
+  },
+
   invoiceReceived: (p: { adminName: string; providerName: string; number: string; total: number }) => ({
     subject: `Facture ${p.number} reçue — ${p.providerName}`,
     html: layout(m, 

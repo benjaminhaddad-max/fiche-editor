@@ -14,7 +14,7 @@ import { logAudit } from '@/lib/audit'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { EMPLOYMENTS } from '@/lib/types'
-import { activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 export interface AdminResult {
   error?: string
@@ -226,6 +226,15 @@ export async function saveCategory(
   if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error) }
 
   const { id, ...values } = parsed.data
+  // Sans id_pennylane, chaque facture qui porte cette catégorie est refusée
+  // par la comptabilité, et son prestataire n'est pas payé.
+  if (values.is_active && values.pennylane_category_id == null && (await activeBrand()).comptabilite) {
+    return {
+      fieldErrors: {
+        pennylane_category_id: 'Obligatoire : sans lui, les factures de cette catégorie ne partent pas dans Pennylane.',
+      },
+    }
+  }
   const payload = {
     ...values,
     pennylane_label: values.pennylane_label || null,

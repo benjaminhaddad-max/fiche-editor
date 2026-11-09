@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { envoyerBordereaux } from '@/lib/bordereaux'
 import { ouvrirForfaitsMensuels } from '@/lib/contracts/mensuel'
 import { pousserEnAttente, rafraichirPaiements } from '@/lib/invoice/pennylane'
+import { facturesBloquees } from '@/lib/invoice/bloquees'
 import { cycleForDate, previousCycle, todayParis, type BillingCycle } from '@/lib/cycle'
 import { deliver, notifyStatementReminder } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
@@ -80,6 +81,10 @@ async function cycleDUneMarque(
   // recommencer quand la moitié se faisait refuser.
   const envois = await pousserEnAttente()
   fait.envois = { tentees: envois.tentees, envoyees: envois.envoyees.length, echecs: envois.echecs.slice(0, 5) }
+
+  // Ce qui n'est pas parti ne doit pas rester silencieux : une facture
+  // validée mais refusée par Pennylane n'est payée par personne.
+  fait.bloquees = await alerterFacturesBloquees(db)
 
   // Ce qui a été payé dans Pennylane doit cesser d'apparaître comme dû ici.
   const paiements = await rafraichirPaiements()
@@ -384,4 +389,28 @@ async function rappelerBonsEchus(db: Db, today: string) {
     n++
   }
   return n
+}
+
+/**
+ * Prévient les administrateurs de l'école, et la direction transverse, des
+ * factures validées que Pennylane n'a pas reçues. Chaque jour tant qu'il en
+ * reste : c'est un paiement qui n'aura pas lieu.
+ */
+async function alerterFacturesBloquees(db: Db): Promise<number> {
+  const bloquees = await facturesBloquees()
+  if (bloquees.length === 0) return 0
+  const { data: admins } = await db
+    .from('inv_users')
+    .select('email, full_name')
+    .in('brand', [await activeBrandId(), 'all'])
+    .eq('role', 'admin')
+    .eq('is_active', true)
+  for (const a of (admins ?? []) as { email: string; full_name: string }[]) {
+    await deliver({
+      to: { email: a.email, name: a.full_name },
+      ...(await templates()).facturesBloquees({ adminName: a.full_name, factures: bloquees }),
+      template: 'factures_bloquees',
+    })
+  }
+  return bloquees.length
 }

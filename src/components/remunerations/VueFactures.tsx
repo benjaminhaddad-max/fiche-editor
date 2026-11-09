@@ -11,6 +11,8 @@ import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
 import { money } from '@/lib/format'
 import { chercherDoublons } from '@/lib/invoice/doublons'
 import { netAuteur } from '@/lib/invoice/net-auteur'
+import { facturesBloquees } from '@/lib/invoice/bloquees'
+import { FacturesBloquees } from '@/components/validation/FacturesBloquees'
 import { getManagers } from '@/lib/queries'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { estAuteur, type AiCheck, type Employment, type InvoiceStatus, type PennylaneStatus } from '@/lib/types'
@@ -157,8 +159,11 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
         ? (['payer'] as const)
         : ([] as const)
 
+  const bloquees = compta ? await facturesBloquees() : []
+
   return (
     <>
+      <FacturesBloquees factures={bloquees} />
       {/* Ce qu'il faut faire maintenant, et ce que ça représente. Le reste
           du mois se lit en dessous ; ici on ne dit qu'une chose. */}
       <div className="mb-6 overflow-hidden rounded-xl border border-line bg-white">

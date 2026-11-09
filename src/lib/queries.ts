@@ -1,5 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase/server'
-import { activeBrandScope, activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandScope, activeBrandId } from '@/lib/brand/actif'
 import { baseDeRemuneration } from '@/lib/types'
 import type { Category } from '@/lib/types'
 
@@ -21,12 +21,23 @@ export async function getProviderCategories(): Promise<
   const supabase = await createServerSupabase()
   const { data } = await supabase
     .from('inv_categories')
-    .select('id, name, provider_label, default_manager_id')
+    .select('id, name, provider_label, default_manager_id, pennylane_category_id')
     .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .eq('visible_to_provider', true)
     .order('sort_order')
-  return data ?? []
+  return sansCompteRetire(data ?? [])
+}
+
+/**
+ * Dans une école qui tient sa comptabilité ici, une catégorie sans
+ * id_pennylane ne se propose pas : la facture qui la porterait serait
+ * refusée par Pennylane, donc jamais payée. « Salons et JPO » et « Frais
+ * remboursés » ont bloqué ainsi sept factures d'octobre 2026.
+ */
+async function sansCompteRetire<T>(cats: T[]): Promise<T[]> {
+  if (!(await activeBrand()).comptabilite) return cats
+  return cats.filter((c) => (c as { pennylane_category_id?: number | null }).pennylane_category_id != null)
 }
 
 /** Managers selectionnables : managers et admins actifs. */
@@ -47,13 +58,13 @@ export async function getCategoriesWithPole(opts: { forProvider?: boolean } = {}
   const supabase = await createServerSupabase()
   let q = supabase
     .from('inv_categories')
-    .select('id, name, provider_label, pole, requires_session, default_manager_id')
+    .select('id, name, provider_label, pole, requires_session, default_manager_id, pennylane_category_id')
     .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .order('sort_order')
   if (opts.forProvider) q = q.eq('visible_to_provider', true)
   const { data } = await q
-  return (data ?? []).map((c) => ({
+  return (await sansCompteRetire(data ?? [])).map((c) => ({
     id: c.id as string,
     label: (c.provider_label as string | null) || (c.name as string),
     pole: c.pole as import('@/lib/types').Pole,
