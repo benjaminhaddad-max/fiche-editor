@@ -34,7 +34,7 @@ const PAYEE = new Set(['paid', 'paid_offline', 'fully_paid'])
  * montrerait les fournisseurs de Diploma.
  */
 export async function facturesHorsPlateforme(): Promise<FactureHorsPlateforme[]> {
-  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return []
+  if (!(await isPennylaneConfigured()) || !(await activeBrand()).comptabilite) return []
 
   const { data } = await createServiceClient()
     .from('inv_invoices')

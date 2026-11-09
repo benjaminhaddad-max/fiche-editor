@@ -8,6 +8,9 @@
  * Scopes requis : file_attachments:all, supplier_invoices:all
  */
 
+import { activeBrand, activeBrandId } from '@/lib/brand/actif'
+import { jetonPennylane } from '@/lib/brand/config'
+
 const BASE_URL = process.env.PENNYLANE_API_URL ?? 'https://app.pennylane.com/api/external/v2'
 
 export class PennylaneError extends Error {
@@ -21,18 +24,42 @@ export class PennylaneError extends Error {
   }
 }
 
-export function isPennylaneConfigured(): boolean {
-  return Boolean(process.env.PENNYLANE_API_TOKEN)
+/**
+ * La comptabilité de l'école active est-elle reliée ? Il faut qu'elle tienne
+ * un Pennylane (`comptabilite`) et que son propre jeton soit posé.
+ */
+export async function isPennylaneConfigured(): Promise<boolean> {
+  const marque = await activeBrand()
+  return marque.comptabilite && Boolean(jetonPennylane(marque.id)?.jeton)
 }
 
-function token(): string {
-  const t = process.env.PENNYLANE_API_TOKEN
-  if (!t) {
-    throw new PennylaneError(
-      'PENNYLANE_API_TOKEN absent : ajoutez-le dans les variables d’environnement.'
-    )
+/** Le nom de la variable à renseigner pour l'école active. */
+export async function variableJetonPennylane(): Promise<string | null> {
+  return jetonPennylane(await activeBrandId())?.variable ?? null
+}
+
+/**
+ * Le jeton de l'école active, et d'aucune autre.
+ *
+ * Chaque appel le relit : une boucle qui passe d'une école à l'autre
+ * (`sousMarque`) change de Pennylane à chaque tour. Une école sans
+ * comptabilité ou sans jeton propre n'appelle rien du tout.
+ */
+async function token(): Promise<string> {
+  const marque = await activeBrand()
+  const j = jetonPennylane(marque.id)
+  if (!marque.comptabilite || !j) {
+    throw new PennylaneError(`${marque.company.name} n’a pas de comptabilité Pennylane reliée ici.`)
   }
-  return t
+  if (!j.jeton) {
+    throw new PennylaneError(`${j.variable} absent : ajoutez-le dans les variables d’environnement.`)
+  }
+  return j.jeton
+}
+
+/** L'en-tête d'autorisation, pour les lectures faites hors de ce fichier. */
+export async function autorisationPennylane(): Promise<{ Authorization: string }> {
+  return { Authorization: `Bearer ${await token()}` }
 }
 
 /**
@@ -84,7 +111,7 @@ export async function uploadFileAttachment(
 
   const res = await appel(`${BASE_URL}/file_attachments`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token()}` },
+    headers: { Authorization: `Bearer ${await token()}` },
     body: form,
   })
 
@@ -132,7 +159,7 @@ export async function importSupplierInvoice(
   const res = await appel(`${BASE_URL}/supplier_invoices/import`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token()}`,
+      Authorization: `Bearer ${await token()}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ currency: 'EUR', ...input }),
@@ -164,7 +191,7 @@ export async function setSupplierInvoiceCategories(
     {
       method: 'PUT',
       headers: {
-        Authorization: `Bearer ${token()}`,
+        Authorization: `Bearer ${await token()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(categories),
@@ -204,28 +231,32 @@ export interface PennylaneSupplier {
  * plusieurs centaines de lignes : à trente-sept factures d'affilée, c'est
  * elle qui déclenchait la limite de débit, pas l'envoi lui-même. Elle ne
  * bouge pas pendant un envoi groupé — sauf quand on vient d'y créer
- * quelqu'un, et dans ce cas on l'oublie exprès.
+ * quelqu'un, et dans ce cas on l'oublie exprès. Une liste par école : celle
+ * de Diploma ne doit jamais servir à retrouver un fournisseur de Linova.
  */
-let cacheFournisseurs: { a: number; liste: PennylaneSupplier[] } | null = null
+let cacheFournisseurs: { a: number; marque: string; liste: PennylaneSupplier[] } | null = null
 export const oublierFournisseurs = () => {
   cacheFournisseurs = null
 }
 
 /** Tous les fournisseurs, en suivant la pagination par curseur. */
 export async function listSuppliers(): Promise<PennylaneSupplier[]> {
-  if (cacheFournisseurs && Date.now() - cacheFournisseurs.a < 60_000) return cacheFournisseurs.liste
+  const marque = await activeBrandId()
+  if (cacheFournisseurs && cacheFournisseurs.marque === marque && Date.now() - cacheFournisseurs.a < 60_000) {
+    return cacheFournisseurs.liste
+  }
   const out: PennylaneSupplier[] = []
   let cursor: string | null = null
   for (let page = 0; page < 50; page++) {
     const url = `${BASE_URL}/suppliers?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
-    const res = await appel(url, { headers: { Authorization: `Bearer ${token()}` } })
+    const res = await appel(url, { headers: { Authorization: `Bearer ${await token()}` } })
     if (!res.ok) await parseError(res)
     const body = (await res.json()) as { items?: PennylaneSupplier[]; has_more?: boolean; next_cursor?: string }
     out.push(...(body.items ?? []))
     if (!body.has_more || !body.next_cursor) break
     cursor = body.next_cursor
   }
-  cacheFournisseurs = { a: Date.now(), liste: out }
+  cacheFournisseurs = { a: Date.now(), marque, liste: out }
   return out
 }
 
@@ -245,7 +276,7 @@ export async function createSupplier(input: CreateSupplierInput): Promise<number
   cacheFournisseurs = null
   const res = await appel(`${BASE_URL}/suppliers`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
   if (!res.ok) await parseError(res)
@@ -266,7 +297,7 @@ export async function createSupplier(input: CreateSupplierInput): Promise<number
 /** Un fournisseur précis, pour comparer ce que la comptabilité a retenu. */
 export async function getSupplier(id: number): Promise<PennylaneSupplier & { iban?: string | null }> {
   const res = await appel(`${BASE_URL}/suppliers/${id}`, {
-    headers: { Authorization: `Bearer ${token()}` },
+    headers: { Authorization: `Bearer ${await token()}` },
   })
   if (!res.ok) await parseError(res)
   return (await res.json()) as PennylaneSupplier & { iban?: string | null }
@@ -278,7 +309,7 @@ export async function updateSupplier(
 ): Promise<void> {
   const res = await appel(`${BASE_URL}/suppliers/${id}`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(champs),
   })
   if (!res.ok) await parseError(res)
@@ -310,7 +341,7 @@ export async function listSupplierInvoices(opts: { pages?: number } = {}): Promi
   let curseur: string | null = null
   for (let i = 0; i < (opts.pages ?? 3); i++) {
     const url = `${BASE_URL}/supplier_invoices?limit=100${curseur ? `&cursor=${encodeURIComponent(curseur)}` : ''}`
-    const res = await appel(url, { headers: { Authorization: `Bearer ${token()}` } })
+    const res = await appel(url, { headers: { Authorization: `Bearer ${await token()}` } })
     if (!res.ok) await parseError(res)
     const json = (await res.json()) as {
       items?: PennylaneInvoiceResume[]
@@ -341,7 +372,7 @@ export async function setSupplierInvoicePaymentStatus(
 ): Promise<void> {
   const res = await appel(`${BASE_URL}/supplier_invoices/${id}/payment_status`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ payment_status: statut }),
   })
   if (!res.ok) await parseError(res)
@@ -357,7 +388,7 @@ export interface PennylaneInvoiceState {
 /** État d'une facture d'achat : payée ou non, et ce qu'il reste à régler. */
 export async function getSupplierInvoice(id: number): Promise<PennylaneInvoiceState> {
   const res = await appel(`${BASE_URL}/supplier_invoices/${id}`, {
-    headers: { Authorization: `Bearer ${token()}` },
+    headers: { Authorization: `Bearer ${await token()}` },
   })
   if (!res.ok) await parseError(res)
   return (await res.json()) as PennylaneInvoiceState
@@ -376,7 +407,7 @@ export async function getSupplierInvoice(id: number): Promise<PennylaneInvoiceSt
 export async function matchTransaction(supplierInvoiceId: number, transactionId: number): Promise<void> {
   const res = await appel(`${BASE_URL}/supplier_invoices/${supplierInvoiceId}/matched_transactions`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ transaction_id: transactionId }),
   })
   if (!res.ok) await parseError(res)
@@ -392,7 +423,7 @@ export async function matchTransaction(supplierInvoiceId: number, transactionId:
 export async function chercherFactureAchat(champ: 'invoice_number' | 'external_reference', valeur: string): Promise<PennylaneInvoiceResume[]> {
   const filtre = encodeURIComponent(JSON.stringify([{ field: champ, operator: 'eq', value: valeur }]))
   const res = await appel(`${BASE_URL}/supplier_invoices?limit=20&filter=${filtre}`, {
-    headers: { Authorization: `Bearer ${token()}` },
+    headers: { Authorization: `Bearer ${await token()}` },
   })
   if (!res.ok) await parseError(res)
   return ((await res.json()) as { items?: PennylaneInvoiceResume[] }).items ?? []

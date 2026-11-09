@@ -5,6 +5,7 @@ import {
   getSupplier,
   getSupplierInvoice,
   isPennylaneConfigured,
+  variableJetonPennylane,
   listSupplierInvoices,
   listSuppliers,
   updateSupplier,
@@ -19,7 +20,7 @@ import { getInvoicePdf, loadInvoiceForRender } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ibanValide, normaliserIban } from '@/lib/iban'
 import { societeDe, type InvoiceLine } from '@/lib/types'
-import { activeBrand, activeBrandId } from '@/lib/brand/actif'
+import { activeBrand, activeBrandId, sousMarque } from '@/lib/brand/actif'
 import { BRANDS, estSiretMaison, normalizeBrandId } from '@/lib/brand/config'
 
 export interface SyncResult {
@@ -232,6 +233,14 @@ async function resolveSupplier(
  * les montants sont ceux valides en base, au centime pres.
  */
 export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncResult> {
+  // Le Pennylane, et donc le jeton, sont ceux de l'école de la facture, pas
+  // ceux de l'écran ou du déploiement d'où part l'envoi.
+  const { data } = await createServiceClient().from('inv_invoices').select('brand').eq('id', invoiceId).maybeSingle()
+  if (!data) return envoyerFacture(invoiceId)
+  return sousMarque(normalizeBrandId(data.brand as string), () => envoyerFacture(invoiceId))
+}
+
+async function envoyerFacture(invoiceId: string): Promise<SyncResult> {
   const supabase = createServiceClient()
 
   try {
@@ -239,11 +248,15 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
     if (!loaded) throw new PennylaneError('Facture introuvable.')
     const { invoice, lines } = loaded
 
-    // Le compte Pennylane est celui de Diploma. Une école sans comptabilité
-    // n'a rien à y faire : le simple fait d'essayer y crée le fournisseur.
-    // On lit l'école de la facture, pas celle du déploiement.
+    // Une école sans comptabilité n'a rien à faire dans un Pennylane : le
+    // simple fait d'essayer y crée le fournisseur. On lit l'école de la
+    // facture, pas celle du déploiement.
     if (!BRANDS[normalizeBrandId(invoice.brand)].comptabilite) {
       return { ok: false, error: 'Cette école n’a pas de comptabilité Pennylane.' }
+    }
+    // Son propre jeton, ou rien : jamais celui d'une autre école.
+    if (!(await isPennylaneConfigured())) {
+      return { ok: false, error: `${await variableJetonPennylane()} absent : la comptabilité de cette école n’est pas encore reliée.` }
     }
 
     let fournisseur: { id: number; ibanIgnore: boolean; nom: string; avertissement?: string }
@@ -261,6 +274,24 @@ export async function syncInvoiceToPennylane(invoiceId: string): Promise<SyncRes
     // d'octobre 2026 ont dormi ainsi. Elle part désormais, avec une
     // catégorie devinée — ou aucune —, et on le dit sur la facture.
     const devinees = await devinerCategories(lines, invoice.brand)
+
+    // Les catégories communes à toutes les écoles portent les numéros du
+    // Pennylane de Diploma. Ailleurs, seules comptent celles de l'école.
+    if (normalizeBrandId(invoice.brand) !== 'diploma') {
+      const { data: cats } = await supabase
+        .from('inv_categories')
+        .select('pennylane_category_id')
+        .eq('brand', invoice.brand)
+        .not('pennylane_category_id', 'is', null)
+      const siennes = new Set((cats ?? []).map((c) => Number(c.pennylane_category_id)))
+      const etrangeres = lines.filter((l) => l.pennylane_category_id && !siennes.has(Number(l.pennylane_category_id)))
+      if (etrangeres.length > 0) {
+        throw new PennylaneError(
+          `Catégorie reliée au Pennylane d'une autre école : ${[...new Set(etrangeres.map((l) => l.category_name))].join(', ')}. ` +
+            'Créez-la pour cette école, avec son id_pennylane, dans Catégories de missions.'
+        )
+      }
+    }
 
     // ---- 1. le PDF
     const pdf = await getInvoicePdf(invoiceId)
@@ -428,7 +459,7 @@ export interface RetourEnvois {
  */
 export async function pousserEnAttente(max = 40): Promise<RetourEnvois> {
   const out: RetourEnvois = { tentees: 0, envoyees: [], echecs: [] }
-  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return out
+  if (!(await isPennylaneConfigured()) || !(await activeBrand()).comptabilite) return out
 
   const db = createServiceClient()
   const { data } = await db
@@ -494,7 +525,7 @@ function memeNom(a: string, b: string): boolean {
  */
 export async function rafraichirPaiements(): Promise<RetourPaiements> {
   const out: RetourPaiements = { verifiees: 0, payees: [], rapprochees: [], erreurs: [] }
-  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return out
+  if (!(await isPennylaneConfigured()) || !(await activeBrand()).comptabilite) return out
 
   const supabase = createServiceClient()
   const { data } = await supabase

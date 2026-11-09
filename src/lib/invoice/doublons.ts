@@ -64,7 +64,7 @@ export async function chercherDoublons(
   const jours = opts.jours ?? 60
   const out = new Map<string, Doublon[]>()
   if (candidats.length === 0) return out
-  const comptabilite = isPennylaneConfigured() && (await activeBrand()).comptabilite
+  const comptabilite = (await isPennylaneConfigured()) && (await activeBrand()).comptabilite
   if (!comptabilite && !opts.plateforme?.length) return out
 
   // Sans comptabilité, seules ses propres factures font référence : celles

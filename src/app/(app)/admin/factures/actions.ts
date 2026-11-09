@@ -96,7 +96,7 @@ export async function marquerPayees(fd: FormData): Promise<void> {
   // refus de Pennylane ne défait pas ce qui est juste de notre côté : la
   // facture reste payée ici, et le prochain « actualiser » retentera.
   for (const m of (majs ?? []) as { id: string; pennylane_invoice_id: number | null }[]) {
-    if (!m.pennylane_invoice_id || !isPennylaneConfigured()) continue
+    if (!m.pennylane_invoice_id || !(await isPennylaneConfigured())) continue
     try {
       await setSupplierInvoicePaymentStatus(Number(m.pennylane_invoice_id), 'paid')
     } catch (err) {
@@ -118,7 +118,7 @@ export async function marquerPayees(fd: FormData): Promise<void> {
 export async function reglerHorsPlateforme(fd: FormData): Promise<void> {
   await requireRole('admin')
   const id = Number(fd.get('pennylane_id') ?? 0)
-  if (!id || !isPennylaneConfigured()) return
+  if (!id || !(await isPennylaneConfigured())) return
   const statut = fd.get('statut') === 'to_be_paid' ? 'to_be_paid' : 'paid'
   try {
     await setSupplierInvoicePaymentStatus(id, statut)

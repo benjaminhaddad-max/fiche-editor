@@ -103,7 +103,7 @@ export async function releverRecusGmail(opts: { max?: number; budgetMs?: number 
   const max = opts.max ?? 15
   const fin = Date.now() + (opts.budgetMs ?? 150_000)
   const bilan: BilanGmail = { messages: 0, recus: 0, ignores: 0, erreurs: 0, fournisseurs: [] }
-  if (!(await activeBrand()).comptabilite) return { ...bilan, inactif: 'école sans comptabilité ici' }
+  if (!(await activeBrand()).justificatifs) return { ...bilan, inactif: 'les reçus de cette boîte ne sont pas ceux de cette école' }
   if (!gmailBranche()) return { ...bilan, inactif: 'accès à la boîte non branché' }
   if (!(await lireReglages()).releveGmail) return { ...bilan, inactif: 'relève éteinte' }
 

@@ -6,6 +6,7 @@ import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 import {
   amount,
   appelPennylane,
+  autorisationPennylane,
   chercherFactureAchat,
   setSupplierInvoicePaymentStatus,
   createSupplier,
@@ -186,7 +187,7 @@ export interface BilanRapprochement {
  */
 export async function rapprocherEnAttente(opts: { ids?: string[] } = {}): Promise<BilanRapprochement> {
   const bilan: BilanRapprochement = { examines: 0, deposes: 0, aRattacher: 0, erreurs: [], depotAutoEteint: false }
-  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return bilan
+  if (!(await isPennylaneConfigured()) || !(await activeBrand()).comptabilite) return bilan
 
   const db = createServiceClient()
   let q = db
@@ -255,7 +256,7 @@ interface TransactionPennylane {
 
 async function lireTransaction(id: number): Promise<TransactionPennylane> {
   const res = await appelPennylane(`${BASE_URL}/transactions/${id}`, {
-    headers: { Authorization: `Bearer ${process.env.PENNYLANE_API_TOKEN}` },
+    headers: await autorisationPennylane(),
     cache: 'no-store',
   })
   if (!res.ok) throw new Error(`Pennylane ${res.status} sur le mouvement ${id}`)

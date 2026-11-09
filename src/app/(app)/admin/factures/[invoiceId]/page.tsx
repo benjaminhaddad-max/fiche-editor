@@ -8,7 +8,7 @@ import { InvoiceDetail } from '@/components/invoices/InvoiceDetail'
 import { requireRole } from '@/lib/auth'
 import { formatDate } from '@/lib/format'
 import { activeBrand } from '@/lib/brand/actif'
-import { isPennylaneConfigured } from '@/lib/pennylane/client'
+import { isPennylaneConfigured, variableJetonPennylane } from '@/lib/pennylane/client'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Invoice, InvoiceLine } from '@/lib/types'
 import { markInvoicePaid, pushToPennylane } from '@/app/(app)/factures/actions'
@@ -45,7 +45,8 @@ export default async function AdminInvoicePage({
   ])
 
   // Le fournisseur Pennylane est retrouvé ou créé à l'envoi s'il manque.
-  const pennylaneReady = isPennylaneConfigured()
+  const pennylaneReady = await isPennylaneConfigured()
+  const variableJeton = await variableJetonPennylane()
   const compta = (await activeBrand()).comptabilite
 
   return (
@@ -92,17 +93,17 @@ export default async function AdminInvoicePage({
         )}
       </div>
 
-      {compta && !isPennylaneConfigured() && (
+      {compta && !pennylaneReady && (
         <div className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-sm text-navy/70">
           Synchronisation Pennylane désactivée : la variable{' '}
           <code className="rounded bg-cream-deep px-1 py-0.5 text-xs">
-            PENNYLANE_API_TOKEN
+            {variableJeton}
           </code>{' '}
           n’est pas configurée.
         </div>
       )}
 
-      {compta && isPennylaneConfigured() && !provider?.pennylane_supplier_id && (
+      {compta && pennylaneReady && !provider?.pennylane_supplier_id && (
         <div className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-sm text-navy/70">
           {provider?.legal_name} n’est pas encore relié à Pennylane : le fournisseur sera retrouvé par SIRET ou par
           nom, ou créé, au moment de l’envoi.{' '}

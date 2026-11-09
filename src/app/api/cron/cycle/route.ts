@@ -157,7 +157,7 @@ async function cycleDUneMarque(
   // Le 5 : Pennylane a relu la banque, les reçus du mois sont arrivés.
   // L'état se calcule sur le mois civil, pas sur le cycle de facturation :
   // c'est ainsi que le comptable lit la banque.
-  if (today.endsWith('-05') && (await activeBrand()).comptabilite) {
+  if (today.endsWith('-05') && (await activeBrand()).justificatifs) {
     const mois = moisPrecedent(today.slice(0, 7))
     // Le calcul n'écrit que l'état : on peut le rejouer. Seul l'envoi est
     // réservé une fois par mois — et seulement s'il a de quoi partir.

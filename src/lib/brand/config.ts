@@ -30,14 +30,20 @@ export interface BrandConfig {
   /** La vignette de l'onglet du navigateur. */
   icon: string
   /**
-   * Cette école tient-elle sa comptabilité dans le Pennylane connecté ici ?
+   * Cette école tient-elle sa comptabilité dans un Pennylane relié ici ?
    *
-   * Il n'y en a qu'un, celui de Diploma Santé. Les écrans qui le lisent —
-   * les dépenses du mois, les factures reçues hors plateforme — ne doivent
-   * donc s'ouvrir que pour elle. Meryeme, qui dirige Linova, y a vu passer
-   * les trois cents mouvements bancaires de Diploma.
+   * Chacune le sien, avec son propre jeton (voir `jetonPennylane`) : jamais
+   * celui d'une autre. Meryeme, qui dirige Linova, avait vu passer les trois
+   * cents mouvements bancaires de Diploma, et seize fournisseurs Medibox
+   * avaient été créés chez Diploma.
    */
   comptabilite: boolean
+  /**
+   * Les reçus relevés dans la boîte Gmail de Ben et l'état mensuel des
+   * justificatifs. Ce sont ceux de Diploma : une autre école reliée à son
+   * propre Pennylane ne doit pas les recevoir.
+   */
+  justificatifs: boolean
   /** Teintes de la charte, pour les emails et les documents. */
   palette: { dark: string; accent: string; light: string; ink: string }
   /**
@@ -95,6 +101,20 @@ export function identifiantsDepot(id: BrandId): { email?: string; motDePasse?: s
 }
 
 /**
+ * Le jeton de l'API Pennylane d'une école, et le nom de sa variable.
+ *
+ * Un Pennylane par école, donc un jeton par école. Une école sans jeton
+ * propre n'en reçoit aucun : jamais celui de Diploma par défaut, sans quoi
+ * ses factures partiraient dans la comptabilité d'à côté. Noms écrits en
+ * entier, pour la même raison que plus haut.
+ */
+export function jetonPennylane(id: BrandId): { variable: string; jeton?: string } | null {
+  if (id === 'diploma') return { variable: 'PENNYLANE_API_TOKEN', jeton: process.env.PENNYLANE_API_TOKEN }
+  if (id === 'linova') return { variable: 'PENNYLANE_API_TOKEN_LINOVA', jeton: process.env.PENNYLANE_API_TOKEN_LINOVA }
+  return null
+}
+
+/**
  * L'adresse qu'on annonce aux prestataires de cette école.
  *
  * Elle n'est annoncée que si la plateforme sait relever la boîte : sans mot
@@ -133,6 +153,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     },
     inboundEmail: adresseDeDepot('diploma'),
     comptabilite: true,
+    justificatifs: true,
     payrollContact: { name: 'Shirel Benchetrit', email: 'shirel.benchetrit@diploma-sante.fr' },
   },
   linova: {
@@ -169,8 +190,10 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
       senderEmail: process.env.BREVO_SENDER_EMAIL ?? 'facturation@linova-education.fr',
     },
     inboundEmail: adresseDeDepot('linova'),
-    // Linova tient sa comptabilité ailleurs.
-    comptabilite: false,
+    // Le Pennylane de Linova, avec PENNYLANE_API_TOKEN_LINOVA. Sans ce jeton,
+    // rien ne part et la facture le dit.
+    comptabilite: true,
+    justificatifs: false,
     // À renseigner dès que Linova aura son interlocuteur paie : sans lui, le
     // bouton d'envoi se désactive plutôt que d'écrire à l'aveugle.
     payrollContact: null,
@@ -233,6 +256,7 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     },
     inboundEmail: adresseDeDepot('medibox'),
     comptabilite: false,
+    justificatifs: false,
     // À renseigner quand Medibox aura son interlocuteur paie.
     payrollContact: null,
   },

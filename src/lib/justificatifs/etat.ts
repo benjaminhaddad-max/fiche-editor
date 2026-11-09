@@ -106,7 +106,7 @@ export function texteRelance(f: ManquantsFournisseur, libelleMois: string, adres
  * une fois pour toutes en changeant son adresse de facturation.
  */
 export async function calculerEtat(mois: string): Promise<EtatJustificatifs | null> {
-  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return null
+  if (!(await isPennylaneConfigured()) || !(await activeBrand()).comptabilite) return null
   const db = createServiceClient()
   const brand = await activeBrandId()
 

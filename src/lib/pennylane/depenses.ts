@@ -1,4 +1,4 @@
-import { appelPennylane, isPennylaneConfigured } from '@/lib/pennylane/client'
+import { appelPennylane, autorisationPennylane, isPennylaneConfigured } from '@/lib/pennylane/client'
 import { activeBrand } from '@/lib/brand/actif'
 
 /**
@@ -127,7 +127,7 @@ export async function lireMouvements(debut: string, fin: string, opts: { cache?:
     if (i >= 50) throw new Error('Plus de cinq mille mouvements sur la période : lecture interrompue.')
     const url = `${BASE_URL}/transactions?limit=100&filter=${filtre}${curseur ? `&cursor=${encodeURIComponent(curseur)}` : ''}`
     const res = await appelPennylane(url, {
-      headers: { Authorization: `Bearer ${process.env.PENNYLANE_API_TOKEN}` },
+      headers: await autorisationPennylane(),
       ...(opts.cache === 0 ? { cache: 'no-store' as const } : { next: { revalidate: opts.cache ?? 3600 } }),
     })
     if (!res.ok) throw new Error(`Pennylane ${res.status}`)
@@ -195,7 +195,7 @@ export async function depensesDuMois(mois: string): Promise<MoisDepenses> {
     indisponible: true,
   }
   // Une école qui ne tient pas sa comptabilité ici n'a rien à y lire.
-  if (!isPennylaneConfigured() || !(await activeBrand()).comptabilite) return vide
+  if (!(await isPennylaneConfigured()) || !(await activeBrand()).comptabilite) return vide
 
   const [an, m] = mois.split('-').map(Number)
   const debut = `${mois}-01`
