@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { FlecheMois } from '@/components/ui/FlecheMois'
 import { PageHeader } from '@/components/ui/Page'
 import type { TabItem } from '@/components/ui/Tabs'
@@ -28,6 +29,8 @@ export default async function RemunerationsPage({
 }) {
   const user = await requireRole('manager', 'admin')
   const { vue, mois, onglet, etape } = await searchParams
+  // La paie des salariés vit désormais dans l'Espace Social.
+  if (vue === 'paie' && user.role === 'admin') redirect('/social')
   const cycle = mois && /^\d{4}-\d{2}$/.test(mois) ? cycleForMonth(mois) : activeCycle()
 
   // Les mêmes onglets que « Prestations » : c'est le même mois, vu plus

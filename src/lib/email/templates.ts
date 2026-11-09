@@ -870,6 +870,70 @@ export async function templates(brand?: BrandId) {
     ),
   }),
 
+  // Espace Social : demande, relance, renvoi pour correction, envoi à Net Paye.
+  socialDemande: (p: { name: string; label: string; cloture: string; relance: boolean; vacataire: boolean }) => ({
+    subject: p.relance ? `Rappel — vos éléments de paie de ${p.label}` : `Vos éléments de paie de ${p.label}`,
+    html: layout(m,
+      p.relance ? 'Il manque vos éléments de paie' : 'Vos éléments de paie du mois',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">Pour préparer votre bulletin de ${p.label}, indiquez en une minute${p.vacataire ? ' (vos missions du mois sont reprises d’office)' : ''} :</p>
+       <ul style="margin:0 0 12px;padding-left:18px;color:#3b4c63;">
+         <li style="margin-bottom:4px;">votre abonnement de transport, avec le justificatif ;</li>
+         <li style="margin-bottom:4px;">vos congés payés, sans solde ou arrêts ;</li>
+         <li style="margin-bottom:4px;">vos heures supplémentaires et qui les a validées ;</li>
+         <li>votre situation de mutuelle.</li>
+       </ul>
+       <p style="margin:0 0 12px;">À renseigner <strong>avant ${p.cloture}</strong>. Rien à signaler ? Un clic sur « Rien à signaler ce mois-ci » suffit, et les rappels s’arrêtent.</p>`,
+      { label: 'Renseigner mes éléments', href: `${APP_URL}/elements-paie` }
+    ),
+  }),
+
+  socialRetour: (p: { name: string; label: string; commentaire: string }) => ({
+    subject: `Vos éléments de paie de ${p.label} : une correction est demandée`,
+    html: layout(m,
+      'Une correction est demandée',
+      `<p style="margin:0 0 12px;">Bonjour ${p.name},</p>
+       <p style="margin:0 0 12px;">L’équipe paie a relu vos éléments de ${p.label} et vous demande :</p>
+       <p style="margin:0 0 12px;padding:10px 14px;background:#f6f1e7;border-radius:8px;">${p.commentaire.replace(/</g, '&lt;')}</p>
+       <p style="margin:0;">Corrigez directement dans votre espace.</p>`,
+      { label: 'Corriger mes éléments', href: `${APP_URL}/elements-paie` }
+    ),
+  }),
+
+  socialCloture: (p: { label: string; groupe: string; aValider: number; sansReponse: string[]; anomalies: number }) => ({
+    subject: `Paie de ${p.label} (${p.groupe.toLowerCase()}) : saisie close, ${p.aValider} à valider`,
+    html: layout(m,
+      'La saisie du mois est close',
+      `<p style="margin:0 0 12px;">La saisie des éléments variables de ${p.label} — ${p.groupe.toLowerCase()} — vient de se fermer.</p>
+       <ul style="margin:0 0 12px;padding-left:18px;color:#3b4c63;">
+         <li style="margin-bottom:4px;"><strong>${p.aValider}</strong> saisie(s) à valider${p.anomalies ? `, dont ${p.anomalies} avec une anomalie signalée` : ''} ;</li>
+         <li>${p.sansReponse.length ? `sans réponse : ${p.sansReponse.join(', ')}` : 'tout le monde a répondu'}.</li>
+       </ul>
+       <p style="margin:0;">Rien ne part chez Net Paye sans votre validation.</p>`,
+      { label: 'Ouvrir l’Espace Social', href: `${APP_URL}/social` }
+    ),
+  }),
+
+  socialNetPaye: (p: {
+    nom: string
+    label: string
+    groupe: string
+    salaries: number
+    lignes: number
+    manquants: string[]
+    pieces: string[]
+  }) => ({
+    subject: `${m.company.name} — éléments variables de ${p.label} (${p.groupe})`,
+    html: layout(m,
+      `Éléments variables de ${p.label}`,
+      `<p style="margin:0 0 12px;">Bonjour ${p.nom},</p>
+       <p style="margin:0 0 12px;">Vous trouverez en pièce jointe le fichier d’import Silae des éléments variables de ${p.label} — ${p.groupe.toLowerCase()} : ${p.salaries} salarié(s), ${p.lignes} ligne(s), au format Matricule / Code / Valeur / Date début / Date fin. Toutes les lignes ont été validées par l’équipe paie.</p>
+       ${p.manquants.length ? `<p style="margin:0 0 12px;color:#9a3412;">Code Silae encore à nous indiquer, laissé vide dans le fichier : ${p.manquants.join(', ')}.</p>` : ''}
+       ${p.pieces.length ? `<p style="margin:0 0 6px;">Justificatifs joints :</p><ul style="margin:0 0 12px;padding-left:18px;color:#3b4c63;">${p.pieces.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}
+       <p style="margin:0;">Les montants des vacataires sont des nets : le brut est à reconstituer dans Silae.</p>`
+    ),
+  }),
+
   payslipFiled: (p: { name: string; personne: string; periode: string }) => ({
     subject: `Bulletin de ${p.personne} classé — ${p.periode}`,
     html: layout(m, 

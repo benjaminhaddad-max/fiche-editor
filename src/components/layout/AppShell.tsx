@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import {
   ClipboardList,
+  HeartHandshake,
   Menu,
   X,
   KeyRound,
@@ -33,6 +34,13 @@ interface NavItem {
   badge?: number
 }
 
+interface Social {
+  /** Gère la paie : ouvre l'Espace Social. */
+  equipe?: boolean
+  /** A une fiche salarié : remplit son formulaire mensuel. */
+  formulaire?: boolean
+}
+
 interface NavGroup {
   label: string
   items: NavItem[]
@@ -44,11 +52,22 @@ interface NavGroup {
  * d'entrées possible : chaque page regroupe ses vues en onglets. Un salarié
  * n'a pas de facturation ; un fournisseur sans compte n'a pas d'espace.
  */
-function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
+function navFor(role: Role, salarie: boolean, unread: number, social: Social = {}): NavGroup[] {
   const echanges: NavGroup = {
     label: 'Échanges',
     items: [{ href: '/messages', label: 'Messages', icon: MessageSquare, prefixes: ['/messages'], badge: unread }],
   }
+
+  // L'Espace Social : la paie des salariés, à part des factures. L'équipe
+  // paie y valide le mois ; un salarié — manager compris — y remplit son
+  // formulaire. Rien de commun avec le circuit des prestataires.
+  const espaceSocial: NavGroup[] = social.equipe
+    ? [{ label: 'Espace Social', items: [{ href: '/social', label: 'Paie des salariés', icon: HeartHandshake, prefixes: ['/social'] }] }]
+    : []
+  const maPaie: NavGroup[] =
+    social.formulaire && role !== 'prestataire'
+      ? [{ label: 'Ma paie', items: [{ href: '/elements-paie', label: 'Mes éléments de paie', icon: Wallet, prefixes: ['/elements-paie'] }] }]
+      : []
 
   if (role === 'prestataire') {
     return [
@@ -98,6 +117,7 @@ function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
   if (role === 'manager') {
     return [
       activite,
+      ...espaceSocial,
       {
         label: 'Dossiers',
         items: [
@@ -105,12 +125,14 @@ function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
           { href: '/admin/equipe', label: 'Équipe', icon: Users, prefixes: ['/admin/equipe'] },
         ],
       },
+      ...maPaie,
       echanges,
     ]
   }
 
   return [
     activite,
+    ...espaceSocial,
     {
       label: 'Dossiers',
       items: [
@@ -118,6 +140,7 @@ function navFor(role: Role, salarie: boolean, unread: number): NavGroup[] {
         { href: '/admin/equipe', label: 'Équipe', icon: Users, prefixes: ['/admin/equipe', '/admin/prestataires'] },
       ],
     },
+    ...maPaie,
     echanges,
   ]
 }
@@ -134,9 +157,11 @@ export function AppShell({
   selecteurMarque,
   banner,
   salarie = false,
+  social,
   unread = 0,
   children,
 }: {
+  social?: Social
   user: { full_name: string; email: string; role: Role }
   /** Le choix d'école, pour une direction qui en suit plusieurs. */
   selecteurMarque?: React.ReactNode
@@ -209,7 +234,7 @@ export function AppShell({
         {selecteurMarque}
 
         <nav className="ds-rail-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
-          {navFor(user.role, salarie, unread).map((groupe) => (
+          {navFor(user.role, salarie, unread, social).map((groupe) => (
             <div key={groupe.label} className="mb-4 last:mb-0">
               <p className="mb-2 px-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-gold-dark">
                 {groupe.label}

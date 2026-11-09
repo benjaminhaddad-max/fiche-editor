@@ -1,104 +1,151 @@
 'use server'
 
-import { createHash } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
-import { requireProvider } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { activeCycle, cycleForMonth } from '@/lib/cycle'
-import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
+import { moisASaisir } from '@/lib/social/calendrier'
+import { datesIncoherentes, lireHeuresSup, SchemaFormulaire } from '@/lib/social/formulaire'
+import { lireParametres } from '@/lib/social/parametres'
+import { deposerPiece } from '@/lib/social/pieces'
+import { requireSalarie } from '@/lib/social/salarie'
+import { groupeDuProfil } from '@/lib/social/types'
 
 export interface ElementsResult {
   error?: string
   success?: string
 }
 
-const Schema = z.object({
-  period: z.string().regex(/^\d{4}-\d{2}$/),
-  overtime_hours: z.coerce.number<number>().min(0).max(300),
-  paid_leave_days: z.coerce.number<number>().min(0).max(31),
-  unpaid_leave_days: z.coerce.number<number>().min(0).max(31),
-  leave_detail: z.string().trim().max(500).optional(),
-  sick_leave_days: z.coerce.number<number>().min(0).max(31),
-  sick_leave_detail: z.string().trim().max(500).optional(),
-  transport: z.enum(['oui', 'non']),
-  transport_amount: z.union([z.coerce.number<number>().min(0).max(1000), z.literal('')]).optional(),
-  mutuelle: z.enum(['adherent', 'refus']),
-  comment: z.string().trim().max(1000).optional(),
-})
-
-const MAX_PDF = 6 * 1024 * 1024
-
 /**
- * Le salarié déclare ses éléments du mois : heures supplémentaires, congés,
- * transport, mutuelle. C'est ce qui remplace le mail mensuel du service paie.
+ * Le mois peut-il encore être rempli par le salarié ? Le mois en cours de
+ * saisie, ou un mois que Shirel lui a renvoyé pour correction et qu'elle
+ * n'a pas encore validé.
  */
+async function moisOuvert(providerId: string, period: string, profil: Parameters<typeof groupeDuProfil>[0]) {
+  const { calendrier } = await lireParametres()
+  if (period === moisASaisir(groupeDuProfil(profil), calendrier)) {
+    const { data } = await createServiceClient()
+      .from('inv_payroll_inputs')
+      .select('status')
+      .eq('provider_id', providerId)
+      .eq('period', period)
+      .maybeSingle()
+    return !data || ['attente', 'a_valider', 'a_corriger'].includes(data.status as string)
+  }
+  const { data } = await createServiceClient()
+    .from('inv_payroll_inputs')
+    .select('status')
+    .eq('provider_id', providerId)
+    .eq('period', period)
+    .maybeSingle()
+  return data?.status === 'a_corriger'
+}
+
+/** « Rien à signaler ce mois-ci » : une réponse, qui arrête les relances. */
+export async function rienASignaler(_prev: ElementsResult, fd: FormData): Promise<ElementsResult> {
+  const { user, salarie } = await requireSalarie()
+  const period = String(fd.get('period') ?? '')
+  if (!/^\d{4}-\d{2}$/.test(period)) return { error: 'Mois invalide.' }
+  if (!(await moisOuvert(salarie.providerId, period, salarie.profil))) return { error: 'Ce mois est clos.' }
+  const { error } = await createServiceClient()
+    .from('inv_payroll_inputs')
+    .upsert(
+      {
+        provider_id: salarie.providerId,
+        period,
+        nothing_to_report: true,
+        overtime_hours: 0,
+        overtime_lines: [],
+        paid_leave_days: 0,
+        unpaid_leave_days: 0,
+        sick_leave_days: 0,
+        transport: false,
+        transport_amount: null,
+        status: 'a_valider',
+        submitted_at: new Date().toISOString(),
+        submitted_by: user.id,
+        return_comment: null,
+      },
+      { onConflict: 'provider_id,period' }
+    )
+  if (error) return { error: `Enregistrement impossible : ${error.message}` }
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'provider',
+    entityId: salarie.providerId,
+    action: 'social_saisie',
+    payload: { periode: period, rien_a_signaler: true },
+  })
+  revalidatePath('/elements-paie')
+  revalidatePath('/social')
+  return { success: 'C’est noté : rien à signaler ce mois-ci. Vous ne serez plus relancé.' }
+}
+
+/** Le formulaire mensuel (§5 du plan). */
 export async function enregistrerElements(_prev: ElementsResult, fd: FormData): Promise<ElementsResult> {
-  const { user, provider } = await requireProvider()
-  const parsed = Schema.safeParse(Object.fromEntries(fd))
+  const { user, salarie } = await requireSalarie()
+  const parsed = SchemaFormulaire.safeParse(Object.fromEntries(fd))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
   const v = parsed.data
-
-  // On ne déclare que le mois en cours ou celui qui n'est pas encore clos.
-  const ouverts = [activeCycle().month, cycleForMonth(activeCycle().month).month, new Date().toISOString().slice(0, 7)]
-  if (!ouverts.includes(v.period)) return { error: 'Ce mois n’est plus ouvert à la déclaration.' }
+  if (!(await moisOuvert(salarie.providerId, v.period, salarie.profil))) {
+    return { error: 'Ce mois est clos : écrivez à l’équipe paie pour toute correction.' }
+  }
+  const incoherent = datesIncoherentes(v)
+  if (incoherent) return { error: incoherent }
+  const hs = lireHeuresSup(v.heures_sup)
+  if ('erreur' in hs) return { error: hs.erreur }
 
   const db = createServiceClient()
+  const { data: avant } = await db
+    .from('inv_payroll_inputs')
+    .select('transport_document, sick_leave_document, mutuelle_document')
+    .eq('provider_id', salarie.providerId)
+    .eq('period', v.period)
+    .maybeSingle()
 
-  /** Range une pièce jointe et renvoie son identifiant, ou une erreur. */
-  async function deposer(champ: string, dossier: string, intitule: string) {
-    const fichier = fd.get(champ)
-    if (!(fichier instanceof File) || fichier.size === 0) return { id: null as string | null }
-    if (fichier.size > MAX_PDF) return { erreur: `${intitule} : le fichier ne doit pas dépasser 6 Mo.` }
-    const contenu = Buffer.from(await fichier.arrayBuffer())
-    const extension = fichier.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'jpg'
-    const chemin = `${provider.id}/${dossier}/${v.period}.${extension}`
-    const { error } = await db.storage.from(INVOICE_BUCKET).upload(chemin, contenu, {
-      contentType: extension === 'pdf' ? 'application/pdf' : fichier.type || 'image/jpeg',
-      upsert: true,
-    })
-    if (error) return { erreur: `Dépôt impossible : ${error.message}` }
-    const { data: doc } = await db
-      .from('inv_documents')
-      .insert({
-        provider_id: provider.id,
-        kind: 'autre',
-        period: v.period,
-        label: `${intitule} — ${v.period}`,
-        path: chemin,
-        filename: fichier.name,
-        source: 'upload',
-        uploaded_by: user.id,
-        file_hash: createHash('sha256').update(contenu).digest('hex'),
-      })
-      .select('id')
-      .single()
-    return { id: doc?.id ?? null }
+  const piece = (champ: string, dossier: string, intitule: string) =>
+    deposerPiece({ fichier: fd.get(champ), providerId: salarie.providerId, userId: user.id, period: v.period, dossier, intitule })
+  const transportDoc = await piece('justificatif', 'transport', 'Justificatif de transport')
+  if ('erreur' in transportDoc) return { error: transportDoc.erreur }
+  const arretDoc = await piece('arret', 'arret-travail', 'Arrêt de travail')
+  if ('erreur' in arretDoc) return { error: arretDoc.erreur }
+  const mutuelleDoc = await piece('mutuelle_piece', 'mutuelle', 'Justificatif mutuelle')
+  if ('erreur' in mutuelleDoc) return { error: mutuelleDoc.erreur }
+
+  const transport = v.transport === 'oui'
+  const montant = v.transport_amount === '' || v.transport_amount === undefined ? null : Number(v.transport_amount)
+  if (transport && !montant) return { error: 'Transport : indiquez le montant de l’abonnement.' }
+  // Le justificatif est obligatoire (§5), même quand on reconduit l'abonnement.
+  if (transport && !transportDoc.id && !avant?.transport_document) {
+    return { error: 'Transport : le justificatif du mois est obligatoire (PDF ou photo).' }
   }
 
-  const transportDoc = await deposer('justificatif', 'transport', 'Justificatif de transport')
-  if (transportDoc.erreur) return { error: transportDoc.erreur }
-  const arretDoc = await deposer('arret', 'arret-travail', 'Arrêt de travail')
-  if (arretDoc.erreur) return { error: arretDoc.erreur }
-  const documentId = transportDoc.id
-
+  const heures = Math.round(hs.lignes.reduce((t, l) => t + l.heures, 0) * 100) / 100
   const { error } = await db.from('inv_payroll_inputs').upsert(
     {
-      provider_id: provider.id,
+      provider_id: salarie.providerId,
       period: v.period,
-      overtime_hours: v.overtime_hours,
+      nothing_to_report: false,
+      overtime_hours: heures,
+      overtime_lines: hs.lignes,
       paid_leave_days: v.paid_leave_days,
+      paid_leave_start: v.paid_leave_start,
+      paid_leave_end: v.paid_leave_end,
       unpaid_leave_days: v.unpaid_leave_days,
-      leave_detail: v.leave_detail || null,
+      unpaid_leave_start: v.unpaid_leave_start,
+      unpaid_leave_end: v.unpaid_leave_end,
       sick_leave_days: v.sick_leave_days,
-      sick_leave_detail: v.sick_leave_detail || null,
+      sick_leave_start: v.sick_leave_start,
+      sick_leave_end: v.sick_leave_end,
       ...(arretDoc.id ? { sick_leave_document: arretDoc.id } : {}),
-      transport: v.transport === 'oui',
-      transport_amount: v.transport_amount === '' || v.transport_amount === undefined ? null : Number(v.transport_amount),
-      ...(documentId ? { transport_document: documentId } : {}),
+      transport,
+      transport_amount: transport ? montant : null,
+      transport_renewed: transport && v.transport_renewed === 'on',
+      ...(transportDoc.id ? { transport_document: transportDoc.id } : {}),
       mutuelle: v.mutuelle,
+      mutuelle_detail: v.mutuelle_detail || null,
+      ...(mutuelleDoc.id ? { mutuelle_document: mutuelleDoc.id } : {}),
       comment: v.comment || null,
+      status: 'a_valider',
       submitted_at: new Date().toISOString(),
       submitted_by: user.id,
     },
@@ -109,12 +156,20 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
   await logAudit(null, {
     actorId: user.id,
     entityType: 'provider',
-    entityId: provider.id,
-    action: 'elements_paie',
-    payload: { periode: v.period, heures_sup: v.overtime_hours },
+    entityId: salarie.providerId,
+    action: 'social_saisie',
+    payload: {
+      periode: v.period,
+      heures_sup: heures,
+      conges_payes: v.paid_leave_days,
+      sans_solde: v.unpaid_leave_days,
+      arret: v.sick_leave_days,
+      transport: transport ? montant : null,
+      mutuelle: v.mutuelle,
+    },
   })
 
   revalidatePath('/elements-paie')
-  revalidatePath('/paie-du-mois')
-  return { success: 'Merci, vos éléments sont enregistrés. Vous pouvez encore les corriger jusqu’à la clôture.' }
+  revalidatePath('/social')
+  return { success: 'Merci, vos éléments sont enregistrés. Vous pouvez les corriger jusqu’à la clôture.' }
 }

@@ -12,8 +12,7 @@ import { relancerDeclarations } from '@/lib/relances'
 import { relancerFactures } from '@/lib/relance-factures'
 import { verifierAdresses } from '@/lib/email/deliverabilite'
 import { createServiceClient } from '@/lib/supabase/service'
-import { isSalaried, type Employment, PAYES_EN_SALAIRE } from '@/lib/types'
-import { sendSms } from '@/lib/email/sms'
+import { isSalaried, type Employment } from '@/lib/types'
 import { activeBrand, activeBrandId, sousMarque } from '@/lib/brand/actif'
 import { servedBrandIds } from '@/lib/brand'
 import { calculerEtat, envoyerEtat, moisPrecedent } from '@/lib/justificatifs/etat'
@@ -30,8 +29,7 @@ type Db = ReturnType<typeof createServiceClient>
  *                     bordereau global du mois écoulé
  *   L−7               rappel à Pascal pour les commissions HubDiploma : à prévalider à L−4
  *   L−5               rappel aux prestataires : clôture des déclarations à L−3
- *                     demande des éléments de paie aux salariés
- *   L−1               relance des salariés qui n'ont rien renseigné
+ *                     (les éléments de paie des salariés : Espace Social, /api/cron/social)
  *   L−2               début de la vérification : rappel aux managers
  *   le 2              relance des factures manquantes (email + SMS)
  *   le 5              état des justificatifs du mois écoulé (envoi au comptable s'il est allumé)
@@ -133,12 +131,8 @@ async function cycleDUneMarque(
       relancerDeclarations(courant, null)
     )
   }
-  if (today === addDays(courant.declarationDeadline, -2)) {
-    fait.elementsPaie = await uneFois(db, courant.month, 'elements_paie', () => demanderElements(db, courant, false))
-  }
-  if (today === addDays(courant.declarationDeadline, -1)) {
-    fait.relanceElements = await uneFois(db, courant.month, 'relance_elements', () => demanderElements(db, courant, true))
-  }
+  // Les éléments de paie des salariés ne se demandent plus ici : ils ont
+  // leur propre calendrier, dans l'Espace Social (/api/cron/social).
   if (today === courant.reviewStart) {
     fait.rappelVerification = await uneFois(db, courant.month, 'rappel_verification', () => rappelerVerification(db, courant))
   }
@@ -296,60 +290,6 @@ async function rappelerCommissions(db: Db, cycle: BillingCycle) {
     entityId: pascal.id,
   })
   return { envoyes: 1 }
-}
-
-/**
- * Demande à chaque salarié ses éléments du mois — heures supplémentaires,
- * congés, transport, mutuelle. En relance, seuls ceux qui n'ont rien
- * renseigné sont sollicités, et le SMS s'ajoute à l'email.
- */
-async function demanderElements(db: Db, cycle: BillingCycle, relance: boolean) {
-  const { data: fiches } = await db
-    .from('inv_providers')
-    .select('id, phone, employment_type, user:inv_users!inv_providers_user_id_fkey(email, full_name, is_active)')
-    .eq('brand', (await activeBrandId()))
-    .in('employment_type', PAYES_EN_SALAIRE)
-  const { data: saisies } = await db
-    .from('inv_payroll_inputs')
-    .select('provider_id, submitted_at')
-    .eq('period', cycle.month)
-  const repondu = new Set((saisies ?? []).filter((s) => s.submitted_at).map((s) => s.provider_id as string))
-
-  let n = 0
-  for (const f of (fiches ?? []) as unknown as {
-    id: string
-    phone: string | null
-    user: { email: string; full_name: string; is_active: boolean } | null
-  }[]) {
-    if (!f.user?.is_active) continue
-    if (relance && repondu.has(f.id)) continue
-    await deliver({
-      to: { email: f.user.email, name: f.user.full_name },
-      ...(await templates()).payrollInputsRequest({
-        name: f.user.full_name,
-        label: cycle.label,
-        deadline: cycle.declarationDeadline,
-        relance,
-      }),
-      template: relance ? 'payroll_inputs_reminder' : 'payroll_inputs_request',
-      entityType: 'provider',
-      entityId: f.id,
-      providerId: f.id,
-    })
-    if (relance) {
-      await sendSms(
-        f.phone,
-        `${(await activeBrand()).company.name} : il manque vos éléments de paie de ${cycle.label} (heures sup., congés, transport, mutuelle). ${
-          process.env.NEXT_PUBLIC_APP_URL ?? ''
-        }/elements-paie`
-      )
-      await db
-        .from('inv_payroll_inputs')
-        .upsert({ provider_id: f.id, period: cycle.month, reminded_at: new Date().toISOString() }, { onConflict: 'provider_id,period' })
-    }
-    n++
-  }
-  return { envoyes: n }
 }
 
 async function rappelerBonsEchus(db: Db, today: string) {

@@ -42,7 +42,7 @@ export function ongletsDuMois(
     { key: 'manquants', label: 'Sans déclaration', href: '/validation/manquants', count: manquants },
     { key: 'bordereaux', label: 'Bordereaux', href: '/validation/bordereaux' },
     { key: 'factures', label: 'Factures', href: `/remunerations?vue=factures&${m}` },
-    { key: 'paie', label: 'Paie', href: `/remunerations?vue=paie&${m}` },
+    // La paie des salariés a quitté les Prestations : elle a son Espace Social.
     ...(comptabilite
       ? [{ key: 'depenses', label: 'Dépenses', href: `/remunerations?vue=depenses&${m}` }]
       : []),

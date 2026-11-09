@@ -11,6 +11,8 @@ import { getImpersonator } from '@/lib/impersonation'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { countUnread } from '@/lib/threads'
 import { isSalaried } from '@/lib/types'
+import { gereLeSocial } from '@/lib/social/parametres'
+import { maFicheSalarie } from '@/lib/social/salarie'
 
 export default async function AppLayout({
   children,
@@ -26,6 +28,10 @@ export default async function AppLayout({
     const { data } = await supabase.from('inv_providers').select('employment_type').eq('user_id', user.id).maybeSingle()
     salarie = isSalaried(data?.employment_type)
   }
+  // Espace Social : une fiche salarié ouvre le formulaire mensuel, quel que
+  // soit le rôle ; l'équipe paie ouvre la validation.
+  const social = { formulaire: Boolean(await maFicheSalarie(user)), equipe: await gereLeSocial(user) }
+  if (user.role === 'prestataire' && social.formulaire) salarie = true
   const unread = await countUnread(user.id)
   const marque = await activeBrand()
   // Le sélecteur ne s'affiche que s'il y a vraiment un choix à faire :
@@ -45,6 +51,7 @@ export default async function AppLayout({
       }
       user={{ full_name: user.full_name, email: user.email, role: user.role }}
       salarie={salarie}
+      social={social}
       unread={unread}
       banner={
         <>

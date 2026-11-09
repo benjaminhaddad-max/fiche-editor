@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-/** Fusionné dans Rémunérations. */
+/** La paie des salariés a son Espace Social. */
 export default function Page() {
-  redirect('/remunerations?vue=paie&etape=social')
+  redirect('/social')
 }

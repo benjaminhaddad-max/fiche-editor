@@ -5,6 +5,8 @@ import { PAYES_EN_SALAIRE } from '@/lib/types'
 
 export interface LignePaie {
   id: string
+  /** La fiche de la personne : c'est par elle que l'Espace Social retrouve ses missions. */
+  providerId: string
   personne: string
   statut: Employment
   kind: MissionKind
@@ -61,7 +63,7 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
     .from('inv_missions')
     .select(
       `id, kind, detail, start_date, quantity, unit_amount_ht, total_ht, abatement_rate, status, payroll_batch_id, manager_id,
-       provider:inv_providers!inner(legal_name, employment_type),
+       provider:inv_providers!inner(id, legal_name, employment_type),
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
@@ -86,12 +88,13 @@ export async function lignesPaie(debut: string, fin: string, opts: { avecEnvoyee
     status: string
     abatement_rate: number
     manager_id: string | null
-    provider: { legal_name: string; employment_type: Employment }
+    provider: { id: string; legal_name: string; employment_type: Employment }
     category: { name: string } | null
     manager: { full_name: string } | null
   }[])
     .map((m) => ({
       id: m.id,
+      providerId: m.provider.id,
       personne: m.provider.legal_name,
       statut: m.provider.employment_type,
       kind: m.kind,

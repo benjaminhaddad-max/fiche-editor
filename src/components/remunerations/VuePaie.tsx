@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { VueElements } from '@/components/remunerations/VueElements'
 import { VueSocial } from '@/components/remunerations/VueSocial'
 import { VueBulletins } from '@/components/remunerations/VueMois'
 import { VueSalairesManager } from '@/components/remunerations/VueSalairesManager'
@@ -11,7 +10,7 @@ import type { Role } from '@/lib/types'
 // transmettre, recevoir. Un manager n'en suit aucune — il regarde ce que ses
 // salariés vont toucher — donc ses deux vues ne portent pas de numéro.
 const ETAPES = [
-  { cle: 'elements', labelAdmin: '1 — Éléments variables', label: 'Éléments variables', pour: 'tous' },
+  // Les éléments variables se valident dans l'Espace Social (/social).
   { cle: 'salaires', labelAdmin: null, label: 'Montants des salariés', pour: 'manager' },
   { cle: 'social', labelAdmin: '2 — Envoi au social', label: null, pour: 'admin' },
   { cle: 'bulletins', labelAdmin: '3 — Bulletins', label: null, pour: 'admin' },
@@ -37,9 +36,9 @@ export async function VuePaie({
   role: Role
   userId: string
 }) {
-  const visibles = ETAPES.filter(
-    (e) => e.pour === 'tous' || (role === 'admin' ? e.pour === 'admin' : e.pour === 'manager')
-  )
+  // L'administration passe par l'Espace Social ; il ne reste ici que la vue
+  // d'un manager sur ce que ses salariés vont toucher.
+  const visibles = ETAPES.filter((e) => (role === 'admin' ? e.pour === 'admin' : e.pour === 'manager'))
   const courant = visibles.find((e) => e.cle === etape)?.cle ?? visibles[0].cle
 
   return (
@@ -61,7 +60,6 @@ export async function VuePaie({
         ))}
       </div>
 
-      {courant === 'elements' && <VueElements cycle={cycle} />}
       {courant === 'salaires' && <VueSalairesManager cycle={cycle} managerId={userId} />}
       {courant === 'social' && <VueSocial cycle={cycle} />}
       {courant === 'bulletins' && <VueBulletins cycle={cycle} />}
