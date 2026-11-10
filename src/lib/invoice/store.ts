@@ -49,7 +49,7 @@ export async function loadInvoiceForRender(
  * net à lui virer. Lus sur la fiche et les prestations au moment du rendu :
  * l'instantané de l'émetteur ne les porte pas.
  */
-async function auteurDe(invoice: Invoice): Promise<AuteurPdf | undefined> {
+async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Promise<AuteurPdf | undefined> {
   const supabase = createServiceClient()
   const { data: fiche } = await supabase
     .from('inv_providers')
@@ -63,6 +63,12 @@ async function auteurDe(invoice: Invoice): Promise<AuteurPdf | undefined> {
     .select('id, total_ht, pay_basis')
     .eq('invoice_id', invoice.id)
   const prestations = (lignes ?? []) as { id: string; total_ht: number; pay_basis: string | null }[]
+  // Les lignes ajoutées à la main par l'administration (régularisation,
+  // correction d'un oubli) n'ont pas de prestation : elles sont en brut,
+  // comme tout droit d'auteur, et entrent dans le précompte.
+  for (const l of lignesFacture) {
+    if (!l.mission_id) prestations.push({ id: l.id, total_ht: Number(l.total_ht), pay_basis: 'brut' })
+  }
   return {
     secu: (fiche?.social_security_number as string | null)?.trim() || null,
     naissance: (fiche?.birth_date as string | null) ?? null,
@@ -88,7 +94,7 @@ export async function generateAndStorePdf(invoiceId: string): Promise<Buffer> {
     )
   }
 
-  const pdf = await renderInvoicePdf(loaded.invoice, loaded.lines, await auteurDe(loaded.invoice))
+  const pdf = await renderInvoicePdf(loaded.invoice, loaded.lines, await auteurDe(loaded.invoice, loaded.lines))
   const path = invoicePdfPath(loaded.invoice)
   const supabase = createServiceClient()
 

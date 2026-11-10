@@ -4,6 +4,7 @@ import { LIGNES_PRECOMPTE } from '@/lib/invoice/net-auteur'
 import { BRANDS } from '@/lib/brand/config'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 import type { AuteurPdf } from '@/lib/invoice/pdf'
+import { contributionDiffuseur, trimestreDe } from '@/lib/invoice/trimestre'
 
 /**
  * La facture Medibox, sur le modèle que Nolwenn a fourni.
@@ -91,6 +92,9 @@ export function MediboxInvoiceDocument({
   const tva = issuer.vat_regime === 'normal'
   const mention = mentionTva(issuer.vat_regime)
   const brut = Number(invoice.subtotal_ht)
+  // Le précompte se déclare au trimestre du versement ; tant que la note
+  // n'est pas payée, celui de sa date.
+  const trimestre = trimestreDe(invoice.paid_at ?? invoice.issue_date)
 
   return (
     <Document
@@ -104,9 +108,14 @@ export function MediboxInvoiceDocument({
             <Text style={s.titre}>
               {auteur ? `RELEVÉ PAIEMENT N° ${invoice.number}` : `FACTURE N° ${invoice.number}`}
             </Text>
-            {auteur && <Text style={s.sousTitre}>FACTURE DROITS D’AUTEUR</Text>}
+            {auteur && <Text style={s.sousTitre}>NOTE DE DROITS D’AUTEUR</Text>}
             <View style={s.bandeau} />
             <Text style={s.date}>Date : {formatDate(invoice.issue_date)}</Text>
+            {auteur && invoice.period_start && invoice.period_end && (
+              <Text style={s.date}>
+                Période : du {formatDate(invoice.period_start)} au {formatDate(invoice.period_end)}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -222,11 +231,23 @@ export function MediboxInvoiceDocument({
         <View style={s.mentions}>
           {!auteur && mention && <Text>{mention}</Text>}
           {auteur && (
-            <Text>
-              Cotisations et contributions sociales précomptées par le diffuseur et versées à l’Urssaf (taux
-              2026). La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont pris en
-              charge par l’État.
-            </Text>
+            <>
+              <Text>
+                Rémunération en droits d’auteur, régime des artistes-auteurs (art. L382-1 et suivants du Code de
+                la sécurité sociale). {mention ?? ''}
+              </Text>
+              <Text>
+                Cotisations et contributions sociales précomptées par le diffuseur et versées à l’Urssaf (taux
+                2026). La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont pris en
+                charge par l’État. En cas de dispense de précompte, seule la vieillesse plafonnée n’est pas
+                retenue.
+              </Text>
+              <Text>
+                Contribution diffuseur (1,1 %, soit {money(contributionDiffuseur(brut))}) à la charge de{' '}
+                {societe.name}, non déduite du net. Déclaration Urssaf : {trimestre.label}, avant le{' '}
+                {formatDate(trimestre.echeance)}.
+              </Text>
+            </>
           )}
           {!auteur && (
             <Text>

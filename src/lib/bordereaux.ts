@@ -8,12 +8,15 @@ import { activeBrandId } from '@/lib/brand/actif'
 import { champsManquants } from '@/lib/profil'
 import { generateAndStorePdf } from '@/lib/invoice/store'
 import type { Provider } from '@/lib/types'
+import { versementCeMois } from '@/lib/echeancier'
 
 export interface EnvoiBordereaux {
   bordereaux: number
   salaries: number
   promues: number
   montant: number
+  /** Tuteurs et coachs dont le mois est reporté au versement suivant. */
+  reportes: number
 }
 
 /**
@@ -167,7 +170,7 @@ export async function envoyerBordereaux(
   // ---- 2. Lignes à regrouper.
   const { data: lignes } = await db
     .from('inv_missions')
-    .select('id, provider_id, total_ht, provider:inv_providers(employment_type)')
+    .select('id, provider_id, total_ht, provider:inv_providers(employment_type, tags)')
     .eq('brand', ecole)
     .eq('status', 'approved')
     .is('invoice_id', null)
@@ -176,12 +179,19 @@ export async function envoyerBordereaux(
     .lte('start_date', cycle.periodEnd)
 
   const parPresta = new Map<string, { ids: string[]; total: number; employment: Employment }>()
+  // Tuteurs et coachs Medibox : pas de versement certains mois (novembre).
+  // Leurs lignes restent sans bordereau ; celui du mois suivant les reprend.
+  const reportes = new Set<string>()
   for (const l of (lignes ?? []) as unknown as {
     id: string
     provider_id: string
     total_ht: number
-    provider: { employment_type: Employment } | null
+    provider: { employment_type: Employment; tags: string[] | null } | null
   }[]) {
+    if (!versementCeMois(cycle.month, l.provider?.tags, ecole)) {
+      reportes.add(l.provider_id)
+      continue
+    }
     const cur = parPresta.get(l.provider_id) ?? {
       ids: [],
       total: 0,
@@ -314,5 +324,5 @@ export async function envoyerBordereaux(
     }
   }
 
-  return { bordereaux, salaries, promues: promues?.length ?? 0, montant: round2(montant) }
+  return { bordereaux, salaries, promues: promues?.length ?? 0, montant: round2(montant), reportes: reportes.size }
 }

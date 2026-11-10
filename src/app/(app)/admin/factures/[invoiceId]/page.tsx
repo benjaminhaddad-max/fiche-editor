@@ -12,6 +12,10 @@ import { isPennylaneConfigured, variableJetonPennylane } from '@/lib/pennylane/c
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Invoice, InvoiceLine } from '@/lib/types'
 import { markInvoicePaid, pushToPennylane } from '@/app/(app)/factures/actions'
+import { ajouterRegularisation, regenererPdf } from '@/app/(app)/admin/factures/correction-actions'
+import { Input } from '@/components/ui/Field'
+import { estAuteur, type Employment } from '@/lib/types'
+import { trimestreDe } from '@/lib/invoice/trimestre'
 
 export default async function AdminInvoicePage({
   params,
@@ -39,7 +43,7 @@ export default async function AdminInvoicePage({
       .order('sort_order'),
     supabase
       .from('inv_providers')
-      .select('id, legal_name, pennylane_supplier_id')
+      .select('id, legal_name, pennylane_supplier_id, employment_type')
       .eq('id', invoice.provider_id)
       .maybeSingle(),
   ])
@@ -48,6 +52,8 @@ export default async function AdminInvoicePage({
   const pennylaneReady = await isPennylaneConfigured()
   const variableJeton = await variableJetonPennylane()
   const compta = (await activeBrand()).comptabilite
+  const auteur = estAuteur((provider?.employment_type ?? null) as Employment | null)
+  const corrigeable = auteur && invoice.status !== 'paid' && invoice.pdf_source !== 'uploaded'
 
   return (
     <>
@@ -129,6 +135,60 @@ export default async function AdminInvoicePage({
         <Card className="mb-6 px-4 py-3 text-sm text-navy/80">
           Synchronisée dans Pennylane le {formatDate(invoice.pennylane_synced_at)} — facture
           d’achat n° {invoice.pennylane_invoice_id}.
+        </Card>
+      )}
+
+      {auteur && (
+        <Card className="mb-6 px-4 py-4 text-sm sm:px-5">
+          <p className="font-semibold text-navy">Note de droits d’auteur</p>
+          <p className="mt-1 text-xs text-muted">
+            Trimestre Urssaf : {trimestreDe(invoice.paid_at ?? invoice.issue_date).label}
+            {invoice.paid_at ? ' (date de versement)' : ' (provisoire : date de la note, tant qu’elle n’est pas payée)'}.
+            {' '}
+            <Link href="/admin/droits-auteur" className="font-medium underline">
+              Récapitulatif par trimestre
+            </Link>
+          </p>
+          {corrigeable ? (
+            <>
+              <form action={ajouterRegularisation} className="mt-3 grid gap-3 sm:grid-cols-[1fr_160px_auto] sm:items-end">
+                <input type="hidden" name="invoice_id" value={invoice.id} />
+                <Input
+                  name="libelle"
+                  label="Ligne de régularisation"
+                  placeholder="Ex. : séance du 12/10 oubliée, tarif corrigé…"
+                  required
+                />
+                <Input
+                  name="montant"
+                  label="Montant brut (€)"
+                  placeholder="-50 ou 120"
+                  inputMode="decimal"
+                  required
+                />
+                <SubmitButton variant="secondary" pendingLabel="Ajout…">
+                  Ajouter et refaire la note
+                </SubmitButton>
+              </form>
+              <p className="mt-2 text-xs text-muted">
+                En brut, positif ou négatif. Le précompte et le net sont recalculés, le PDF est refait ;
+                les lignes d’origine restent. Si la note est déjà en comptabilité, renvoyez-la ensuite.
+              </p>
+              <form action={regenererPdf} className="mt-3">
+                <input type="hidden" name="invoice_id" value={invoice.id} />
+                <SubmitButton size="sm" variant="secondary" pendingLabel="…">
+                  <RefreshCw size={14} />
+                  Refaire le PDF (après une correction de la fiche)
+                </SubmitButton>
+              </form>
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-muted">
+              {invoice.status === 'paid'
+                ? 'Note payée : elle ne se corrige plus. Un écart se règle par une nouvelle note.'
+                : 'PDF déposé par l’auteur : la correction passe par une nouvelle note de sa part.'}
+            </p>
+          )}
         </Card>
       )}
 

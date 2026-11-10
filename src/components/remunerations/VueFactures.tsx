@@ -36,6 +36,8 @@ interface Row {
   provider: { legal_name: string; user_id: string | null; employment_type: Employment } | null
   apporteur: { full_name: string } | null
   lignes: { total_ht: number; pay_basis: string | null }[]
+  /** Lignes de la facture : celles sans prestation sont des régularisations. */
+  lignesFacture: { total_ht: number; mission_id: string | null }[]
 }
 
 /**
@@ -83,7 +85,8 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
          pdf_source, channel, inbound_from, inbound_match, ai_check,
          provider:inv_providers(legal_name, user_id, employment_type),
          apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name),
-         lignes:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis)`
+         lignes:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis),
+         lignesFacture:inv_invoice_lines(total_ht, mission_id)`
       )
       .eq('brand', (await activeBrandId()))
       .order('issue_date', { ascending: false }),
@@ -101,7 +104,15 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     provider: r.provider?.legal_name ?? '—',
     sansCompte: !r.provider?.user_id,
     apportePar: r.apporteur?.full_name ?? null,
-    auteur: estAuteur(r.provider?.employment_type) ? netAuteur(r.lignes ?? []) : null,
+    auteur: estAuteur(r.provider?.employment_type)
+      ? netAuteur([
+          ...(r.lignes ?? []),
+          // Une régularisation ajoutée par l'administration est en brut.
+          ...(r.lignesFacture ?? [])
+            .filter((l) => !l.mission_id)
+            .map((l) => ({ total_ht: Number(l.total_ht), pay_basis: 'brut' })),
+        ])
+      : null,
   }))
 
   const marque = await activeBrand()

@@ -18,6 +18,7 @@ import { porterEcheance } from '@/app/(app)/missions/actions'
 import { echeancesProposees } from '@/lib/echeances'
 import { activeBrandId } from '@/lib/brand/actif'
 import { estAuteur, isSalaried } from '@/lib/types'
+import { moisDeVersement, versementCeMois } from '@/lib/echeancier'
 
 interface Ligne {
   id: string
@@ -28,7 +29,7 @@ interface Ligne {
   total_ht: number
   status: string
   statement_id: string | null
-  provider: { legal_name: string; employment_type: Employment } | null
+  provider: { legal_name: string; employment_type: Employment; tags: string[] | null } | null
   category: { name: string } | null
   manager: { full_name: string } | null
 }
@@ -47,17 +48,18 @@ export default async function BordereauxPage({
   const cycle = mois && /^\d{4}-\d{2}$/.test(mois) ? cycleForMonth(mois) : activeCycle(today)
   const envoye = today >= cycle.statementDate
   const db = createServiceClient()
+  const ecole = await activeBrandId()
 
   // Lignes du mois, tous statuts utiles : c'est la matière du bordereau.
   const { data: lData } = await db
     .from('inv_missions')
     .select(
       `id, provider_id, manager_id, detail, start_date, total_ht, status, statement_id,
-       provider:inv_providers(legal_name, employment_type),
+       provider:inv_providers(legal_name, employment_type, tags),
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
-    .eq('brand', (await activeBrandId()))
+    .eq('brand', ecole)
     .gte('start_date', cycle.periodStart)
     .lte('start_date', cycle.periodEnd)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])
@@ -90,6 +92,8 @@ export default async function BordereauxPage({
       salarie: boolean
       total: number
       auteur: boolean
+      /** Tuteur ou coach sans versement ce mois-ci : payé avec le mois suivant. */
+      reporte: boolean
       sienne: number
       enAttente: number
       lignes: LigneDetail[]
@@ -100,6 +104,7 @@ export default async function BordereauxPage({
       nom: l.provider?.legal_name ?? '—',
       salarie: isSalaried(l.provider?.employment_type),
       auteur: estAuteur(l.provider?.employment_type),
+      reporte: !versementCeMois(cycle.month, l.provider?.tags, ecole),
       total: 0,
       sienne: 0,
       enAttente: 0,
@@ -130,7 +135,9 @@ export default async function BordereauxPage({
     const s = bordereaux.get(id)?.invoice?.status
     return s && s !== 'issued'
   }).length
-  const independants = visibles.filter(([, v]) => !v.salarie)
+  const independants = visibles.filter(([, v]) => !v.salarie && !v.reporte)
+  const reportes = visibles.filter(([, v]) => v.reporte)
+  const versementReporte = cycleForMonth(moisDeVersement(cycle.month, ['tuteur'], ecole))
   const enAttente = visibles.reduce((n, [, v]) => n + v.enAttente, 0)
 
   // Les tuiles gardent le mois entier ; seule la liste suit la recherche.
@@ -242,6 +249,18 @@ export default async function BordereauxPage({
         </Card>
       )}
 
+      {reportes.length > 0 && (
+        /* Échéancier de Nolwenn : les tuteurs et coachs Medibox n'ont pas de
+           versement en novembre. Leurs lignes restent validées, sans
+           bordereau ; celui du mois suivant les reprend toutes. */
+        <p className="mb-4 rounded-lg border border-line bg-cream-muted px-4 py-2.5 text-xs text-navy/80">
+          Tuteurs et coachs : pas de versement pour {cycle.label}. Leurs prestations validées
+          ({reportes.length} personne{reportes.length > 1 ? 's' : ''}) partiront avec le bordereau de{' '}
+          {versementReporte.label}, payé le {formatDateLong(versementReporte.paymentDate)}. Les
+          professeurs restent payés ce mois-ci.
+        </p>
+      )}
+
       {visibles.length > 0 && (
         <Suspense fallback={null}>
           <RecherchePrestataire className="mb-4" />
@@ -293,7 +312,7 @@ export default async function BordereauxPage({
                   return (
                     <LigneBordereau
                       key={id}
-                      nom={v.nom}
+                      nom={v.reporte ? `${v.nom} — payé en ${versementReporte.label}` : v.nom}
                       salarie={v.salarie}
                       enAttente={v.enAttente}
                       total={st?.total_ht ?? v.total}
@@ -303,7 +322,7 @@ export default async function BordereauxPage({
                       facture={facture}
                       statementId={st?.id ?? null}
                       relanceCount={st?.reminder_count ?? 0}
-                      attendue={envoye && !v.salarie && (!facture || facture.status === 'issued')}
+                      attendue={envoye && !v.salarie && !v.reporte && (!facture || facture.status === 'issued')}
                       envoye={envoye}
                       objetMessage={`Bordereau de ${cycle.label}`}
                       relancer={relancer}
