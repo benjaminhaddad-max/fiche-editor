@@ -615,15 +615,34 @@ async function rapprocherSansPoussee(
   const centimes = (n: number) => Math.round(Number(n) * 100)
   const jour = (d: string) => new Date(`${d}T12:00:00Z`).getTime()
 
+  // Une facture réglée en comptabilité ne paie qu'une facture d'ici. Un
+  // prestataire au forfait envoie le même montant tous les mois : sans ce
+  // garde-fou, la facture d'octobre, déjà réglée et déjà rattachée à sa
+  // jumelle de septembre, faisait passer pour payée celle de novembre
+  // (Clara Vincent, FACT-2026-0003, rattachée au virement de FACT-2026-0002).
+  const { data: dejaPrises, error: errPrises } = await supabase
+    .from('inv_invoices')
+    .select('pennylane_invoice_id')
+    .not('pennylane_invoice_id', 'is', null)
+  if (errPrises) {
+    out.erreurs.push(`rapprochement suspendu : ${errPrises.message}`)
+    return
+  }
+  const prises = new Set(
+    ((dejaPrises ?? []) as { pennylane_invoice_id: number | string }[]).map((r) => String(r.pennylane_invoice_id))
+  )
+
   for (const f of attente) {
     const nom = f.provider?.legal_name ?? ''
     const trouvee = reglees.find(
       (c) =>
+        !prises.has(String(c.id)) &&
         centimes(Number(c.amount)) === centimes(f.total_ttc) &&
         Math.abs(jour(c.date) - jour(f.issue_date)) <= 60 * 864e5 &&
         memeNom(nom, c.supplier?.name ?? c.label ?? '')
     )
     if (!trouvee) continue
+    prises.add(String(trouvee.id))
 
     // On retient l'identifiant : la prochaine relecture passera par le
     // chemin direct, sans avoir à redeviner.
