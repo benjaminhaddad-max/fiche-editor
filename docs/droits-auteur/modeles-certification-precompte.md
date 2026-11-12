@@ -102,7 +102,7 @@ La note se termine, comme dans les anciens modèles, par : « Pour votre 1re ann
 1. **Ligne par ligne, puis somme.** Chaque montant est arrondi au centime, au demi-centime supérieur. Le total est la somme des montants arrondis, et le net vaut B − T. C'est ce que fait déjà `detailPrecompte()` dans l'application.
 2. **Brut fixé (cas courant).** On applique directement la règle 1.
 3. **Net fixé à l'avance.** Le brut théorique se calcule ainsi : B = Net / (1 − 0,1603), arrondi au centime. On recalcule ensuite les lignes avec la règle 1, puis on vérifie que B − T = Net. **Si l'écart n'est pas nul, on corrige B d'un ou deux centimes jusqu'à retomber exactement sur le net.** Ce cas est fréquent : en simulant tous les nets de 0,01 € à 3 000 €, la formule seule rate le net d'un centime (parfois deux) dans **53 %** des cas. Le taux effectif exact est d'ailleurs 16,03025 %, pas 16,03 %.
-4. **Plafond.** La vieillesse plafonnée ne porte que sur la part du brut annuel versé à l'auteur sous le plafond de la sécurité sociale. Le chiffre de 47 100 € des anciens modèles est le plafond 2025 ; le modèle imprime celui de l'année du versement. Aucun auteur Medibox n'en approche aujourd'hui, mais la règle doit être codée.
+4. **Plafond.** La vieillesse plafonnée ne porte que sur la part du brut annuel versé à l'auteur sous le plafond de la sécurité sociale. Le chiffre de 47 100 € des anciens modèles est le plafond 2025 ; celui de 2026 est de 48 060 € (arrêté du 22 décembre 2025). Le modèle imprime celui de l'année du versement. Aucun auteur Medibox n'en approche aujourd'hui, mais la règle doit être codée.
 
 ### Contrôle de calcul obligatoire – exemple de la demande (ancienne note du 01/10/2025)
 
@@ -282,3 +282,7 @@ La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclar
 ## 6. À faire valider par le comptable
 
 - 6,5 % sans CSG/CRDS pour le non-résident : règle à faire valider par le comptable.
+- Modèle 3 : la CSG et la CRDS ne s'appliquent pas à un non-résident fiscal qui reste affilié en France.
+- Arrondi : total = somme des lignes arrondies, et non calculé sur le taux global comme dans l'ancien document.
+- Plafond de la vieillesse plafonnée : celui de 2026, soit 48 060 € (arrêté du 22 décembre 2025), et non 47 100 €, qui est celui de 2025.
+- Le cas d'Aurore G. : sa situation réelle (affiliation et certificat de résidence fiscale) est à clarifier avant de lui appliquer le modèle 3 ou A1.
