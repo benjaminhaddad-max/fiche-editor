@@ -134,28 +134,59 @@ La contribution diffuseur est à la charge de Medibox. Elle n'est jamais déduit
 
 ## 3. MODÈLE 3 – Sans A1 : auteur non résident fiscal en France, affilié en France
 
-> ⚠️ **Modèle incomplet, à ne pas automatiser.** La demande reçue s'arrête au milieu du tableau des cotisations (« Vieillesse plafonnée | Brut × »). Et le complément de mission le dit lui-même : la documentation Urssaf ne donne pas le même traitement que l'ancien modèle. Rien ci-dessous ne doit servir avant l'avis du comptable (V-1).
+> Source : la version « sans A1 » du 31/10/2025. Nolwenn a précisé le 12/11 que la partie coupée de son message reprenait ce document. Le modèle est **complet sur la forme** : lignes, assiettes et taux viennent du PDF. Mais il **n'est pas encore à automatiser**, car son complément de mission dit lui-même que le traitement du non-résident fiscal est à faire vérifier par le comptable (V-1, I-13).
 
-**Champ d'application (selon la demande) :** artiste-auteur non domicilié fiscalement en France, qui reste affilié au régime français et dispose d'un certificat de résidence fiscale étranger.
+**Champ d'application :** artiste-auteur non domicilié fiscalement en France, qui reste affilié au régime français (pas de formulaire A1) et dispose d'un certificat de résidence fiscale étranger.
 
-### Ce qui est certain (commun aux autres modèles)
+### Ligne « Situation » (sous l'identification de l'auteur)
 
-- En-tête, identification de l'auteur, du diffuseur et de l'organisme : tronc commun du § 1.
-- Une ligne « Situation » : « Artiste-auteur non domicilié(e) fiscalement en France – certificat de résidence fiscale {{pays}} du {{date}}, valable pour {{année}} ».
-- Le brut HT, le total précompté, le net versé et la date du versement, avec les mêmes règles d'arrondi que le modèle 2.
-- La contribution diffuseur de 1,10 % reste due par Medibox. Les deux sources le disent : l'ancien modèle et la documentation Urssaf citée par Nolwenn.
+« Artiste-auteur non domicilié(e) fiscalement en France (certificat de résidence fiscale {{pays}} du {{date du certificat}}) – CSG et CRDS non applicables. »
 
-### Ce que proposait l'ancien document (version « sans A1 » du 31/10/2025), NON VALIDÉ
+Dans l'ancien document, la date du certificat ne figurait pas. Elle est ajoutée ici, comme dans le modèle A1.
 
-| Ligne | Traitement dans l'ancien document |
-|---|---|
-| Vieillesse plafonnée | précomptée à 6,15 % du brut |
-| CSG | 0,00 € – « Non applicable – non domiciliée fiscalement en France » |
-| CRDS | 0,00 € – même motif |
-| CFP | précomptée à 0,35 % du brut |
-| Montants pris en charge par l'État | 0,40 % + 0,75 %, comme le modèle 2 |
+### Bloc « Renseignements concernant la note de cession de droits »
 
-D'après la demande, la documentation Urssaf dit au contraire que **le précompte ne s'applique pas** quand l'auteur déclare ses revenus fiscalement à l'étranger. Le diffuseur déclare quand même les rémunérations et paie ses contributions. Les deux lectures s'excluent : le comptable doit trancher avant que l'on remplisse le tableau.
+| Ligne | Assiette | Taux | Montant |
+|---|---|---|---|
+| Montant de la rémunération brute hors TVA | | | **{{B}}** |
+| Cotisation vieillesse plafonnée précomptée (6,90 % du brut HT dans la limite du plafond annuel, dont 0,75 point pris en charge par l'État) | {{B}} | 6,15 % | arrondi(B × 6,15 %) |
+| CSG précomptée (9,20 % de 98,25 % du brut HT) – *Non applicable – artiste-auteur non domicilié(e) fiscalement en France* | – | – | 0,00 € |
+| CRDS précomptée (0,50 % de 98,25 % du brut HT) – *Non applicable – artiste-auteur non domicilié(e) fiscalement en France* | – | – | 0,00 € |
+| CFP précomptée (0,35 % du brut HT) | {{B}} | 0,35 % | arrondi(B × 0,35 %) |
+| **Total des cotisations précomptées** | | | **T = somme des 2 montants arrondis** |
+| **Rémunération brute HT minorée du total précompté** | | | **B − T** |
+
+### Bloc « Montants pris en charge par l'État », pour information
+
+Ces lignes sont identiques au modèle 2 et reprises du PDF : vieillesse déplafonnée à 0,40 % de B, part plafonnée à 0,75 % de B dans la limite du plafond, puis le total. Elles ne se déduisent pas du net.
+
+### Bloc « Montant net »
+
+**Montant de la rémunération nette hors TVA versée à l'artiste-auteur : B − T**
+
+### Note à l'artiste-auteur (texte de l'ancien document)
+
+> Vous êtes domicilié(e) fiscalement hors de France : la CSG et la CRDS ne sont pas précomptées sur votre rémunération. Faute de formulaire A1 attestant de votre affiliation à un régime de sécurité sociale d'un autre État membre, la cotisation d'assurance vieillesse et la contribution à la formation professionnelle restent précomptées et reversées à l'Urssaf Limousin. La certification de précompte, originale et signée du diffuseur, est un justificatif que vous devez conserver.
+
+### Contrôle sur l'exemple du PDF (brut 1 667,27 €)
+
+| Ligne | Calcul | Montant | PDF | |
+|---|---|---|---|---|
+| Vieillesse plafonnée | 1 667,27 × 6,15 % = 102,5371 | 102,54 | 102,54 | ✅ |
+| CFP | 1 667,27 × 0,35 % = 5,8354 | 5,84 | 5,84 | ✅ |
+| **Total** | 102,54 + 5,84 | **108,38** | 108,37 | ❌ écart d'un centime (I-3) |
+| **Net** | 1 667,27 − 108,38 | **1 558,89** | 1 558,90 | ❌ même écart |
+| État | 6,67 + 12,50 | 19,17 | 19,17 | ✅ |
+
+En taux global, 6,50 % donne pour un net fixé : B = Net / 0,935, puis la même correction au centime que dans le modèle 2. Pour un net de 1 400 €, cela donne B = 1 497,33 € (I-4).
+
+### Pour la comptabilité
+
+La contribution diffuseur de 1,10 % reste due par Medibox, comme dans le modèle 2. L'ancien document et la documentation Urssaf citée par Nolwenn sont d'accord sur ce point.
+
+### Contradiction à faire trancher (V-1)
+
+D'après le complément de mission, la documentation Urssaf dit que **le précompte ne s'applique pas** quand l'auteur déclare ses revenus fiscalement à l'étranger. Le diffuseur déclare quand même les rémunérations et paie ses contributions. Le modèle ci-dessus, tiré du PDF, précompte au contraire la vieillesse et la CFP. Les deux lectures s'excluent. Si le comptable suit l'Urssaf, le modèle 3 garde sa présentation mais toutes ses lignes passent à « – / – / 0,00 € », comme dans le modèle A1.
 
 ### À faire valider par le comptable (modèle 3)
 
@@ -163,32 +194,71 @@ D'après la demande, la documentation Urssaf dit au contraire que **le précompt
 - V-3 : faut-il afficher les montants pris en charge par l'État quand la CSG/CRDS n'est pas due ?
 - V-4 : quel justificatif exiger (certificat de résidence fiscale, attestation fiscale étrangère, formulaire de l'administration étrangère) et pour quelle durée de validité ?
 - Si le net est fixé (V-7) : avec quel taux recalcule-t-on le brut ? L'ancien document gardait le brut calculé à 16,03 % (1 667,27 €) tout en n'appliquant que 6,50 %.
-- Le texte de la « Note à l'artiste-auteur » de ce modèle.
+- La « Note à l'artiste-auteur » : elle affirme que la vieillesse et la CFP « restent précomptées » faute de A1, ce qui dépend directement de V-1.
+- Le libellé « d'un autre État membre » : il ne couvre pas un auteur résident hors de l'Union européenne. Que faire dans ce cas ?
 
 ---
 
 ## 4. MODÈLE A1 – Auteur affilié à un régime étranger (formulaire A1)
 
-> ⚠️ **Modèle partiel.** La partie de la demande consacrée au modèle A1 n'a pas été reçue. Ce qui suit vient de l'ancien document « avec A1 » du 31/10/2025, que Nolwenn a désigné comme référence de présentation. Les règles de fond sont à valider (V-5).
+> Source : la version « avec A1 » du 31/10/2025, que Nolwenn a désignée comme la référence de présentation. Elle a précisé le 12/11 que son message reprenait ce document. Le modèle est **complet sur la forme** : lignes, libellés et notes viennent du PDF. Les règles de fond restent à valider (V-5) avant de l'automatiser.
 
-### Ce qui est certain
+**Champ d'application :** artiste-auteur affilié à un régime de sécurité sociale d'un autre État membre, sur présentation d'un formulaire A1 en cours de validité, et non domicilié fiscalement en France.
 
-- Tronc commun du § 1.
-- Ligne « Situation » : « Artiste-auteur affilié(e) au régime de sécurité sociale {{pays}} – formulaire A1 n° {{numéro}} délivré par {{organisme émetteur}} ({{pays}}), valable du {{début}} au {{fin}} ».
-  - Dans l'ancien document, le numéro et les dates **étaient restés en blanc**. Le futur modèle refuse d'être généré sans eux (voir l'étude, contrôles bloquants).
-- Contrôle : la date du versement doit tomber dans la période de validité du A1.
-- La contribution diffuseur de 1,10 % reste due par Medibox, déclarée à l'Urssaf Limousin, et n'est pas déduite de l'auteur. L'ancien document le dit, et la demande demande de ne pas supposer que les obligations du diffuseur disparaissent.
-- Présentation : on garde le tableau complet des cotisations, chaque ligne à « – / – / 0,00 € », pour que le document reste comparable aux autres modèles.
+### En-tête (différent des modèles 2 et 3)
 
-### Paragraphe de l'ancien document, à faire valider tel quel
+- Titre : « ATTESTATION DE RÉMUNÉRATION – DROITS D'AUTEUR {{année}} » (et non « certification de précompte »).
+- Sous-titre : « Artiste-auteur affilié(e) à un régime de sécurité sociale étranger (formulaire A1) – sans précompte ».
+- Mêmes références d'articles que le tronc commun du § 1. Le reste de l'en-tête, l'identification, le diffuseur et l'organisme suivent aussi le § 1.
+
+### Lignes « Situation » (sous l'identification de l'auteur)
+
+- « Artiste-auteur affilié(e) au régime de sécurité sociale {{pays}} – formulaire A1 n° {{numéro}} délivré par {{organisme émetteur}} ({{pays}}), valable du {{début}} au {{fin}}. »
+- « Non domicilié(e) fiscalement en France – certificat de résidence fiscale {{pays}} du {{date du certificat}}. »
+
+Dans l'ancien document, le numéro, les dates du A1 et la date du certificat **étaient restés en blanc** (I-6). Le futur modèle refuse d'être généré sans eux (voir l'étude, contrôles bloquants). Autre contrôle : la date du versement doit tomber dans la période de validité du A1.
+
+### Paragraphe d'explication (texte de l'ancien document)
 
 > En application du règlement (CE) n° 883/2004 et sur présentation du formulaire A1, l'artiste-auteur relève de la législation de sécurité sociale {{pays}}. Aucune cotisation ni contribution sociale française n'est précomptée sur sa rémunération. La contribution diffuseur (1,1 %) reste due par MEDIBOX FRANCE et est déclarée à l'Urssaf Limousin ; elle n'est pas déduite de la rémunération de l'artiste-auteur.
+
+### Bloc « Renseignements concernant la note de cession de droits »
+
+On garde le tableau complet, chaque ligne à zéro, pour que le document reste comparable aux autres modèles.
+
+| Ligne | Assiette | Taux | Montant |
+|---|---|---|---|
+| Montant de la rémunération brute hors TVA | | | **{{B}}** |
+| Cotisation vieillesse plafonnée précomptée | – | – | 0,00 € |
+| CSG précomptée | – | – | 0,00 € |
+| CRDS précomptée | – | – | 0,00 € |
+| CFP précomptée | – | – | 0,00 € |
+| **Total des cotisations précomptées** | | | **0,00 €** |
+| **Rémunération brute HT minorée du total précompté** | | | **{{B}}** |
+
+### Bloc « Montants pris en charge par l'État », pour information
+
+Une seule ligne, reprise du PDF : « Néant – aucune cotisation française due », 0,00 €.
+
+### Bloc « Montant net »
+
+**Montant de la rémunération nette hors TVA versée à l'artiste-auteur : {{B}}** (le net est égal au brut).
+
+### Note à l'artiste-auteur (texte de l'ancien document)
+
+> Vous relevez de la sécurité sociale {{pays}} (formulaire A1) et êtes domicilié(e) fiscalement {{« en » ou « aux » + pays}}. Aucune cotisation ni contribution sociale française n'est prélevée sur votre rémunération. Il vous appartient de la déclarer auprès des organismes de sécurité sociale et de l'administration fiscale {{pays}}. Une copie du formulaire A1 et du certificat de résidence fiscale est conservée par le diffuseur.
+
+### Pour la comptabilité
+
+La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclarée à l'Urssaf Limousin, et n'est pas déduite de l'auteur. L'ancien document le dit, et la demande de Nolwenn demande de ne pas supposer que les obligations du diffuseur disparaissent.
 
 ### À faire valider par le comptable (modèle A1)
 
 - V-5 : un A1 valide écarte-t-il **toutes** les lignes, y compris la CSG/CRDS et la CFP ? Ou seulement les cotisations de sécurité sociale ? La réponse peut dépendre de la résidence fiscale.
 - V-5 bis : le titre. Les anciens documents l'appellent « Attestation » et non « Certification », car il n'y a pas de précompte. Le comptable confirme-t-il ce titre et les références (art. L. 382-5, R. 382-27) ?
-- Le texte de la « Note à l'artiste-auteur ». L'ancien texte affirme que l'auteur doit déclarer ses revenus à l'étranger : c'est un conseil fiscal, à valider ou à retirer.
+- La « Note à l'artiste-auteur » : elle dit à l'auteur qu'il lui appartient de déclarer sa rémunération à l'étranger. C'est un conseil fiscal, à valider ou à retirer.
+- V-3 : le bloc « État » à « Néant » est-il utile, ou faut-il le retirer de ce modèle ?
+- La contribution diffuseur de 1,1 % : est-elle bien due quand l'auteur relève d'un régime étranger ? L'ancien document l'affirme, rien d'autre ne le confirme.
 - Que faire d'un A1 sans résidence fiscale étrangère, c'est-à-dire un auteur domicilié en France mais affilié ailleurs ?
 
 ---
