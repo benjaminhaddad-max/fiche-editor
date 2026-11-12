@@ -1,8 +1,8 @@
 # Étude : profil prestataire et situation des artistes-auteurs dans Medibox Invoice
 
-Étude du 12/11/2026, faite à partir du complément de mission de Nolwenn. **Aucun code, aucune base et aucune donnée n'ont été modifiés.** Ce document est à valider (Ben, puis le comptable pour le § 8) avant tout développement.
+Étude du 12/11/2026, faite à partir du complément de mission de Nolwenn. **Aucun code, aucune base et aucune donnée n'ont été modifiés.** Ce document est à valider par Nolwenn avant tout développement.
 
-Les modèles de certification et la liste des questions au comptable (V-1 à V-10) se trouvent dans [modeles-certification-precompte.md](modeles-certification-precompte.md).
+Les trois modèles de certification (2, 3 et A1) se trouvent dans [modeles-certification-precompte.md](modeles-certification-precompte.md) et en Word dans `modeles-certification-precompte.docx`. Leurs règles sont celles de Nolwenn, déjà vues avec le comptable (12/11).
 
 ---
 
@@ -16,7 +16,7 @@ Tout le profil tient dans **une seule table, `inv_providers`** (`supabase/01_sch
 | Adresse | `address_line1/2`, `postal_code`, `city`, `country` (texte libre, « France » par défaut) | Oui, c'est l'adresse postale de la certification. **Mais ce n'est pas l'adresse de résidence fiscale** : on ne doit pas en déduire la résidence fiscale. |
 | Statut | `employment_type` (7 valeurs, dont `droits_auteur`, migration 43) | Oui, c'est la porte d'entrée : tout ce qui suit ne concerne que `droits_auteur`. |
 | Sécurité sociale | `social_security_number` (migration 41, interdit dans les listes et les emails) | Oui. **Mais `nirValide` (`src/lib/nir.ts:13`) n'accepte que les NIR commençant par 1 ou 2** : un numéro provisoire d'étranger serait refusé. |
-| Rémunération | `pay_basis` (brut/net), `pay_mode`, `pay_abatement` | Oui. `pay_basis` intervient dans le choix brut ou net contractuel (V-7). |
+| Rémunération | `pay_basis` (brut/net), `pay_mode`, `pay_abatement` | Oui. `pay_basis` intervient dans le choix brut ou net contractuel. |
 | Paiement | `iban`, `bic` (modifiables par un admin seulement) | Sert au virement. À retirer de la certification. |
 | Social (salariés) | `social_profile`, `silae_matricule`, `social_a_verifier`, dates d'entrée et de sortie | Non : réservé à la paie, à ne pas mélanger. |
 | Système | `onboarding_complete`, `tags`, `brand`, `notes` | `brand` limite le dispositif à Medibox. |
@@ -51,7 +51,7 @@ Principe : **ce que le prestataire déclare et ce que Medibox a vérifié resten
 | `fiscal_country` (code ISO) | Pays de résidence fiscale étranger | Non |
 | `fiscal_address` (facultatif) | Seulement si elle diffère de l'adresse postale | En partie : on réutilise l'adresse postale par défaut |
 | `social_country` (code ISO, « FR » par défaut) | Pays d'affiliation, à ne pas confondre avec la résidence fiscale | Non |
-| `foreign_social_id` | Numéro social étranger, si demandé (V-5) | Non |
+| `foreign_social_id` | Numéro social étranger, si demandé | Non |
 | `tax_regime_auteur` (TS / BNC / non renseigné) | Repérer une éventuelle dispense BNC | Non |
 | `usage_name` | Nom d'usage, l'une des mentions de la certification | Non : aujourd'hui imprimé « – » |
 
@@ -106,9 +106,9 @@ Côté admin, sur la fiche prestataire :
 | Situation | Ce que fait le prestataire | Ce que fait Medibox | Résultat |
 |---|---|---|---|
 | A. Résident fiscal en France, affilié en France (presque tous les auteurs) | Répond « oui / oui » une fois. **Aucune pièce demandée.** | Rien | Modèle 2 |
-| B. Non-résident fiscal, affilié en France | Répond « non », indique le pays, dépose le certificat | Vérifie la pièce et sa période | Modèle 3 **une fois validé par le comptable (V-1)**. En attendant, alerte admin et décision manuelle. |
-| C. Affilié à l'étranger avec un A1 | Dépose le A1 (et le certificat de résidence le cas échéant) | Vérifie le pays, l'émetteur et la période, et confirme qu'elle couvre la date du versement | Modèle A1 (V-5) |
-| D. Dispense de précompte (BNC) | Dépose l'attestation Urssaf de l'année | Vérifie l'année | **Pas de certification de précompte.** Note sans retenue et document à définir (V-6). |
+| B. Non-résident fiscal, affilié en France | Répond « non », indique le pays, dépose le certificat | Vérifie la pièce et sa période | Modèle 3 |
+| C. Affilié à l'étranger avec un A1 | Dépose le A1 (et le certificat de résidence le cas échéant) | Vérifie le pays, l'émetteur et la période, et confirme qu'elle couvre la date du versement | Modèle A1 |
+| D. Dispense de précompte (BNC) | Dépose l'attestation Urssaf de l'année | Vérifie l'année | **Pas de certification de précompte.** Note sans retenue ; document à remettre à préciser avec Nolwenn. |
 | E. Réponses incomplètes ou contradictoires (adresse aux Pays-Bas mais « résident français », A1 expiré…) | Reçoit une demande précise | Alerte sur la fiche et dans la liste des notes à vérifier | Aucun modèle automatique tant que l'admin n'a pas tranché |
 
 Ce qui ne change pas pour les prestataires qui ne sont pas auteurs : rien du tout. La carte ne s'affiche pas pour eux.
@@ -142,7 +142,7 @@ Les résidents français qui ont répondu « oui / oui » ne reçoivent plus rie
 3. Pas de génération si un champ obligatoire du modèle manque : n° du A1, dates, émetteur, NIR, adresse. C'est la fin des « ___/___/______ ».
 4. Pas de **mise en paiement** d'une note dont le modèle est indéterminé (situation E). La note reste « à vérifier ».
 5. Une note payée ne change jamais de modèle. Une correction passe par une régularisation, comme aujourd'hui avec `ajouterRegularisation`.
-6. Tant que le comptable n'a pas validé les modèles 3 et A1, ils restent désactivés : seul le modèle 2 peut être généré automatiquement.
+6. Les modèles 3 et A1 suivent les règles de Nolwenn, vues avec le comptable : ils peuvent être générés dès que la pièce est validée.
 
 ### Non bloquants (alertes)
 
@@ -160,29 +160,32 @@ L'évaluation se fait **à la date du versement**, uniquement sur des pièces va
 ```
 si employment_type ≠ droits_auteur ou marque ≠ Medibox   → hors dispositif (rien ne change)
 si dispense de précompte validée couvrant l'année        → « dispense » (pas de certification de précompte)
-sinon si A1 validé couvrant la date du versement          → modèle A1        [désactivé jusqu'à V-5]
-sinon si résidence fiscale étrangère validée              → modèle 3         [désactivé jusqu'à V-1]
+sinon si A1 validé couvrant la date du versement          → modèle A1
+sinon si résidence fiscale étrangère validée              → modèle 3
 sinon si déclaration « non résident » ou « affilié ailleurs » sans pièce validée
                                                            → indéterminé : alerte, décision admin
 sinon                                                      → modèle 2
 ```
 
-- L'ordre des règles (dispense, puis A1, puis non-résidence) est une proposition. **Le comptable doit le confirmer**, notamment pour un auteur à la fois dispensé et non résident.
+- L'ordre des règles (dispense, puis A1, puis non-résidence) est une proposition. **Nolwenn doit le confirmer**, notamment pour un auteur à la fois dispensé et non résident.
 - Correction manuelle : un admin seulement (pas un manager), avec un motif obligatoire. Elle est journalisée dans `inv_audit_log` **avec l'avant et l'après**, ce qui n'est pas le cas aujourd'hui.
 
 ---
 
-## 8. Points juridiques à faire valider par le comptable
+## 8. Points réglés et points encore ouverts
 
-Repris de la liste V-1 à V-10 des modèles. Les plus structurants :
+Réglés par Nolwenn le 12/11 (règles vues avec le comptable) :
 
-1. **V-1 : non-résident fiscal affilié en France.** L'ancien modèle précompte la vieillesse et la CFP. La documentation Urssaf citée par Nolwenn dit qu'il n'y a pas de précompte quand l'auteur déclare ses revenus à l'étranger. Rien n'est automatisé avant la réponse.
-2. **V-5 : effet d'un A1.** Quelles lignes tombent à 0 ? Le document s'appelle-t-il « attestation » ou « certification » ?
-3. **V-6 : dispense BNC et 1re année.** Quel justificatif, quel document remettre, quelle déclaration diffuseur ?
-4. **V-2 : taux et plafond 2026.** Les anciens documents impriment le plafond 2025 (47 100 €).
-5. **V-9 : lignes « déjà nettes ».** Dans l'application, une ligne `pay_basis = net` est versée telle quelle. Elle **n'a aucun précompte et n'entre pas dans l'assiette de la contribution diffuseur** du récapitulatif Urssaf (≈ 142 € de lignes nettes sur le T4 2026). À confirmer ou à corriger : faut-il remonter ces lignes en brut ?
-6. **V-7 : net contractuel.** Avec quel taux recalcule-t-on le brut quand le modèle n'est pas le 2 ?
-7. Durées de conservation des A1, des certificats de résidence et des certifications, et ce qu'on archive ou supprime quand l'auteur part.
+1. **Non-résident fiscal affilié en France (modèle 3)** : vieillesse et CFP précomptées, CSG et CRDS non applicables, comme dans l'ancien PDF.
+2. **A1 (modèle A1)** : aucune cotisation française, net = brut, titre « Attestation de rémunération ». La contribution diffuseur de 1,1 % reste due par Medibox.
+3. **Arrondi** : chaque ligne arrondie, total = somme des lignes.
+4. **Plafond** : celui de l'année du versement, imprimé par le modèle.
+
+Encore ouverts, à voir avec Nolwenn en même temps que cette étude :
+
+1. **Net fixé en modèle 3 ou A1** : brut recalculé avec le taux du modèle, ou brut à 16,03 % comme sur l'ancien PDF ? (seule question laissée dans les modèles)
+2. **Dispense BNC et 1re année** : quel justificatif et quel document remettre à l'auteur.
+3. **Lignes « déjà nettes »** : dans l'application, une ligne `pay_basis = net` est versée telle quelle. Elle **n'a aucun précompte et n'entre pas dans l'assiette de la contribution diffuseur** du récapitulatif Urssaf (≈ 142 € de lignes nettes sur le T4 2026). Faut-il remonter ces lignes en brut ?
 
 ---
 
@@ -258,5 +261,5 @@ Repris de la liste V-1 à V-10 des modèles. Les plus structurants :
 
    Rien d'autre ne change, et c'est utilisable tout de suite.
 2. Champs de déclaration, pièces et validation admin, sans effet sur le calcul.
-3. Règles de sélection et modèles 3, A1 et dispense, **activés un par un après la réponse du comptable**.
+3. Règles de sélection et modèles 3, A1 et dispense, **activés un par un après la validation de l'étude par Nolwenn**.
 4. Relances et alertes d'expiration.
