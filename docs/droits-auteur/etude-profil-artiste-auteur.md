@@ -180,12 +180,12 @@ Réglés par Nolwenn le 12/11 (règles vues avec le comptable) :
 2. **A1 (modèle A1)** : aucune cotisation française, net = brut, titre « Attestation de rémunération ». La contribution diffuseur de 1,1 % reste due par Medibox.
 3. **Arrondi** : chaque ligne arrondie, total = somme des lignes.
 4. **Plafond** : celui de l'année du versement, imprimé par le modèle.
+5. **Net fixé à l'avance** : le brut se calcule avec le taux du modèle de l'auteur (modèle 2 : 16,03 % ; modèle 3 : 6,5 %, soit 1 400 € net → 1 497,33 € brut ; A1 : brut = net). Le taux de 6,5 % sans CSG/CRDS pour le non-résident reste une règle à faire valider par le comptable.
 
 Encore ouverts, à voir avec Nolwenn en même temps que cette étude :
 
-1. **Net fixé en modèle 3 ou A1** : brut recalculé avec le taux du modèle, ou brut à 16,03 % comme sur l'ancien PDF ? (seule question laissée dans les modèles)
-2. **Dispense BNC et 1re année** : quel justificatif et quel document remettre à l'auteur.
-3. **Lignes « déjà nettes »** : dans l'application, une ligne `pay_basis = net` est versée telle quelle. Elle **n'a aucun précompte et n'entre pas dans l'assiette de la contribution diffuseur** du récapitulatif Urssaf (≈ 142 € de lignes nettes sur le T4 2026). Faut-il remonter ces lignes en brut ?
+1. **Dispense BNC et 1re année** : quel justificatif et quel document remettre à l'auteur.
+2. **Lignes « déjà nettes »** : dans l'application, une ligne `pay_basis = net` est versée telle quelle. Elle **n'a aucun précompte et n'entre pas dans l'assiette de la contribution diffuseur** du récapitulatif Urssaf (≈ 142 € de lignes nettes sur le T4 2026). Faut-il remonter ces lignes en brut ?
 
 ---
 

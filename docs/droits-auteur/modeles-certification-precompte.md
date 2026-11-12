@@ -178,7 +178,18 @@ Ces lignes sont identiques au modèle 2 et reprises du PDF : vieillesse déplafo
 | **Net** | 1 667,27 − 108,38 | **1 558,89** | 1 558,90 | corrigé, même règle |
 | État | 6,67 + 12,50 | 19,17 | 19,17 | ✅ |
 
-Net fixé à l'avance : voir la question pour Nolwenn (§ 6).
+### Net fixé à l'avance (règle de Nolwenn, 12/11)
+
+Le brut se calcule avec le taux de l'auteur, 6,50 %, et non 16,03 %, sinon le net versé dépasse le net convenu : **B = Net / (1 − 0,065)**, arrondi au centime. On recalcule ensuite les lignes et on vérifie que B − T = Net. Si l'écart n'est pas nul, on corrige B d'un centime. En simulant tous les nets de 0,01 € à 3 000 €, la formule seule rate le net d'un centime dans 23 % des cas, et un centime suffit toujours à corriger.
+
+| Exemple (net 1 400,00 €) | Calcul | Montant |
+|---|---|---|
+| Brut | 1 400,00 / 0,935 = 1 497,326 | **1 497,33** |
+| Vieillesse plafonnée | 1 497,33 × 6,15 % = 92,0858 | 92,09 |
+| CFP | 1 497,33 × 0,35 % = 5,2407 | 5,24 |
+| **Précompte** | 92,09 + 5,24 | **97,33** |
+| **Net** | 1 497,33 − 97,33 | **1 400,00** ✅ |
+| État (pour information) | 5,99 + 11,23 | 17,22 |
 
 ### Pour la comptabilité
 
@@ -236,6 +247,10 @@ Une seule ligne, reprise du PDF : « Néant – aucune cotisation française due
 
 > Vous relevez de la sécurité sociale {{pays}} (formulaire A1) et êtes domicilié(e) fiscalement {{« en » ou « aux » + pays}}. Aucune cotisation ni contribution sociale française n'est prélevée sur votre rémunération. Il vous appartient de la déclarer auprès des organismes de sécurité sociale et de l'administration fiscale {{pays}}. Une copie du formulaire A1 et du certificat de résidence fiscale est conservée par le diffuseur.
 
+### Net fixé à l'avance (règle de Nolwenn, 12/11)
+
+Brut = net. Pour un net de 1 400,00 €, le brut est de 1 400,00 €.
+
 ### Pour la comptabilité
 
 La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclarée à l'Urssaf Limousin, et n'est pas déduite de l'auteur. L'ancien document le dit, et la demande de Nolwenn demande de ne pas supposer que les obligations du diffuseur disparaissent.
@@ -250,7 +265,7 @@ La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclar
 | I-1 | Ancien format, deux notes | Mise en page abîmée : « € - » parasites après chaque montant, texte de l'activité dédoublé (« Activité Diffusion pédagogique d'oeuvre pédagogique »), double parenthèse « ((9,20 % », astérisques « ** » sans renvoi, « précomptées » au pluriel pour la CFPC, « deplafonnée » sans accent, « d''activité », virgules à la place des points dans la note. | Remplacé par le modèle 2 (demande de Nolwenn). |
 | I-2 | Ancien format | Bloc État : assiette affichée arrondie à l'euro (« 953 », « 1667 ») alors que le montant est calculé sur le brut exact. | Assiette au centime partout. |
 | I-3 | Version « sans A1 » | Total précompté affiché 108,37 €, alors que la somme des lignes arrondies (102,54 + 5,84) fait **108,38 €**. Le total a été calculé à 6,50 % sur le brut puis arrondi, et non additionné. Le net (1 558,90 €) est donc faux d'un centime selon la règle des autres documents (1 558,89 €). | Règle de Nolwenn : somme des lignes arrondies. Corrigé dans le modèle 3. |
-| I-4 | Version « sans A1 » | Le brut (1 667,27 €) avait été calculé à 16,03 % pour un net de 1 400 €, mais on n'a retenu que 6,50 %. Le net change donc (1 558,90 €) au lieu de rester à 1 400 €. Pour garder 1 400 € net avec 6,50 %, il aurait fallu un brut de 1 497,33 €. | Question pour Nolwenn (§ 6). |
+| I-4 | Version « sans A1 » | Le brut (1 667,27 €) avait été calculé à 16,03 % pour un net de 1 400 €, mais on n'a retenu que 6,50 %. Le net change donc (1 558,90 €) au lieu de rester à 1 400 €. Pour garder 1 400 € net avec 6,50 %, il aurait fallu un brut de 1 497,33 €. | Règle de Nolwenn : le brut se calcule avec le taux du modèle (6,50 % en modèle 3, brut = net en A1). |
 | I-5 | Trois versions de la même note (31/10/2025) | Trois traitements différents pour une même personne et un même versement : précompte complet, précompte partiel, aucun précompte. | Un seul modèle par versement, choisi selon des justificatifs vérifiés. C'est l'objet de l'étude. |
 | I-6 | Version « avec A1 » | N° du A1, dates de validité et date du certificat de résidence laissés en blanc (« ___/___/______ »). | Génération bloquée tant que ces champs manquent. |
 | I-7 | Tous | L'IBAN de l'auteur est imprimé sur la certification. Ce n'est pas une mention de l'arrêté et c'est une donnée bancaire. | Retiré. |
@@ -264,9 +279,6 @@ La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclar
 
 ---
 
-## 6. Question pour Nolwenn
+## 6. À faire valider par le comptable
 
-Un seul point n'est couvert ni par ses règles ni par les PDF : **quand le net est fixé à l'avance pour un auteur en modèle 3 ou A1, quel brut retient-on ?**
-
-- soit on recalcule le brut avec le taux du modèle : pour 1 400 € net, 1 497,33 € de brut en modèle 3 (6,50 %), 1 400,00 € en modèle A1 ;
-- soit on garde le brut calculé à 16,03 % (1 667,27 €), comme sur l'ancien PDF d'Aurore, et l'auteur touche plus que le net prévu (1 558,89 € en modèle 3, 1 667,27 € en A1).
+- 6,5 % sans CSG/CRDS pour le non-résident : règle à faire valider par le comptable.
