@@ -172,6 +172,11 @@ export interface AuteurPdf {
    * source », sans montant certifié ni engagement du diffuseur.
    */
   precompteNonRetenu?: boolean
+  /**
+   * Note déjà payée en net (option A, Nolwenn 13/11/2026) : la somme virée est
+   * le net, le brut en est remonté et le précompte est à la charge du diffuseur.
+   */
+  netVerse?: boolean
 }
 
 export function InvoiceDocument({

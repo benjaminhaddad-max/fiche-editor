@@ -77,6 +77,10 @@ async function auteurDe(
   }
   // Aperçu « non retenu » : chaque ligne est lue comme la somme versée.
   if (apercu === 'non_retenu') for (const l of prestations) l.pay_basis = 'brut'
+  // Aperçu « net versé » (option A, Nolwenn 13/11) : chaque ligne est la
+  // somme virée, donc un net ; le brut est remonté et le précompte est dû par
+  // Medibox.
+  if (apercu === 'net_verse') for (const l of prestations) l.pay_basis = 'net'
   // Le modèle de certification de l'auteur (2, 3 ou 4), à la date de la note.
   // Un modèle 4 sans A1 valide retombe sur le 3, avec une mention visible.
   // Une fois le PDF créé, le modèle est figé sur la note (migration 54).
@@ -95,6 +99,7 @@ async function auteurDe(
     },
     ...netAuteur(prestations, effectif.modele),
   }
+  if (apercu === 'net_verse') return { ...calcul, netVerse: true }
   if (apercu !== 'non_retenu') return calcul
   return { ...calcul, net: calcul.brutTotal, precompte: [], precompteNonRetenu: true }
 }
@@ -102,8 +107,10 @@ async function auteurDe(
 /**
  * `non_retenu` : note payée sans précompte (avant le 13/11/2026). Brut = net
  * = somme versée, mention « non retenu à la source ».
+ * `net_verse` : note payée en net (option A) : net = somme virée, brut
+ * remonté selon le modèle, précompte à la charge de Medibox.
  */
-export type ModeApercu = 'non_retenu'
+export type ModeApercu = 'non_retenu' | 'net_verse'
 
 /**
  * Rend le PDF d'une note SANS le stocker ni toucher la base, avec au besoin

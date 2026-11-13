@@ -216,7 +216,11 @@ export function MediboxInvoiceDocument({
 
         <View style={s.bas}>
           <View style={s.conditions}>
-            <Text style={s.note}>Échéance : {formatDate(invoice.due_date)}</Text>
+            {auteur?.netVerse && invoice.paid_at ? (
+              <Text style={s.note}>Versé le : {formatDate(invoice.paid_at)}</Text>
+            ) : (
+              <Text style={s.note}>Échéance : {formatDate(invoice.due_date)}</Text>
+            )}
             <Text style={s.note}>Règlement : virement bancaire en euros</Text>
             {issuer.iban && <Text style={s.note}>IBAN : {issuer.iban}</Text>}
             {issuer.bic && <Text style={s.note}>BIC : {issuer.bic}</Text>}
@@ -255,7 +259,7 @@ export function MediboxInvoiceDocument({
                   ))
                 )}
                 <View style={s.totalFinal}>
-                  <Text style={s.totalFinalTexte}>{auteur.precompteNonRetenu ? 'NET VERSÉ' : 'NET À PAYER'}</Text>
+                  <Text style={s.totalFinalTexte}>{auteur.precompteNonRetenu || auteur.netVerse ? 'NET VERSÉ' : 'NET À PAYER'}</Text>
                   <Text style={s.totalFinalTexte}>{auteur.net === null ? 'à vérifier' : money(auteur.net)}</Text>
                 </View>
               </>
@@ -299,6 +303,13 @@ export function MediboxInvoiceDocument({
                 sécurité sociale). Ce document certifie le précompte ; il n’est pas une facture et ne comporte
                 pas de TVA.
               </Text>
+              {auteur.netVerse && (
+                <Text>
+                  La somme versée à l’auteur{invoice.paid_at ? ` le ${formatDate(invoice.paid_at)}` : ''} est le
+                  net. Le brut en est déduit ; le précompte est à la charge de {societe.name}, qui le verse à
+                  l’Urssaf.
+                </Text>
+              )}
               {auteur.modele === 4 ? (
                 <Text>
                   Auteur affilié à la sécurité sociale d’un autre État par un formulaire A1 en cours de
