@@ -49,7 +49,11 @@ export async function loadInvoiceForRender(
  * net à lui virer. Lus sur la fiche et les prestations au moment du rendu :
  * l'instantané de l'émetteur ne les porte pas.
  */
-async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Promise<AuteurPdf | undefined> {
+async function auteurDe(
+  invoice: Invoice,
+  lignesFacture: InvoiceLine[] = [],
+  apercu?: ModeApercu
+): Promise<AuteurPdf | undefined> {
   const supabase = createServiceClient()
   const { data: fiche } = await supabase
     .from('inv_providers')
@@ -71,11 +75,13 @@ async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Pr
   for (const l of lignesFacture) {
     if (!l.mission_id) prestations.push({ id: l.id, total_ht: Number(l.total_ht), pay_basis: 'brut' })
   }
+  // Aperçu « non retenu » : chaque ligne est lue comme la somme versée.
+  if (apercu === 'non_retenu') for (const l of prestations) l.pay_basis = 'brut'
   // Le modèle de certification de l'auteur (2, 3 ou 4), à la date de la note.
   // Un modèle 4 sans A1 valide retombe sur le 3, avec une mention visible.
   // Une fois le PDF créé, le modèle est figé sur la note (migration 54).
   const effectif = modeleDeLaNote(invoice, fiche)
-  return {
+  const calcul: AuteurPdf = {
     secu: (fiche?.social_security_number as string | null)?.trim() || null,
     naissance: (fiche?.birth_date as string | null) ?? null,
     bases: Object.fromEntries(prestations.map((l) => [l.id, l.pay_basis])),
@@ -89,18 +95,30 @@ async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Pr
     },
     ...netAuteur(prestations, effectif.modele),
   }
+  if (apercu !== 'non_retenu') return calcul
+  return { ...calcul, net: calcul.brutTotal, precompte: [], precompteNonRetenu: true }
 }
+
+/**
+ * `non_retenu` : note payée sans précompte (avant le 13/11/2026). Brut = net
+ * = somme versée, mention « non retenu à la source ».
+ */
+export type ModeApercu = 'non_retenu'
 
 /**
  * Rend le PDF d'une note SANS le stocker ni toucher la base, avec au besoin
  * un autre numéro. Sert à préparer un renvoi (renumérotation des notes DA du
- * 13/11/2026) pour relecture avant tout changement.
+ * 13/11/2026) pour relecture avant tout changement. Voir `ModeApercu`.
  */
-export async function renderInvoicePdfApercu(invoiceId: string, numero?: string): Promise<Buffer> {
+export async function renderInvoicePdfApercu(
+  invoiceId: string,
+  numero?: string,
+  apercu?: ModeApercu
+): Promise<Buffer> {
   const loaded = await loadInvoiceForRender(invoiceId)
   if (!loaded) throw new Error('Facture introuvable.')
   const invoice = numero ? { ...loaded.invoice, number: numero } : loaded.invoice
-  const auteur = await auteurDe(invoice, loaded.lines)
+  const auteur = await auteurDe(invoice, loaded.lines, apercu)
   return renderInvoicePdf(invoice, loaded.lines, auteur)
 }
 

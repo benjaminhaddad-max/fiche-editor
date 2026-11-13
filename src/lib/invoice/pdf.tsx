@@ -166,6 +166,12 @@ export interface AuteurPdf {
   paysResidence: string | null
   /** Le justificatif A1 de la fiche, pour le modèle 4. */
   a1: { numero: string | null; emetteur: string | null; debut: string | null; fin: string | null }
+  /**
+   * Note déjà payée sans retenue (notes d'avant le 13/11/2026) : la note dit ce
+   * qui s'est passé. Brut = net = somme versée, précompte « non retenu à la
+   * source », sans montant certifié ni engagement du diffuseur.
+   */
+  precompteNonRetenu?: boolean
 }
 
 export function InvoiceDocument({

@@ -123,7 +123,11 @@ export function MediboxInvoiceDocument({
         <View style={s.haut}>
           <View>
             <Text style={s.titre}>
-              {auteur ? 'Note de droits d’auteur – Certification de précompte' : `FACTURE N° ${invoice.number}`}
+              {auteur
+                ? auteur.precompteNonRetenu
+                  ? 'Note de droits d’auteur'
+                  : 'Note de droits d’auteur – Certification de précompte'
+                : `FACTURE N° ${invoice.number}`}
             </Text>
             {auteur && <Text style={s.sousTitre}>N° {invoice.number}</Text>}
             <View style={s.bandeau} />
@@ -231,7 +235,12 @@ export function MediboxInvoiceDocument({
                     <Text style={s.retenue}>{money(auteur.brutDeduit)}</Text>
                   </View>
                 )}
-                {auteur.modele === 4 ? (
+                {auteur.precompteNonRetenu ? (
+                  <View style={s.totalRang}>
+                    <Text style={s.retenue}>Précompte : non retenu à la source</Text>
+                    <Text>—</Text>
+                  </View>
+                ) : auteur.modele === 4 ? (
                   <View style={s.totalRang}>
                     <Text style={s.retenue}>Précompte : aucun (A1 valide), brut = net</Text>
                     <Text>{money(0)}</Text>
@@ -246,7 +255,7 @@ export function MediboxInvoiceDocument({
                   ))
                 )}
                 <View style={s.totalFinal}>
-                  <Text style={s.totalFinalTexte}>NET À PAYER</Text>
+                  <Text style={s.totalFinalTexte}>{auteur.precompteNonRetenu ? 'NET VERSÉ' : 'NET À PAYER'}</Text>
                   <Text style={s.totalFinalTexte}>{auteur.net === null ? 'à vérifier' : money(auteur.net)}</Text>
                 </View>
               </>
@@ -271,7 +280,19 @@ export function MediboxInvoiceDocument({
 
         <View style={s.mentions}>
           {!auteur && mention && <Text>{mention}</Text>}
-          {auteur && (
+          {auteur?.precompteNonRetenu && (
+            <>
+              <Text>
+                Note de droits d’auteur, régime des artistes-auteurs (art. L382-1 et suivants du Code de la
+                sécurité sociale). Elle n’est pas une facture et ne comporte pas de TVA.
+              </Text>
+              <Text>
+                Précompte non retenu à la source sur cette note : la somme indiquée a été versée en totalité à
+                l’auteur{invoice.paid_at ? ` le ${formatDate(invoice.paid_at)}` : ''}.
+              </Text>
+            </>
+          )}
+          {auteur && !auteur.precompteNonRetenu && (
             <>
               <Text>
                 Note de droits d’auteur, régime des artistes-auteurs (art. L382-1 et suivants du Code de la
