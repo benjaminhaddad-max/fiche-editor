@@ -19,7 +19,8 @@ import {
 import { getInvoicePdf, loadInvoiceForRender } from '@/lib/invoice/store'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ibanValide, normaliserIban } from '@/lib/iban'
-import { societeDe, type InvoiceLine } from '@/lib/types'
+import { societeDe, type AiCheck, type InvoiceLine } from '@/lib/types'
+import { MOTIF_ECART_BLOQUE, aVerifier } from '@/lib/invoice/ecart'
 import { activeBrand, activeBrandId, sousMarque } from '@/lib/brand/actif'
 import { BRANDS, estSiretMaison, normalizeBrandId } from '@/lib/brand/config'
 
@@ -248,6 +249,11 @@ async function envoyerFacture(invoiceId: string): Promise<SyncResult> {
     if (!loaded) throw new PennylaneError('Facture introuvable.')
     const { invoice, lines } = loaded
 
+    // Écart de montant non validé : rien ne part en comptabilité.
+    if (aVerifier(invoice)) {
+      return { ok: false, error: MOTIF_ECART_BLOQUE }
+    }
+
     // Une école sans comptabilité n'a rien à faire dans un Pennylane : le
     // simple fait d'essayer y crée le fournisseur. On lit l'école de la
     // facture, pas celle du déploiement.
@@ -464,14 +470,17 @@ export async function pousserEnAttente(max = 40): Promise<RetourEnvois> {
   const db = createServiceClient()
   const { data } = await db
     .from('inv_invoices')
-    .select('id, number')
+    .select('id, number, ai_check, ecart_valide_at')
     .eq('brand', (await activeBrandId()))
     .in('status', ['sent', 'validated'])
     .neq('pennylane_status', 'synced')
     .order('issue_date')
     .limit(max)
 
-  for (const f of (data ?? []) as { id: string; number: string }[]) {
+  for (const f of (data ?? []) as unknown as { id: string; number: string; ai_check: AiCheck | null; ecart_valide_at: string | null }[]) {
+    // Écart de montant non validé : la facture attend un administrateur, elle
+    // n'est ni validée ni poussée en comptabilité toute seule.
+    if (aVerifier(f)) continue
     out.tentees++
     // L'envoi vaut vérification : on ne pousse que ce qu'on accepte de payer.
     await db
@@ -530,7 +539,7 @@ export async function rafraichirPaiements(): Promise<RetourPaiements> {
   const supabase = createServiceClient()
   const { data } = await supabase
     .from('inv_invoices')
-    .select('id, number, pennylane_invoice_id, provider:inv_providers(legal_name)')
+    .select('id, number, pennylane_invoice_id, ai_check, ecart_valide_at, provider:inv_providers(legal_name)')
     .eq('brand', (await activeBrandId()))
     .eq('pennylane_status', 'synced')
     .not('pennylane_invoice_id', 'is', null)
@@ -541,9 +550,17 @@ export async function rafraichirPaiements(): Promise<RetourPaiements> {
     id: string
     number: string
     pennylane_invoice_id: number
+    ai_check: AiCheck | null
+    ecart_valide_at: string | null
     provider: { legal_name: string } | null
   }[]) {
     out.verifiees++
+    // Écart non validé : on ne marque pas payée, même si la comptabilité dit
+    // l'avoir réglée. On le signale pour qu'un administrateur tranche.
+    if (aVerifier(f)) {
+      out.erreurs.push(`${f.number} : écart de montant à vérifier, non marquée payée`)
+      continue
+    }
     try {
       const etat = await getSupplierInvoice(Number(f.pennylane_invoice_id))
       const reste = Number(etat.remaining_amount_with_tax ?? '0')
@@ -586,7 +603,7 @@ async function rapprocherSansPoussee(
 ): Promise<void> {
   const { data } = await supabase
     .from('inv_invoices')
-    .select('id, number, issue_date, total_ttc, provider:inv_providers(legal_name)')
+    .select('id, number, issue_date, total_ttc, ai_check, ecart_valide_at, provider:inv_providers(legal_name)')
     .eq('brand', (await activeBrandId()))
     .in('status', ['sent', 'validated'])
     .is('pennylane_invoice_id', null)
@@ -597,6 +614,8 @@ async function rapprocherSansPoussee(
     number: string
     issue_date: string
     total_ttc: number
+    ai_check: AiCheck | null
+    ecart_valide_at: string | null
     provider: { legal_name: string } | null
   }[]
   if (attente.length === 0) return
@@ -633,6 +652,7 @@ async function rapprocherSansPoussee(
   )
 
   for (const f of attente) {
+    if (aVerifier(f)) continue
     const nom = f.provider?.legal_name ?? ''
     const trouvee = reglees.find(
       (c) =>

@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { BRANDS, marqueFacturable, normalizeBrandId } from '@/lib/brand'
 import { renderInvoicePdf, type AuteurPdf } from '@/lib/invoice/pdf'
-import { netAuteur } from '@/lib/invoice/net-auteur'
+import { modeleEffectif, netAuteur } from '@/lib/invoice/net-auteur'
 import { estAuteur, type Employment, type Invoice, type InvoiceLine } from '@/lib/types'
 
 export const INVOICE_BUCKET = 'invoices'
@@ -53,7 +53,9 @@ async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Pr
   const supabase = createServiceClient()
   const { data: fiche } = await supabase
     .from('inv_providers')
-    .select('employment_type, social_security_number, birth_date')
+    .select(
+      'employment_type, social_security_number, birth_date, da_model, tax_residence_country, a1_number, a1_issuer, a1_start, a1_end'
+    )
     .eq('id', invoice.provider_id)
     .maybeSingle()
   if (!estAuteur(fiche?.employment_type as Employment | undefined)) return undefined
@@ -69,11 +71,22 @@ async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Pr
   for (const l of lignesFacture) {
     if (!l.mission_id) prestations.push({ id: l.id, total_ht: Number(l.total_ht), pay_basis: 'brut' })
   }
+  // Le modèle de certification de l'auteur (2, 3 ou 4), à la date de la note.
+  // Un modèle 4 sans A1 valide retombe sur le 3, avec une mention visible.
+  const effectif = modeleEffectif(fiche, invoice.issue_date)
   return {
     secu: (fiche?.social_security_number as string | null)?.trim() || null,
     naissance: (fiche?.birth_date as string | null) ?? null,
     bases: Object.fromEntries(prestations.map((l) => [l.id, l.pay_basis])),
-    ...netAuteur(prestations),
+    mentionRepli: effectif.mention,
+    paysResidence: (fiche?.tax_residence_country as string | null)?.trim() || null,
+    a1: {
+      numero: (fiche?.a1_number as string | null)?.trim() || null,
+      emetteur: (fiche?.a1_issuer as string | null)?.trim() || null,
+      debut: (fiche?.a1_start as string | null) ?? null,
+      fin: (fiche?.a1_end as string | null) ?? null,
+    },
+    ...netAuteur(prestations, effectif.modele),
   }
 }
 

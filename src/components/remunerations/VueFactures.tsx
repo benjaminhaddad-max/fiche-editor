@@ -10,7 +10,7 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
 import { money } from '@/lib/format'
 import { chercherDoublons } from '@/lib/invoice/doublons'
-import { netAuteur } from '@/lib/invoice/net-auteur'
+import { modeleEffectif, netAuteur, type ProfilDA } from '@/lib/invoice/net-auteur'
 import { facturesBloquees } from '@/lib/invoice/bloquees'
 import { FacturesBloquees } from '@/components/validation/FacturesBloquees'
 import { getManagers } from '@/lib/queries'
@@ -33,7 +33,8 @@ interface Row {
   inbound_from: string | null
   inbound_match: string | null
   ai_check: AiCheck | null
-  provider: { legal_name: string; user_id: string | null; employment_type: Employment } | null
+  ecart_valide_at: string | null
+  provider: ({ legal_name: string; user_id: string | null; employment_type: Employment } & ProfilDA) | null
   apporteur: { full_name: string } | null
   lignes: { total_ht: number; pay_basis: string | null }[]
   /** Lignes de la facture : celles sans prestation sont des régularisations. */
@@ -82,8 +83,8 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
       .from('inv_invoices')
       .select(
         `id, number, status, kind, issue_date, subtotal_ht, total_ttc, pennylane_status, pennylane_error,
-         pdf_source, channel, inbound_from, inbound_match, ai_check,
-         provider:inv_providers(legal_name, user_id, employment_type),
+         pdf_source, channel, inbound_from, inbound_match, ai_check, ecart_valide_at,
+         provider:inv_providers(legal_name, user_id, employment_type, da_model, a1_number, a1_start, a1_end),
          apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name),
          lignes:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis),
          lignesFacture:inv_invoice_lines(total_ht, mission_id)`
@@ -111,7 +112,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
           ...(r.lignesFacture ?? [])
             .filter((l) => !l.mission_id)
             .map((l) => ({ total_ht: Number(l.total_ht), pay_basis: 'brut' })),
-        ])
+        ], modeleEffectif(r.provider, r.issue_date).modele)
       : null,
   }))
 

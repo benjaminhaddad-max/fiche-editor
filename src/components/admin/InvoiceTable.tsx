@@ -13,6 +13,7 @@ import {
   type LotResultat,
 } from '@/app/(app)/admin/factures/actions'
 import { formatDate, money } from '@/lib/format'
+import { aUnEcart, aVerifier } from '@/lib/invoice/ecart'
 import type { NetAuteur } from '@/lib/invoice/net-auteur'
 import type { AiCheck, InvoiceStatus, PennylaneStatus } from '@/lib/types'
 
@@ -29,6 +30,8 @@ export interface AdminInvoiceRow {
   pdf_source: string
   channel: string | null
   ai_check: AiCheck | null
+  /** Date à laquelle un administrateur a validé l'écart de montant, s'il y en a un. */
+  ecart_valide_at?: string | null
   provider: string
   sansCompte: boolean
   apportePar: string | null
@@ -40,7 +43,16 @@ type Geste = 'pennylane' | 'payer'
 
 /** Où en est une facture, et ce qui la fera avancer. */
 function ETAPE(r: AdminInvoiceRow, compta: boolean): { titre: string; suite: string } {
-  if (r.status === 'paid') return { titre: 'Payée', suite: 'Rien à faire.' }
+  // Un écart de montant non validé passe avant tout : ni paiement ni envoi en
+  // comptabilité tant qu'un administrateur ne l'a pas levé.
+  if (aVerifier(r)) {
+    return r.status === 'paid'
+      ? { titre: 'Payée', suite: 'Écart de montant jamais validé : à contrôler.' }
+      : { titre: 'À vérifier', suite: 'Écart de montant : à valider sur la page de la facture avant tout paiement.' }
+  }
+  if (r.status === 'paid') {
+    return aUnEcart(r) ? { titre: 'Payée', suite: 'Écart de montant validé.' } : { titre: 'Payée', suite: 'Réglée.' }
+  }
   if (r.status === 'issued') return { titre: 'En attente de son PDF', suite: 'Le prestataire doit le déposer.' }
   if (!compta) {
     return r.status === 'sent'
@@ -191,10 +203,12 @@ export function InvoiceTable({
                         <p className="mt-0.5 text-amber-800/80">Vérifiez qu’il ne s’agit pas de la même prestation.</p>
                       </div>
                     ) : null}
-                    {r.ai_check?.matches === false && (
+                    {aUnEcart(r) && (
                       <p className="mt-1 flex items-start gap-1 text-xs text-amber-700">
                         <AlertTriangle size={12} className="mt-px shrink-0" />
-                        {r.ai_check.message}
+                        {r.ai_check?.message ??
+                          `Le montant lu (${money(r.ai_check?.read_ht)}) diffère du montant prévu (${money(r.ai_check?.expected_ht)}).`}
+                        {r.ecart_valide_at ? ' Écart validé par un administrateur.' : ''}
                       </p>
                     )}
                     {refus === r.id && (

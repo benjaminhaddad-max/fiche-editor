@@ -172,6 +172,14 @@ export interface Provider {
    * liste, ni dans un export général, ni dans un email.
    */
   social_security_number: string | null
+  /** Modèle de certification de précompte (2, 3 ou 4). Nul = 2. Lire par `modeleEffectif`. */
+  da_model?: string | null
+  tax_residence_country?: string | null
+  a1_number?: string | null
+  a1_issuer?: string | null
+  a1_start?: string | null
+  a1_end?: string | null
+  da_profile_status?: string | null
   /** Pourcentage retiré du montant convenu, du fait des charges du contrat. */
   pay_abatement: number
   /** Base convenue — brut ou net. Lire par `baseDeRemuneration`. */
@@ -314,6 +322,10 @@ export interface Invoice {
   category_id: string | null
   description: string | null
   ai_check: AiCheck | null
+  /** Écart de montant validé par un administrateur : quand, par qui, pourquoi. */
+  ecart_valide_at?: string | null
+  ecart_valide_by?: string | null
+  ecart_motif?: string | null
   channel: string | null
   issue_date: string
   due_date: string

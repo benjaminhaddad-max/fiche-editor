@@ -14,7 +14,7 @@ import { ImportFactureRetard } from '@/components/missions/ImportFactureRetard'
 import type { DeclarationResult, ImportResult, LigneImportee } from '@/app/(app)/declarations/actions'
 import type { Employment, PayBasis, Pole, PricingType } from '@/lib/types'
 import { estAuteur, isSalaried } from '@/lib/types'
-import { PRECOMPTE_AFFICHE, netAuteur } from '@/lib/invoice/net-auteur'
+import { tauxAffiche, netAuteur, type ModeleDA } from '@/lib/invoice/net-auteur'
 
 export interface DeclCategory {
   id: string
@@ -66,6 +66,8 @@ interface Props {
   defaultManagerId?: string | null
   defaultPole?: Pole
   employment?: Employment
+  /** Le modèle de précompte de l'auteur qui déclare (2 par défaut). */
+  modeleDA?: ModeleDA
   /** La base convenue sur sa fiche, pour un salarié qui déclare lui-même. */
   base?: PayBasis | null
   /** Ce que le contrat paie déjà, et qu'il ne faut donc pas redéclarer. */
@@ -259,7 +261,7 @@ export function DeclarationForm(props: Props) {
   // l'administration (netAuteur), pour que les deux chiffres ne divergent
   // jamais. Indicatif : le taux reste à confirmer par la comptabilité.
   const auteur = estAuteur(employment)
-  const netEstime = (brut: number) => netAuteur([{ total_ht: brut, pay_basis: 'brut' }]).net
+  const netEstime = (brut: number) => netAuteur([{ total_ht: brut, pay_basis: 'brut' }], props.modeleDA ?? 2).net
 
   const parPole = useMemo(() => {
     const g = new Map<Pole, DeclCategory[]>()
@@ -775,7 +777,7 @@ export function DeclarationForm(props: Props) {
               ) : auteur ? (
                 <span className="ml-2 text-xs font-normal text-muted">
                   brut, soit {money(netEstime(total) ?? 0)} net estimé après le précompte de{' '}
-                  {PRECOMPTE_AFFICHE} (montant indicatif)
+                  {tauxAffiche(props.modeleDA ?? 2)} (montant indicatif)
                 </span>
               ) : sansTva ? (
                 <span className="ml-2 text-xs font-normal text-muted">

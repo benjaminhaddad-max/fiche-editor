@@ -38,7 +38,7 @@ export function ProviderAdminForm({
             name="invoice_prefix"
             label="Préfixe de numérotation"
             defaultValue={provider.invoice_prefix}
-            hint={`Prochaine facture : ${provider.invoice_prefix}-${new Date().getFullYear()}-${String(provider.next_invoice_seq).padStart(4, '0')}`}
+            hint={provider.employment_type === 'droits_auteur' ? 'Notes de droits d’auteur : numérotées DA-AAAA-NNNN, une suite par société (ce préfixe ne sert pas).' : `Prochaine facture : ${provider.invoice_prefix}-${new Date().getFullYear()}-${String(provider.next_invoice_seq).padStart(4, '0')}`}
             error={e.invoice_prefix}
             required
           />

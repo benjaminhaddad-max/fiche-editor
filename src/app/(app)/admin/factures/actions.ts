@@ -9,6 +9,8 @@ import { activeBrand } from '@/lib/brand/actif'
 import { rafraichirPaiements, syncInvoiceToPennylane } from '@/lib/invoice/pennylane'
 import { isPennylaneConfigured, setSupplierInvoicePaymentStatus } from '@/lib/pennylane/client'
 import { enregistrerFactureDiverse } from '@/lib/invoice/misc'
+import { facturesAVerifier } from '@/lib/invoice/ecart-db'
+import { MOTIF_ECART_BLOQUE } from '@/lib/invoice/ecart'
 import { cycleForDate, todayParis } from '@/lib/cycle'
 import { relancerDeclarations } from '@/lib/relances'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -42,7 +44,14 @@ export async function envoyerPennylane(_prev: LotResultat | null, fd: FormData):
   const user = await requireRole('admin')
   const db = createServiceClient()
   const out: LotResultat = { ok: 0, erreurs: [] }
-  const liste = ids(fd)
+  // Une facture « À vérifier » (écart de montant non validé) ne part pas.
+  const demandees = ids(fd)
+  const bloquees = await facturesAVerifier(demandees)
+  const liste = demandees.filter((id) => !bloquees.has(id))
+  if (bloquees.size) {
+    const { data: numeros } = await db.from('inv_invoices').select('number').in('id', [...bloquees])
+    for (const n of (numeros ?? []) as { number: string }[]) out.erreurs.push({ numero: n.number, message: MOTIF_ECART_BLOQUE })
+  }
   if (liste.length) {
     await db
       .from('inv_invoices')
@@ -82,7 +91,9 @@ export async function envoyerPennylane(_prev: LotResultat | null, fd: FormData):
 
 export async function marquerPayees(fd: FormData): Promise<void> {
   const user = await requireRole('admin')
-  const liste = ids(fd)
+  // Une facture « À vérifier » (écart de montant non validé) ne passe pas à payée.
+  const bloquees = await facturesAVerifier(ids(fd))
+  const liste = ids(fd).filter((id) => !bloquees.has(id))
   if (!liste.length) return
   const db = createServiceClient()
   const { data: majs } = await db
@@ -105,6 +116,38 @@ export async function marquerPayees(fd: FormData): Promise<void> {
   }
 
   for (const id of liste) await logAudit(null, { actorId: user.id, entityType: 'invoice', entityId: id, action: 'mark_paid' })
+  rafraichir()
+}
+
+/**
+ * Lever l'écart entre le montant facturé et le montant prévu.
+ *
+ * Seul un administrateur le peut, avec un motif écrit (obligatoire) : la
+ * validation est tracée dans la facture et dans le journal. Elle ne vaut que
+ * pour le document contrôlé : un nouveau PDF redéclenche le contrôle.
+ */
+export async function validerEcart(fd: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const id = String(fd.get('invoice_id') ?? '')
+  const motif = String(fd.get('motif') ?? '').trim()
+  if (!id || motif.length < 5) return
+  const db = createServiceClient()
+  const { data: avant } = await db.from('inv_invoices').select('ai_check, subtotal_ht').eq('id', id).maybeSingle()
+  const { data: maj } = await db
+    .from('inv_invoices')
+    .update({ ecart_valide_at: new Date().toISOString(), ecart_valide_by: user.id, ecart_motif: motif })
+    .eq('id', id)
+    .is('ecart_valide_at', null)
+    .select('id')
+  if (maj?.length) {
+    await logAudit(null, {
+      actorId: user.id,
+      entityType: 'invoice',
+      entityId: id,
+      action: 'validate_ecart',
+      payload: { motif, controle: avant?.ai_check ?? null, attendu: avant?.subtotal_ht ?? null },
+    })
+  }
   rafraichir()
 }
 

@@ -8,7 +8,7 @@ const source = readFileSync(new URL('./net-auteur.ts', import.meta.url), 'utf8')
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 })
-const { netAuteur, detailPrecompte, PRECOMPTE_AFFICHE } = await import(
+const { netAuteur, detailPrecompte, PRECOMPTE_AFFICHE, brutPourNet, modeleEffectif, tauxAffiche } = await import(
   `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
 )
 
@@ -25,12 +25,18 @@ test('1 000 € brut donnent 839,70 € net, comme la calculette de la SGDL', ()
   assert.equal(netAuteur([brut(1000)]).net, 839.7)
 })
 
-test('une ligne déjà nette ne repasse pas au précompte : Agathe', () => {
-  assert.equal(netAuteur([brut(317), net(54)]).net, 320.18)
+test('un net fixé est remonté au brut : Agathe (317 brut + 54 net)', () => {
+  const r = netAuteur([brut(317), net(54)])
+  // 317 brut -> 266,18 net ; 54 net fixé -> 64,31 brut ; le net total est 320,18
+  assert.equal(r.net, 320.18)
+  assert.equal(r.brutDeduit, 64.31)
+  assert.equal(r.brutTotal, 381.31)
 })
 
-test('une ligne nette ne perd rien : Marie', () => {
-  assert.equal(netAuteur([net(89)]).net, 89)
+test('un net fixé garde son net : Marie (89 net)', () => {
+  const r = netAuteur([net(89)])
+  assert.equal(r.net, 89)
+  assert.equal(r.brutTotal, 105.99)
 })
 
 test('le précompte porte sur le brut de la facture entière : Kevin', () => {
@@ -67,4 +73,83 @@ test('net estimé : un très gros brut ne dérive pas', () => {
 
 test('net estimé : un brut nul donne zéro, pas une erreur', () => {
   assert.equal(estime(0), 0)
+})
+
+const somme = (r) => Math.round(r.precompte.reduce((t, l) => t + l.montant, 0) * 100) / 100
+
+test('modèle 2 : 952,72 brut donnent 800,00 net, retenues 58,59 + 86,12 + 4,68 + 3,33', () => {
+  const r = netAuteur([brut(952.72)], 2)
+  assert.deepEqual(r.precompte.map((l) => l.montant), [58.59, 86.12, 4.68, 3.33])
+  assert.equal(somme(r), 152.72)
+  assert.equal(r.net, 800)
+})
+
+test('modèle 2 : 1 400 net fixé donnent 1 667,27 brut', () => {
+  const r = netAuteur([net(1400)], 2)
+  assert.equal(r.brutTotal, 1667.27)
+  assert.equal(r.net, 1400)
+  assert.equal(somme(r), 267.27)
+})
+
+test('modèle 3 : 6,5 % sans CSG ni CRDS, 1 400 net donnent 1 497,33 brut', () => {
+  assert.equal(tauxAffiche(3), '6,5 %')
+  const r = netAuteur([net(1400)], 3)
+  assert.equal(r.brutTotal, 1497.33)
+  assert.equal(somme(r), 97.33)
+  assert.equal(r.net, 1400)
+  assert.deepEqual(r.precompte.map((l) => l.libelle), ['Vieillesse plafonnée', 'Formation professionnelle'])
+})
+
+test('modèle 3 : 1 400 brut donnent 1 309,00 net', () => {
+  assert.equal(netAuteur([brut(1400)], 3).net, 1309)
+})
+
+test('modèle 4 : le brut est égal au net, sans retenue', () => {
+  const r = netAuteur([brut(1400)], 4)
+  assert.equal(r.net, 1400)
+  assert.deepEqual(r.precompte, [])
+  const n = netAuteur([net(1400)], 4)
+  assert.equal(n.brutTotal, 1400)
+  assert.equal(n.net, 1400)
+})
+
+test('la contribution du diffuseur reste due en modèle 4 : 1,1 %', () => {
+  assert.equal(netAuteur([brut(1400)], 4).contributionDiffuseur, 15.4)
+})
+
+test('remonter au brut retombe sur le net au centime, pour tous les modèles', () => {
+  for (const m of [2, 3]) {
+    for (let n = 1; n <= 3000; n += 7.13) {
+      const v = Math.round(n * 100) / 100
+      const r = netAuteur([net(v)], m)
+      assert.equal(r.net, v)
+      assert.equal(Math.round((r.brutTotal - somme(r)) * 100) / 100, v)
+      assert.ok(Math.abs(r.brutTotal - brutPourNet(v, m).brut) < 0.005)
+    }
+  }
+})
+
+test('modèle effectif : sans fiche ou modèle 1 ou 2, c\'est le 2', () => {
+  assert.equal(modeleEffectif(null).modele, 2)
+  assert.equal(modeleEffectif({ da_model: '1' }).modele, 2)
+  assert.equal(modeleEffectif({ da_model: '2' }).modele, 2)
+  assert.equal(modeleEffectif({ da_model: '3' }).modele, 3)
+})
+
+test('modèle 4 sans A1 valide : repli sur le 3 avec la mention', () => {
+  const sans = modeleEffectif({ da_model: '4' }, '2026-11-13')
+  assert.equal(sans.modele, 3)
+  assert.equal(sans.repli, true)
+  assert.equal(sans.mention, 'A1 absent ou expiré : modèle 3 appliqué')
+  const expire = modeleEffectif(
+    { da_model: '4', a1_number: 'X', a1_start: '2024-01-01', a1_end: '2025-12-31' },
+    '2026-11-13',
+  )
+  assert.equal(expire.modele, 3)
+  const valide = modeleEffectif(
+    { da_model: '4', a1_number: 'X', a1_start: '2026-01-01', a1_end: '2026-12-31' },
+    '2026-11-13',
+  )
+  assert.equal(valide.modele, 4)
+  assert.equal(valide.repli, false)
 })

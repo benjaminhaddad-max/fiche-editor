@@ -1,10 +1,10 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { formatDate, money } from '@/lib/format'
-import { LIGNES_PRECOMPTE } from '@/lib/invoice/net-auteur'
+import { lignesPrecompte, tauxAffiche } from '@/lib/invoice/net-auteur'
 import { BRANDS } from '@/lib/brand/config'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 import type { AuteurPdf } from '@/lib/invoice/pdf'
-import { contributionDiffuseur, trimestreDe } from '@/lib/invoice/trimestre'
+import { trimestreDe } from '@/lib/invoice/trimestre'
 
 /**
  * La facture Medibox, sur le modèle que Nolwenn a fourni.
@@ -20,8 +20,12 @@ import { contributionDiffuseur, trimestreDe } from '@/lib/invoice/trimestre'
  *  - l'auto-entrepreneur facture une prestation : le total est un montant
  *    HT, ou TTC s'il a de la TVA, jamais un « net » — ses cotisations ne
  *    regardent pas la facture ;
- *  - l'auteur est payé en droits : brut, précompte, puis net à payer, avec
- *    son numéro de sécurité sociale que Nolwenn reporte à l'Urssaf.
+ *  - l'auteur est payé en droits : c'est une « Note de droits d'auteur –
+ *    Certification de précompte » (jamais une facture, sans TVA) : brut,
+ *    précompte, puis net à payer, avec son numéro de sécurité sociale que
+ *    Nolwenn reporte à l'Urssaf. Son contenu suit le modèle de l'auteur :
+ *    2 (résident fiscal en France), 3 (non-résident, affilié en France) ou
+ *    4 (formulaire A1 valide : aucun précompte).
  */
 const p = BRANDS.medibox.palette
 
@@ -56,6 +60,9 @@ const s = StyleSheet.create({
   totalFinal: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, paddingVertical: 6, paddingHorizontal: 6, backgroundColor: p.dark, color: '#ffffff' },
   totalFinalTexte: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#ffffff' },
   note: { color: '#4a4560', lineHeight: 1.5, marginTop: 2 },
+  cadre: { marginBottom: 14, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: p.light, borderLeftWidth: 2, borderLeftColor: p.accent },
+  cadreTitre: { fontFamily: 'Helvetica-Bold', fontSize: 9 },
+  alerte: { marginTop: 3, fontFamily: 'Helvetica-Bold', color: '#B45309' },
   mentions: { marginTop: 22, fontSize: 7.5, color: '#6b6585', lineHeight: 1.45 },
   merci: { marginTop: 18, textAlign: 'center', color: p.accent, fontFamily: 'Helvetica-Bold' },
   pied: { position: 'absolute', bottom: 24, left: 40, right: 40, textAlign: 'center', fontSize: 7, color: '#8B82A6' },
@@ -74,9 +81,16 @@ function Info({ label, value }: { label: string; value: string | null | undefine
 const pourcent = (t: number) => `${(Math.round(t * 10000) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} %`
 
 /** « CSG 9,20 % sur 98,25 % du brut » : ce que Nolwenn reporte à l'Urssaf. */
-const LIBELLES_PRECOMPTE = LIGNES_PRECOMPTE.map(
-  (l) => `${l.libelle} ${pourcent(l.taux)}${l.assiette < 1 ? ` sur ${pourcent(l.assiette)} du brut` : ''}`
-)
+const libellesPrecompte = (modele: 2 | 3 | 4) =>
+  lignesPrecompte(modele).map(
+    (l) => `${l.libelle} ${pourcent(l.taux)}${l.assiette < 1 ? ` sur ${pourcent(l.assiette)} du brut` : ''}`
+  )
+
+const INTITULE_MODELE = {
+  2: 'Modèle 2 : auteur résident fiscal en France',
+  3: 'Modèle 3 : auteur non-résident fiscal, affilié à la sécurité sociale française',
+  4: 'Modèle 4 : auteur affilié à la sécurité sociale d’un autre État (formulaire A1)',
+} as const
 
 export function MediboxInvoiceDocument({
   invoice,
@@ -91,14 +105,17 @@ export function MediboxInvoiceDocument({
   const societe = societeDe(invoice.brand)
   const tva = issuer.vat_regime === 'normal'
   const mention = mentionTva(issuer.vat_regime)
-  const brut = Number(invoice.subtotal_ht)
+  // Le brut d'une note de droits d'auteur est celui du calcul (les lignes à net
+  // fixé sont remontées au brut) ; pour une facture, c'est le sous-total.
+  const brut = auteur ? auteur.brutTotal : Number(invoice.subtotal_ht)
+  const libelles = auteur ? libellesPrecompte(auteur.modele) : []
   // Le précompte se déclare au trimestre du versement ; tant que la note
   // n'est pas payée, celui de sa date.
   const trimestre = trimestreDe(invoice.paid_at ?? invoice.issue_date)
 
   return (
     <Document
-      title={`${auteur ? 'Relevé de droits d’auteur' : 'Facture'} ${invoice.number}`}
+      title={`${auteur ? 'Note de droits d’auteur' : 'Facture'} ${invoice.number}`}
       author={issuer.legal_name}
       subject={`${invoice.number} — ${societe.name}`}
     >
@@ -106,9 +123,9 @@ export function MediboxInvoiceDocument({
         <View style={s.haut}>
           <View>
             <Text style={s.titre}>
-              {auteur ? `RELEVÉ PAIEMENT N° ${invoice.number}` : `FACTURE N° ${invoice.number}`}
+              {auteur ? 'Note de droits d’auteur – Certification de précompte' : `FACTURE N° ${invoice.number}`}
             </Text>
-            {auteur && <Text style={s.sousTitre}>NOTE DE DROITS D’AUTEUR</Text>}
+            {auteur && <Text style={s.sousTitre}>N° {invoice.number}</Text>}
             <View style={s.bandeau} />
             <Text style={s.date}>Date : {formatDate(invoice.issue_date)}</Text>
             {auteur && invoice.period_start && invoice.period_end && (
@@ -134,6 +151,7 @@ export function MediboxInvoiceDocument({
               <>
                 <Info label="Date de naissance :" value={auteur.naissance ? formatDate(auteur.naissance) : null} />
                 <Info label="N° de sécurité sociale :" value={auteur.secu} />
+                <Info label="Résidence fiscale :" value={auteur.paysResidence} />
               </>
             ) : (
               <>
@@ -154,12 +172,27 @@ export function MediboxInvoiceDocument({
           </View>
         </View>
 
+        {auteur && (
+          <View style={s.cadre}>
+            <Text style={s.cadreTitre}>{INTITULE_MODELE[auteur.modele]}</Text>
+            {auteur.modele === 4 && (
+              <Text style={s.note}>
+                Formulaire A1 n° {auteur.a1.numero ?? '—'}
+                {auteur.a1.emetteur ? `, délivré par ${auteur.a1.emetteur}` : ''}
+                {auteur.a1.debut ? `, valable du ${formatDate(auteur.a1.debut)}` : ''}
+                {auteur.a1.fin ? ` au ${formatDate(auteur.a1.fin)}` : ''}.
+              </Text>
+            )}
+            {auteur.mentionRepli && <Text style={s.alerte}>{auteur.mentionRepli}</Text>}
+          </View>
+        )}
+
         <View style={s.tete}>
           <Text style={[s.teteTexte, s.cActivite]}>Activité</Text>
           <Text style={[s.teteTexte, s.cDesc]}>Description</Text>
           <Text style={[s.teteTexte, s.cUnit]}>Montant unitaire</Text>
           <Text style={[s.teteTexte, s.cQte]}>Quantité</Text>
-          <Text style={[s.teteTexte, s.cMontant]}>{auteur ? 'Montant brut' : 'Montant total'}</Text>
+          <Text style={[s.teteTexte, s.cMontant]}>{auteur ? 'Montant' : 'Montant total'}</Text>
         </View>
         {lines.map((line) => {
           return (
@@ -168,6 +201,7 @@ export function MediboxInvoiceDocument({
               <Text style={s.cDesc}>
                 {line.description}
                 {line.period_label ? ` (${line.period_label})` : ''}
+                {auteur && line.mission_id && auteur.bases[line.mission_id] === 'net' ? ' (net convenu)' : ''}
               </Text>
               <Text style={s.cUnit}>{money(line.unit_amount_ht)}</Text>
               <Text style={s.cQte}>{Number(line.quantity)}</Text>
@@ -191,19 +225,26 @@ export function MediboxInvoiceDocument({
                   <Text>Montant brut</Text>
                   <Text>{money(brut)}</Text>
                 </View>
-                {auteur.brutSoumis < brut && (
+                {auteur.brutDeduit > 0 && (
                   <View style={s.totalRang}>
-                    <Text style={s.retenue}>dont soumis au précompte</Text>
-                    <Text style={s.retenue}>{money(auteur.brutSoumis)}</Text>
+                    <Text style={s.retenue}>dont remonté au brut depuis un net convenu</Text>
+                    <Text style={s.retenue}>{money(auteur.brutDeduit)}</Text>
                   </View>
                 )}
-                {auteur.precompte.map((l, i) => (
-                  <View key={l.libelle} style={s.totalRang}>
-                    <Text style={s.retenue}>{LIBELLES_PRECOMPTE[i]}</Text>
-                    {/* Helvetica n'a pas le signe moins typographique : il disparaissait. */}
-                    <Text>- {money(l.montant)}</Text>
+                {auteur.modele === 4 ? (
+                  <View style={s.totalRang}>
+                    <Text style={s.retenue}>Précompte : aucun (A1 valide), brut = net</Text>
+                    <Text>{money(0)}</Text>
                   </View>
-                ))}
+                ) : (
+                  auteur.precompte.map((l, i) => (
+                    <View key={l.libelle} style={s.totalRang}>
+                      <Text style={s.retenue}>{libelles[i]}</Text>
+                      {/* Helvetica n'a pas le signe moins typographique : il disparaissait. */}
+                      <Text>- {money(l.montant)}</Text>
+                    </View>
+                  ))
+                )}
                 <View style={s.totalFinal}>
                   <Text style={s.totalFinalTexte}>NET À PAYER</Text>
                   <Text style={s.totalFinalTexte}>{auteur.net === null ? 'à vérifier' : money(auteur.net)}</Text>
@@ -233,17 +274,26 @@ export function MediboxInvoiceDocument({
           {auteur && (
             <>
               <Text>
-                Rémunération en droits d’auteur, régime des artistes-auteurs (art. L382-1 et suivants du Code de
-                la sécurité sociale). {mention ?? ''}
+                Note de droits d’auteur, régime des artistes-auteurs (art. L382-1 et suivants du Code de la
+                sécurité sociale). Ce document certifie le précompte ; il n’est pas une facture et ne comporte
+                pas de TVA.
               </Text>
+              {auteur.modele === 4 ? (
+                <Text>
+                  Auteur affilié à la sécurité sociale d’un autre État par un formulaire A1 en cours de
+                  validité : aucune cotisation ni contribution n’est précomptée en France. Le brut est égal
+                  au net.
+                </Text>
+              ) : (
+                <Text>
+                  Cotisations précomptées par le diffuseur et versées à l’Urssaf (taux 2026, {tauxAffiche(auteur.modele)}
+                  du brut). La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont
+                  pris en charge par l’État.
+                  {auteur.modele === 3 ? ' Auteur non-résident fiscal : ni CSG ni CRDS.' : ''}
+                </Text>
+              )}
               <Text>
-                Cotisations et contributions sociales précomptées par le diffuseur et versées à l’Urssaf (taux
-                2026). La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont pris en
-                charge par l’État. En cas de dispense de précompte, seule la vieillesse plafonnée n’est pas
-                retenue.
-              </Text>
-              <Text>
-                Contribution diffuseur (1,1 %, soit {money(contributionDiffuseur(brut))}) à la charge de{' '}
+                Contribution diffuseur (1,1 %, soit {money(auteur.contributionDiffuseur)}) à la charge de{' '}
                 {societe.name}, non déduite du net. Déclaration Urssaf : {trimestre.label}, avant le{' '}
                 {formatDate(trimestre.echeance)}.
               </Text>

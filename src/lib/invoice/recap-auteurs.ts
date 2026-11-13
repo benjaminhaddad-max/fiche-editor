@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { activeBrandId } from '@/lib/brand/actif'
-import { detailPrecompte, netAuteur } from '@/lib/invoice/net-auteur'
-import { contributionDiffuseur, trimestreDe, type Trimestre } from '@/lib/invoice/trimestre'
+import { lignesPrecompte, modeleEffectif, netAuteur, type ProfilDA } from '@/lib/invoice/net-auteur'
+import { trimestreDe, type Trimestre } from '@/lib/invoice/trimestre'
 import { round2 } from '@/lib/format'
 
 /**
@@ -38,7 +38,7 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
     .from('inv_invoices')
     .select(
       `id, number, status, issue_date, paid_at, subtotal_ht,
-       provider:inv_providers!inner(legal_name, employment_type, social_security_number),
+       provider:inv_providers!inner(legal_name, employment_type, social_security_number, da_model, a1_number, a1_start, a1_end),
        missions:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis),
        lignes:inv_invoice_lines(total_ht, mission_id)`
     )
@@ -54,7 +54,7 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
     issue_date: string
     paid_at: string | null
     subtotal_ht: number
-    provider: { legal_name: string; social_security_number: string | null } | null
+    provider: ({ legal_name: string; social_security_number: string | null } & ProfilDA) | null
     missions: { total_ht: number; pay_basis: string | null }[]
     lignes: { total_ht: number; mission_id: string | null }[]
   }
@@ -62,13 +62,20 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
   return ((data ?? []) as unknown as Row[])
     .map((r) => {
       const date = (r.paid_at ?? r.issue_date).slice(0, 10)
+      // Le modèle de l'auteur (2, 3 ou 4) à la date de la note.
+      const modele = modeleEffectif(r.provider, r.issue_date.slice(0, 10)).modele
       const calc = netAuteur([
         ...(r.missions ?? []),
         ...(r.lignes ?? [])
           .filter((l) => !l.mission_id)
           .map((l) => ({ total_ht: Number(l.total_ht), pay_basis: 'brut' })),
-      ])
-      const precompte = detailPrecompte(calc.brutSoumis).map((l) => ({ libelle: l.libelle, montant: l.montant }))
+      ], modele)
+      // Toujours les quatre lignes du modèle 2 (zéro quand le modèle n'en a pas) :
+      // les colonnes de l'export restent alignées d'une note à l'autre.
+      const precompte = lignesPrecompte(2).map((l) => ({
+        libelle: l.libelle,
+        montant: calc.precompte.find((x) => x.libelle === l.libelle)?.montant ?? 0,
+      }))
       return {
         id: r.id,
         numero: r.number,
@@ -78,11 +85,11 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
         payee: r.status === 'paid',
         statut: r.status,
         trimestre: trimestreDe(date),
-        brut: round2(Number(r.subtotal_ht)),
+        brut: calc.brutTotal,
         precompte,
         totalPrecompte: round2(precompte.reduce((s, l) => s + l.montant, 0)),
         net: calc.net,
-        contribution: contributionDiffuseur(calc.brutSoumis),
+        contribution: calc.contributionDiffuseur,
       }
     })
     .filter((n) => n.trimestre.annee === annee)

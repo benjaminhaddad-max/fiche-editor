@@ -14,6 +14,7 @@ import { syncInvoiceToPennylane } from '@/lib/invoice/pennylane'
 import { notifyInvoiceReceived } from '@/lib/email/notify'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { controlerMontant } from '@/lib/invoice/controle'
+import { facturesAVerifier } from '@/lib/invoice/ecart-db'
 import { isSalaried } from '@/lib/types'
 
 export interface InvoiceActionResult {
@@ -253,7 +254,12 @@ export async function uploadInvoicePdf(
   // Contrôle par lecture du PDF : un montant différent de ce qui a été
   // validé est signalé au prestataire AVANT de partir chez Diploma Santé.
   const controle = await controlerMontant(bytes, Number(invoice.subtotal_ht))
-  await createServiceClient().from('inv_invoices').update({ ai_check: controle }).eq('id', invoiceId)
+  // Un nouveau PDF, un nouveau contrôle : la validation d'un écart précédent
+  // ne vaut plus pour ce document.
+  await createServiceClient()
+    .from('inv_invoices')
+    .update({ ai_check: controle, ecart_valide_at: null, ecart_valide_by: null, ecart_motif: null })
+    .eq('id', invoiceId)
 
   revalidatePath(`/factures/${invoiceId}`)
   if (controle.matches === false) {
@@ -322,6 +328,10 @@ export async function markInvoicePaid(formData: FormData): Promise<void> {
   const id = String(formData.get('invoice_id') ?? '')
   if (!id) return
 
+  // Écart de montant non validé : pas de paiement. Il se lève sur la page de
+  // la facture (validerEcart), avec un motif qui reste dans le journal.
+  if ((await facturesAVerifier([id])).has(id)) return
+
   const supabase = await createServerSupabase()
   await supabase
     .from('inv_invoices')
@@ -344,6 +354,10 @@ export async function pushToPennylane(formData: FormData): Promise<void> {
   const user = await requireRole('admin')
   const id = String(formData.get('invoice_id') ?? '')
   if (!id) return
+
+  // syncInvoiceToPennylane refuse déjà une facture « À vérifier » ; on
+  // coupe avant, sans rien écrire au journal.
+  if ((await facturesAVerifier([id])).has(id)) return
 
   const result = await syncInvoiceToPennylane(id)
 

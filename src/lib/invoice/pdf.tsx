@@ -11,7 +11,7 @@ import { PRICING_UNIT } from '@/lib/labels'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 import { normalizeBrandId } from '@/lib/brand/config'
 import { MediboxInvoiceDocument } from '@/lib/invoice/pdf-medibox'
-import { PRECOMPTE_AFFICHE, type LignePrecompte } from '@/lib/invoice/net-auteur'
+import { tauxAffiche, type LignePrecompte, type ModeleDA } from '@/lib/invoice/net-auteur'
 
 // Helvetica est embarquee dans @react-pdf : pas d'appel reseau au rendu.
 const styles = StyleSheet.create({
@@ -151,7 +151,21 @@ export interface AuteurPdf {
   net: number | null
   sansBase: number
   brutSoumis: number
+  /** Le brut déduit des lignes à net fixé. */
+  brutDeduit: number
+  /** Le brut total de la note (brutSoumis + brutDeduit). */
+  brutTotal: number
   precompte: LignePrecompte[]
+  /** Le modèle de certification appliqué : 2, 3 ou 4. */
+  modele: ModeleDA
+  /** La contribution du diffuseur (1,1 % du brut). */
+  contributionDiffuseur: number
+  /** Mention à afficher quand un modèle 4 retombe sur le 3 (A1 absent ou expiré). */
+  mentionRepli: string | null
+  /** Pays de résidence fiscale, quand il est renseigné. */
+  paysResidence: string | null
+  /** Le justificatif A1 de la fiche, pour le modèle 4. */
+  a1: { numero: string | null; emetteur: string | null; debut: string | null; fin: string | null }
 }
 
 export function InvoiceDocument({
@@ -285,7 +299,7 @@ export function InvoiceDocument({
             <Text style={styles.sectionTitle}>DROITS D’AUTEUR</Text>
             <Text style={styles.note}>
               {auteur.net !== null
-                ? `Net à verser après le précompte de ${PRECOMPTE_AFFICHE} : ${money(auteur.net)}`
+                ? `Net à verser après le précompte de ${tauxAffiche(auteur.modele)} : ${money(auteur.net)}`
                 : `Net à verser à vérifier : ${money(auteur.sansBase)} sans base brut ou net`}
             </Text>
           </View>

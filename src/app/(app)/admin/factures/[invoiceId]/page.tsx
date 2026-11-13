@@ -6,13 +6,15 @@ import { Card } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { InvoiceDetail } from '@/components/invoices/InvoiceDetail'
 import { requireRole } from '@/lib/auth'
-import { formatDate } from '@/lib/format'
+import { formatDate, money } from '@/lib/format'
 import { activeBrand } from '@/lib/brand/actif'
 import { isPennylaneConfigured, variableJetonPennylane } from '@/lib/pennylane/client'
 import { createServerSupabase } from '@/lib/supabase/server'
 import type { Invoice, InvoiceLine } from '@/lib/types'
 import { markInvoicePaid, pushToPennylane } from '@/app/(app)/factures/actions'
 import { ajouterRegularisation, regenererPdf } from '@/app/(app)/admin/factures/correction-actions'
+import { validerEcart } from '@/app/(app)/admin/factures/actions'
+import { aUnEcart, aVerifier } from '@/lib/invoice/ecart'
 import { Input } from '@/components/ui/Field'
 import { estAuteur, type Employment } from '@/lib/types'
 import { trimestreDe } from '@/lib/invoice/trimestre'
@@ -53,6 +55,9 @@ export default async function AdminInvoicePage({
   const variableJeton = await variableJetonPennylane()
   const compta = (await activeBrand()).comptabilite
   const auteur = estAuteur((provider?.employment_type ?? null) as Employment | null)
+  // Écart entre le montant facturé et le montant prévu : « À vérifier ».
+  const ecart = aUnEcart(invoice)
+  const bloque = aVerifier(invoice)
   const corrigeable = auteur && invoice.status !== 'paid' && invoice.pdf_source !== 'uploaded'
 
   return (
@@ -78,7 +83,7 @@ export default async function AdminInvoicePage({
             <input type="hidden" name="invoice_id" value={invoice.id} />
             <SubmitButton
               variant="secondary"
-              disabled={!pennylaneReady}
+              disabled={!pennylaneReady || bloque}
               pendingLabel="Synchronisation…"
             >
               <RefreshCw size={16} />
@@ -92,7 +97,7 @@ export default async function AdminInvoicePage({
         {invoice.status !== 'paid' && (
           <form action={markInvoicePaid}>
             <input type="hidden" name="invoice_id" value={invoice.id} />
-            <SubmitButton variant="success" pendingLabel="Enregistrement…">
+            <SubmitButton variant="success" disabled={bloque} pendingLabel="Enregistrement…">
               Marquer comme payée
             </SubmitButton>
           </form>
@@ -119,7 +124,45 @@ export default async function AdminInvoicePage({
         </div>
       )}
 
-      {invoice.ai_check?.message && (
+      {ecart && (
+        <Card className="mb-6 border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900 sm:px-5">
+          <p className="font-semibold">
+            {bloque ? 'À vérifier : écart de montant' : 'Écart de montant validé'}
+          </p>
+          <p className="mt-1">
+            Montant prévu {money(invoice.ai_check?.expected_ht)} HT, montant lu sur le PDF{' '}
+            {money(invoice.ai_check?.read_ht)} HT.
+            {bloque
+              ? ' La facture ne peut être ni marquée payée, ni envoyée en comptabilité tant qu’un administrateur n’a pas validé cet écart.'
+              : ''}
+          </p>
+          {bloque ? (
+            <form action={validerEcart} className="mt-3 flex flex-col gap-2 sm:max-w-xl">
+              <input type="hidden" name="invoice_id" value={invoice.id} />
+              <textarea
+                name="motif"
+                rows={2}
+                required
+                minLength={5}
+                className="field text-xs"
+                placeholder="Pourquoi cet écart est acceptable (conservé dans le journal)…"
+              />
+              <div>
+                <SubmitButton size="sm" variant="secondary" pendingLabel="Validation…">
+                  Valider l’écart
+                </SubmitButton>
+              </div>
+            </form>
+          ) : (
+            <p className="mt-1 text-xs">
+              Validé le {formatDate(invoice.ecart_valide_at)}
+              {invoice.ecart_motif ? ` : ${invoice.ecart_motif}` : ''}.
+            </p>
+          )}
+        </Card>
+      )}
+
+      {invoice.ai_check?.message && !ecart && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span className="font-semibold">Lecture du PDF :</span> {invoice.ai_check.message}
         </div>
