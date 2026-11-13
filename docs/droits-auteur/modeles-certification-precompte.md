@@ -1,6 +1,6 @@
 # Modèles de certification de précompte – Medibox France
 
-Étude du 12/11/2026, demandée par Nolwenn. Les règles sont celles de Nolwenn, déjà vues avec le comptable (message du 12/11). Quand un ancien PDF les contredit, c'est sa règle qui s'applique. Version Word prête à l'emploi : `modeles-certification-precompte.docx`. Rien n'est encore branché dans l'application.
+Étude du 12/11/2026, demandée par Nolwenn. Les règles sont celles de Nolwenn, déjà vues avec le comptable (message du 12/11). Quand un ancien PDF les contredit, c'est sa règle qui s'applique. Version Word prête à l'emploi : `modeles-certification-precompte.docx`. Depuis le 13/11/2026, les modèles 2, 3 et 4 sont branchés dans Invoice : fiche auteur, modèle figé sur chaque note, déclaration Urssaf trimestrielle.
 
 - Les champs entre `{{ }}` sont remplis à la génération.
 - Aucun document nominatif ici. Les anciens PDF (deux anciennes tutrices, 2025) ont servi de références historiques, pas de sources réglementaires.
@@ -291,3 +291,23 @@ La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclar
 - Remontée d'un net fixé au brut : l'arrondi peut laisser 1 à 2 centimes d'écart. On calcule le brut au centime, puis on cale le total du précompte sur brut − net en ajustant la première ligne (vieillesse plafonnée), de sorte que brut − précompte = net exactement. Le précompte d'une ligne peut donc différer de 1 à 2 centimes d'un calcul au taux global.
 - Numérotation : les notes de droits d'auteur prennent « DA-AAAA-NNNN », une suite continue par société et par année, sans trou. Les notes déjà émises (FACT-2026-0001, etc.) ne sont pas renumérotées. À faire valider : la suite DA peut-elle coexister avec les FACT des indépendants dans le même journal d'achats ?
 - Modèle 4 demandé sans A1 valide (absent, pas encore reçu ou expiré) : le code applique le modèle 3 et écrit sur la note « A1 absent ou expiré : modèle 3 appliqué ». À confirmer, notamment quand le A1 arrive après la note (régularisation).
+
+### Ajouts du 13/11/2026 (fiche auteur et déclaration Urssaf)
+
+- **Éligibilité au régime des artistes-auteurs.** Seule une œuvre originale se paie en droits d'auteur : fiches, schémas, QCM, création de contenu. Version de travail : l'actualisation des fiches est comptée comme création de contenu. Pour tout le reste, Invoice affiche « à valider par le comptable », sans rien bloquer. Au 13/11, c'est le cas de 12 des 13 notes déjà émises :
+  - Coach (Hermione, Medibox Bordeaux, Lille, Marseille, Montpellier) : Agathe, Camille, Marie, Aouadi Rania, Cabanel, Faustine, Kaoutar Mallouh, Louis Seguin ;
+  - Tutorat (Lille, Bordeaux, Marseille) : Antoine Tuteur, Cabanel, Faustine, Mathilde, Rayan ;
+  - Cours / ED (Bordeaux, Marseille, Lille) : Aurore Gay, Kaoutar Mallouh ;
+  - Missions diverses : Kevin. Sa ligne « Actualisation Lille » est, elle, éligible.
+  - Question : ces prestations relèvent-elles des droits d'auteur, ou d'un autre statut (salaire, facture d'indépendant) ? Faut-il créer chez Medibox des catégories « fiches », « QCM » et « schémas », qui n'existent pas aujourd'hui ?
+- **Choix du modèle.** Il est automatique, d'après la fiche :
+  - résident fiscal français → modèle 2 ;
+  - non-résident → modèle 3 ;
+  - non-résident avec un A1 valide → modèle 4 ;
+  - A1 expiré ou absent → modèle 3, avec une alerte.
+  - Version de travail : un résident français qui a aussi un A1 reste en modèle 2. À confirmer.
+- **Modèle figé sur la note.** Le modèle est figé sur chaque note à sa première génération. Corriger une fiche après coup ne change pas les notes déjà émises. Les 13 notes émises avant le 13/11 restent en modèle 2. Question : si une fiche se révèle fausse (par exemple la résidence d'Aurore G.), faut-il une note rectificative ?
+- **Justificatifs.** L'attestation de résidence fiscale et le A1 sont déposés avec leur date d'expiration, et une alerte part 30 jours avant. Ce délai est une version de travail.
+- **Trimestre de déclaration.** On retient la date de versement. Une note émise mais pas encore payée est classée, à titre provisoire, au trimestre de sa date d'émission.
+- **Historique (2025, T1 à T3 2026).** Il est importé du tableur tel quel : aucun montant n'est recalculé, et une case vide reste vide. Les lignes importées ne sont pas contrôlées contre les taux : un écart éventuel est celui du tableur.
+- **Contribution diffuseur de 1,1 %.** Elle est calculée sur le brut de chaque note, à la charge de Medibox, et affichée par auteur et par trimestre dans l'export.
