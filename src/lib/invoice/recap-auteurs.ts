@@ -3,6 +3,7 @@ import { activeBrandId } from '@/lib/brand/actif'
 import { lignesPrecompte, modeleDeLaNote, netAuteur, type ProfilDA } from '@/lib/invoice/net-auteur'
 import { trimestreDe, type Trimestre } from '@/lib/invoice/trimestre'
 import { round2 } from '@/lib/format'
+import { categoriesAValider } from '@/lib/invoice/urssaf-da'
 
 /**
  * Ce que Nolwenn reporte à l'Urssaf artistes-auteurs, trimestre par
@@ -30,6 +31,8 @@ export interface NoteAuteur {
   totalPrecompte: number
   net: number | null
   contribution: number
+  /** Catégories qui ne sont pas des œuvres originales : à valider par le comptable. */
+  aValider: string[]
 }
 
 export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
@@ -39,7 +42,7 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
     .select(
       `id, number, status, issue_date, paid_at, subtotal_ht, da_model, pdf_path,
        provider:inv_providers!inner(legal_name, employment_type, social_security_number, da_model, tax_residence_country, a1_number, a1_start, a1_end),
-       missions:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis),
+       missions:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis, category:inv_categories(name)),
        lignes:inv_invoice_lines(total_ht, mission_id)`
     )
     .eq('brand', await activeBrandId())
@@ -57,7 +60,7 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
     da_model: string | null
     pdf_path: string | null
     provider: ({ legal_name: string; social_security_number: string | null } & ProfilDA) | null
-    missions: { total_ht: number; pay_basis: string | null }[]
+    missions: { total_ht: number; pay_basis: string | null; category: { name: string } | null }[]
     lignes: { total_ht: number; mission_id: string | null }[]
   }
 
@@ -92,6 +95,7 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
         totalPrecompte: round2(precompte.reduce((s, l) => s + l.montant, 0)),
         net: calc.net,
         contribution: calc.contributionDiffuseur,
+        aValider: categoriesAValider((r.missions ?? []).map((m) => m.category?.name)),
       }
     })
     .filter((n) => n.trimestre.annee === annee)
@@ -117,6 +121,7 @@ export function notesEnCsv(notes: NoteAuteur[]): string {
     'Total précompte',
     'Net versé',
     'Contribution diffuseur 1,1 %',
+    'Avertissement',
   ]
   const lignes = notes.map((n) => [
     n.trimestre.cle,
@@ -130,6 +135,7 @@ export function notesEnCsv(notes: NoteAuteur[]): string {
     n.totalPrecompte,
     n.net,
     n.contribution,
+    n.aValider.length ? `${n.aValider.join(', ')} : à valider par le comptable` : '',
   ])
   return '﻿' + [entete, ...lignes].map((l) => l.map(csvCell).join(';')).join('\n')
 }

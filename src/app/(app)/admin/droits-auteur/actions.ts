@@ -7,6 +7,8 @@ import { logAudit } from '@/lib/audit'
 import { createServiceClient } from '@/lib/supabase/service'
 import { INVOICE_BUCKET } from '@/lib/invoice/store'
 import { modeleSuggere } from '@/lib/invoice/net-auteur'
+import { activeBrandId } from '@/lib/brand/actif'
+import { lireHistoriqueCsv } from '@/lib/invoice/urssaf-da'
 
 export interface DAResult {
   error?: string
@@ -140,4 +142,92 @@ export async function deposerJustificatifDA(_prev: DAResult, fd: FormData): Prom
   revalidatePath(`/admin/prestataires/${providerId}`)
   revalidatePath('/admin/droits-auteur')
   return { success: `${label} déposé(e).` }
+}
+
+const CLE_TRIMESTRE = /^\d{4}-T[1-4]$/
+
+/**
+ * Marque un trimestre « déclaré » à l'Urssaf (ou le repasse « à déclarer »).
+ * Ne touche à aucune note ni à aucun paiement : c'est un repère pour Nolwenn.
+ */
+export async function basculerDeclaration(_prev: DAResult, fd: FormData): Promise<DAResult> {
+  const user = await requireRole('admin')
+  const trimestre = String(fd.get('trimestre') ?? '')
+  const declarer = fd.get('declarer') === '1'
+  if (!CLE_TRIMESTRE.test(trimestre)) return { error: 'Trimestre invalide.' }
+  const brand = await activeBrandId()
+  const db = createServiceClient()
+  const { error } = declarer
+    ? await db
+        .from('inv_da_declarations')
+        .upsert({ brand, trimestre, declared_by: user.id, declared_at: new Date().toISOString() })
+    : await db.from('inv_da_declarations').delete().eq('brand', brand).eq('trimestre', trimestre)
+  if (error) return { error: `Enregistrement impossible : ${error.message}` }
+  await logAudit(null, {
+    actorId: user.id,
+    // Le journal ne connaît que quatre types : l'action se range sous l'admin.
+    entityType: 'user',
+    entityId: user.id,
+    action: declarer ? 'declare_trimestre_da' : 'annule_declaration_da',
+    payload: { brand, trimestre },
+  })
+  revalidatePath('/admin/droits-auteur')
+  return { success: declarer ? `${trimestre} marqué déclaré.` : `${trimestre} repassé à déclarer.` }
+}
+
+const MAX_CSV = 2 * 1024 * 1024
+
+/**
+ * Importe l'historique tenu dans le tableur (CSV). Les valeurs sont reprises
+ * telles quelles, rien n'est recalculé. Les lignes illisibles sont signalées
+ * et non importées.
+ */
+export async function importerHistoriqueDA(_prev: DAResult, fd: FormData): Promise<DAResult> {
+  const user = await requireRole('admin')
+  const fichier = fd.get('file')
+  if (!(fichier instanceof File) || fichier.size === 0) return { error: 'Choisissez le fichier CSV.' }
+  if (fichier.size > MAX_CSV) return { error: 'Le fichier ne doit pas dépasser 2 Mo.' }
+  if (!/\.(csv|txt)$/i.test(fichier.name)) return { error: 'Enregistrez le tableur en CSV (Fichier > Enregistrer sous > CSV).' }
+
+  const { lignes, rejets } = lireHistoriqueCsv(await fichier.text())
+  if (lignes.length === 0) {
+    return { error: `Aucune ligne importée. ${rejets.slice(0, 5).map((r) => `Ligne ${r.ligne} : ${r.raison}`).join(' ')}` }
+  }
+  const brand = await activeBrandId()
+  const importId = crypto.randomUUID()
+  const db = createServiceClient()
+  const { error } = await db.from('inv_da_historique').insert(
+    lignes.map((l) => ({ ...l, brand, import_id: importId, fichier: fichier.name, imported_by: user.id }))
+  )
+  if (error) return { error: `Import impossible : ${error.message}` }
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: user.id,
+    action: 'import_historique_da',
+    payload: { import_id: importId, fichier: fichier.name, lignes: lignes.length, rejets: rejets.length },
+  })
+  revalidatePath('/admin/droits-auteur')
+  const r = rejets.length
+    ? ` ${rejets.length} ligne(s) non importée(s) : ${rejets.slice(0, 5).map((x) => `ligne ${x.ligne} (${x.raison})`).join(', ')}${rejets.length > 5 ? '…' : ''}`
+    : ''
+  return { success: `${lignes.length} ligne(s) importée(s) depuis ${fichier.name}.${r}` }
+}
+
+/** Retire un import (erreur de fichier) : ses lignes restent en base, marquées retirées. */
+export async function retirerImportDA(_prev: DAResult, fd: FormData): Promise<DAResult> {
+  const user = await requireRole('admin')
+  const importId = String(fd.get('import_id') ?? '')
+  if (!z.uuid().safeParse(importId).success) return { error: 'Import introuvable.' }
+  const db = createServiceClient()
+  const { error } = await db
+    .from('inv_da_historique')
+    .update({ retire_at: new Date().toISOString() })
+    .eq('import_id', importId)
+    .eq('brand', await activeBrandId())
+    .is('retire_at', null)
+  if (error) return { error: `Retrait impossible : ${error.message}` }
+  await logAudit(null, { actorId: user.id, entityType: 'user', entityId: user.id, action: 'retire_import_historique_da', payload: { import_id: importId } })
+  revalidatePath('/admin/droits-auteur')
+  return { success: 'Import retiré.' }
 }
