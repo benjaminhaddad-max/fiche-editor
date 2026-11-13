@@ -116,7 +116,8 @@ export const modeDeRemuneration = (p: { pay_mode?: string | null }): PayMode =>
 export interface PersonDocument {
   id: string
   provider_id: string
-  kind: 'bulletin' | 'contrat' | 'attestation' | 'autre'
+  kind: 'bulletin' | 'contrat' | 'attestation' | 'domicile' | 'identite' | 'residence_fiscale' | 'a1' | 'autre'
+  expires_at?: string | null
   period: string | null
   label: string
   path: string
@@ -337,6 +338,8 @@ export interface Invoice {
   vat_amount: number
   total_ttc: number
   pdf_path: string | null
+  /** Modèle de précompte figé à la création du PDF (notes d'auteur). */
+  da_model?: string | null
   pdf_source: InvoiceSource
   uploaded_filename: string | null
   uploaded_at: string | null

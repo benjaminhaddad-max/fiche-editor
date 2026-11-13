@@ -10,7 +10,7 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { actualiserPaiements } from '@/app/(app)/admin/factures/actions'
 import { money } from '@/lib/format'
 import { chercherDoublons } from '@/lib/invoice/doublons'
-import { modeleEffectif, netAuteur, type ProfilDA } from '@/lib/invoice/net-auteur'
+import { modeleDeLaNote, netAuteur, type ProfilDA } from '@/lib/invoice/net-auteur'
 import { facturesBloquees } from '@/lib/invoice/bloquees'
 import { FacturesBloquees } from '@/components/validation/FacturesBloquees'
 import { getManagers } from '@/lib/queries'
@@ -29,6 +29,8 @@ interface Row {
   pennylane_status: PennylaneStatus
   pennylane_error: string | null
   pdf_source: string
+  da_model: string | null
+  pdf_path: string | null
   channel: string | null
   inbound_from: string | null
   inbound_match: string | null
@@ -82,9 +84,9 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
     supabase
       .from('inv_invoices')
       .select(
-        `id, number, status, kind, issue_date, subtotal_ht, total_ttc, pennylane_status, pennylane_error,
+        `id, number, status, kind, issue_date, subtotal_ht, da_model, pdf_path, total_ttc, pennylane_status, pennylane_error,
          pdf_source, channel, inbound_from, inbound_match, ai_check, ecart_valide_at,
-         provider:inv_providers(legal_name, user_id, employment_type, da_model, a1_number, a1_start, a1_end),
+         provider:inv_providers(legal_name, user_id, employment_type, da_model, tax_residence_country, a1_number, a1_start, a1_end),
          apporteur:inv_users!inv_invoices_submitted_by_fkey(full_name),
          lignes:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis),
          lignesFacture:inv_invoice_lines(total_ht, mission_id)`
@@ -112,7 +114,7 @@ export async function VueFactures({ onglet }: { onglet?: string }) {
           ...(r.lignesFacture ?? [])
             .filter((l) => !l.mission_id)
             .map((l) => ({ total_ht: Number(l.total_ht), pay_basis: 'brut' })),
-        ], modeleEffectif(r.provider, r.issue_date).modele)
+        ], modeleDeLaNote(r, r.provider).modele)
       : null,
   }))
 

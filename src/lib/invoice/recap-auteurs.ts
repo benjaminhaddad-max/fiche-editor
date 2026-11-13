@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { activeBrandId } from '@/lib/brand/actif'
-import { lignesPrecompte, modeleEffectif, netAuteur, type ProfilDA } from '@/lib/invoice/net-auteur'
+import { lignesPrecompte, modeleDeLaNote, netAuteur, type ProfilDA } from '@/lib/invoice/net-auteur'
 import { trimestreDe, type Trimestre } from '@/lib/invoice/trimestre'
 import { round2 } from '@/lib/format'
 
@@ -37,8 +37,8 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
   const { data } = await db
     .from('inv_invoices')
     .select(
-      `id, number, status, issue_date, paid_at, subtotal_ht,
-       provider:inv_providers!inner(legal_name, employment_type, social_security_number, da_model, a1_number, a1_start, a1_end),
+      `id, number, status, issue_date, paid_at, subtotal_ht, da_model, pdf_path,
+       provider:inv_providers!inner(legal_name, employment_type, social_security_number, da_model, tax_residence_country, a1_number, a1_start, a1_end),
        missions:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis),
        lignes:inv_invoice_lines(total_ht, mission_id)`
     )
@@ -54,6 +54,8 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
     issue_date: string
     paid_at: string | null
     subtotal_ht: number
+    da_model: string | null
+    pdf_path: string | null
     provider: ({ legal_name: string; social_security_number: string | null } & ProfilDA) | null
     missions: { total_ht: number; pay_basis: string | null }[]
     lignes: { total_ht: number; mission_id: string | null }[]
@@ -62,8 +64,8 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
   return ((data ?? []) as unknown as Row[])
     .map((r) => {
       const date = (r.paid_at ?? r.issue_date).slice(0, 10)
-      // Le modèle de l'auteur (2, 3 ou 4) à la date de la note.
-      const modele = modeleEffectif(r.provider, r.issue_date.slice(0, 10)).modele
+      // Le modèle figé sur la note (2, 3 ou 4) ; à défaut, celui de la fiche.
+      const modele = modeleDeLaNote(r, r.provider).modele
       const calc = netAuteur([
         ...(r.missions ?? []),
         ...(r.lignes ?? [])

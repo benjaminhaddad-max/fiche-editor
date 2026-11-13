@@ -153,3 +153,33 @@ test('modèle 4 sans A1 valide : repli sur le 3 avec la mention', () => {
   assert.equal(valide.modele, 4)
   assert.equal(valide.repli, false)
 })
+
+test('modèle suggéré : résidence, A1', async () => {
+  const { modeleSuggere } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`)
+  assert.equal(modeleSuggere({}).modele, null)
+  assert.equal(modeleSuggere({ tax_residence_country: 'France' }).modele, 2)
+  assert.equal(modeleSuggere({ tax_residence_country: 'FR', a1_number: 'X', a1_start: '2026-01-01' }, '2026-11-13').modele, 2)
+  assert.equal(modeleSuggere({ tax_residence_country: 'Pays-Bas' }, '2026-11-13').modele, 3)
+  assert.equal(
+    modeleSuggere({ tax_residence_country: 'Pays-Bas', a1_number: 'X', a1_start: '2026-01-01', a1_end: '2026-12-31' }, '2026-11-13').modele,
+    4
+  )
+  const exp = modeleSuggere({ tax_residence_country: 'Pays-Bas', a1_number: 'X', a1_start: '2024-01-01', a1_end: '2025-12-31' }, '2026-11-13')
+  assert.equal(exp.modele, 3)
+  assert.match(exp.raison, /expiré/)
+  // Sans choix sur la fiche, le modèle suit la suggestion.
+  assert.equal(modeleEffectif({ tax_residence_country: 'Belgique' }, '2026-11-13').modele, 3)
+  assert.equal(modeleEffectif({ tax_residence_country: 'Belgique', da_model: '2' }, '2026-11-13').modele, 2)
+})
+
+test('modèle figé sur la note : la fiche changée ne refait pas une note émise', async () => {
+  const { modeleDeLaNote } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`)
+  const fiche = { tax_residence_country: 'Pays-Bas' }
+  // Figé en 2 : reste 2 même si la fiche appelle désormais le 3.
+  assert.equal(modeleDeLaNote({ da_model: '2', pdf_path: 'x.pdf', issue_date: '2026-11-01' }, fiche).modele, 2)
+  // PDF sans modèle figé : note d'avant le 13/11, calculée en 2.
+  assert.equal(modeleDeLaNote({ da_model: null, pdf_path: 'x.pdf', issue_date: '2026-11-01' }, fiche).modele, 2)
+  // Pas encore de PDF : suit la fiche.
+  assert.equal(modeleDeLaNote({ da_model: null, pdf_path: null, issue_date: '2026-11-13' }, fiche).modele, 3)
+  assert.equal(modeleDeLaNote({ da_model: '4', pdf_path: 'x.pdf' }, {}).modele, 4)
+})

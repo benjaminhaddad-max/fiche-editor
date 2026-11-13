@@ -9,6 +9,9 @@ import { Card, PageHeader } from '@/components/ui/Page'
 import { FicheFacturationForm } from '@/components/admin/FicheFacturationForm'
 import { ProviderAdminForm } from '@/components/admin/ProviderAdminForm'
 import { ReglagesRemuneration } from '@/components/admin/ReglagesRemuneration'
+import { FicheAuteurDA } from '@/components/admin/FicheAuteurDA'
+import { alertesFicheDA, manquesFicheDA, statutCalcule, MODELE_LABEL, STATUT_FICHE_LABEL } from '@/lib/invoice/fiche-da'
+import { modeleSuggere } from '@/lib/invoice/net-auteur'
 import { CONTRACT_SELECT, CONTRACT_STATUS_LABEL, contractRate, contractTitle, type ContractRow } from '@/lib/contracts'
 import { RATE_TYPE_LABEL } from '@/lib/labels'
 import { requireRole } from '@/lib/auth'
@@ -41,7 +44,7 @@ export default async function ProviderPage({
   // contrats, sans lien depuis la personne : « le contrat de travail de
   // chacun rattaché à sa fiche », demandait Shirel, et c'est là qu'on le
   // cherche quand on prépare une paie.
-  const [managers, { data: contrats }, { data: pieces }] = await Promise.all([
+  const [managers, { data: contrats }, { data: pieces }, { data: justifs }] = await Promise.all([
     getManagers(),
     supabase
       .from('inv_coaching_contracts')
@@ -54,11 +57,22 @@ export default async function ProviderPage({
       .eq('provider_id', providerId)
       .eq('kind', 'contrat')
       .order('created_at', { ascending: false }),
+    supabase
+      .from('inv_documents')
+      .select('id, kind, label, filename, expires_at, created_at')
+      .eq('provider_id', providerId)
+      .in('kind', ['residence_fiscale', 'a1'])
+      .order('created_at', { ascending: false }),
   ])
   const sesContrats = (contrats ?? []) as unknown as ContractRow[]
   const auteur = estAuteur(provider.employment_type)
   const salarie = isSalaried(provider.employment_type)
   const facture = !auteur && !salarie
+  const piecesDA = (justifs ?? []) as { id: string; kind: string; label: string | null; filename: string | null; expires_at: string | null; created_at: string }[]
+  const suggestion = modeleSuggere(provider)
+  const manquesDA = auteur ? manquesFicheDA(provider, piecesDA) : []
+  const alertesDA = auteur ? alertesFicheDA(provider, piecesDA) : []
+  const statutDA = auteur ? statutCalcule(provider, piecesDA) : null
 
   const identity: [string, string | null][] = [
     // En tête, parce que c'est lui qu'on vient vérifier. Sans cette ligne,
@@ -148,6 +162,55 @@ export default async function ProviderPage({
           ))}
         </dl>
       </Card>
+
+      {auteur && (
+        <Card className="mb-6 p-6">
+          <h2 className="mb-1 text-sm font-semibold text-navy">Droits d’auteur : résidence, modèle, A1</h2>
+          <p className="mb-4 text-xs text-muted">
+            Modèle retenu aujourd’hui :{' '}
+            <span className="font-medium text-navy">
+              {provider.da_model ? MODELE_LABEL[provider.da_model] : `non posé — lu comme le ${suggestion.modele ?? 2}`}
+            </span>
+            . Statut posé : {provider.da_profile_status ? STATUT_FICHE_LABEL[provider.da_profile_status] : 'non renseigné'} ·
+            statut calculé : {statutDA ? STATUT_FICHE_LABEL[statutDA] : '—'}.
+          </p>
+          {(manquesDA.length > 0 || alertesDA.length > 0) && (
+            <ul className="mb-4 flex flex-col gap-1.5 text-sm">
+              {manquesDA.length > 0 && (
+                <li className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">Il manque : {manquesDA.join(', ')}.</li>
+              )}
+              {alertesDA.map((a) => (
+                <li
+                  key={a.texte}
+                  className={`rounded-lg px-3 py-2 ${a.niveau === 'rouge' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}
+                >
+                  {a.texte}
+                </li>
+              ))}
+            </ul>
+          )}
+          {piecesDA.length > 0 && (
+            <ul className="mb-4 divide-y divide-line/60 text-sm">
+              {piecesDA.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <a href={`/api/documents/${d.id}`} target="_blank" className="font-medium text-navy hover:underline">
+                    {d.label ?? d.filename}
+                  </a>
+                  <span className="text-xs text-muted">
+                    déposé le {formatDate(d.created_at)}
+                    {d.expires_at ? ` · expire le ${formatDate(d.expires_at)}` : ' · sans date d’expiration'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {admin ? (
+            <FicheAuteurDA provider={provider} suggestion={`Suggestion : ${suggestion.raison}`} />
+          ) : (
+            <p className="text-xs text-muted">Seule l’administration modifie cette partie.</p>
+          )}
+        </Card>
+      )}
 
       <ReglagesRemuneration action={reglerRemuneration} provider={provider} />
 

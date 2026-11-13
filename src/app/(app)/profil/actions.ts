@@ -62,6 +62,15 @@ const ProfileSchema = z
       .regex(/^(?=.*\d)[A-Za-z0-9][A-Za-z0-9 -]{2,11}$/, 'Code postal invalide.'),
     city: z.string().trim().min(1, 'Ville obligatoire.'),
     country: z.string().trim().min(2, 'Pays obligatoire.'),
+    // Auteurs seulement : distinct du pays de l'adresse (Nolwenn, 13/11).
+    // Absent du formulaire des autres : la clé reste alors hors de la mise
+    // à jour, au lieu d'effacer ce que l'administration a posé.
+    tax_residence_country: z
+      .string()
+      .trim()
+      .max(60)
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === '' ? null : v)),
     phone: optional(z.string().trim()),
     iban: optional(
       z
@@ -118,6 +127,7 @@ const LIBELLES: Record<string, string> = {
   postal_code: 'Code postal',
   city: 'Ville',
   country: 'Pays',
+  tax_residence_country: 'Pays de résidence fiscale',
   phone: 'Téléphone',
   iban: 'IBAN',
   bic: 'BIC',
@@ -174,10 +184,19 @@ export async function updateProfile(
     return { fieldErrors }
   }
 
+  // Une résidence fiscale qui change décide du taux de précompte : la fiche
+  // repasse « à valider » pour que l'administration regarde avant la
+  // prochaine note.
+  const residence = parsed.data.tax_residence_country
+  const aValider =
+    residence !== undefined && (residence ?? null) !== (provider.tax_residence_country ?? null)
+      ? { da_profile_status: 'a_valider' }
+      : {}
+
   const supabase = await createServerSupabase()
   const { data, error } = await supabase
     .from('inv_providers')
-    .update({ ...parsed.data, onboarding_complete: true })
+    .update({ ...parsed.data, ...aValider, onboarding_complete: true })
     .eq('id', provider.id)
     .select('id')
 

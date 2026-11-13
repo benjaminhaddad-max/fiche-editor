@@ -5,6 +5,8 @@ import { requireRole } from '@/lib/auth'
 import { formatDate, money } from '@/lib/format'
 import { notesAuteurs, type NoteAuteur } from '@/lib/invoice/recap-auteurs'
 import { trimestre } from '@/lib/invoice/trimestre'
+import { fichesAuteursARevoir } from '@/lib/invoice/fiches-a-revoir'
+import { STATUT_FICHE_LABEL } from '@/lib/invoice/fiche-da'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +18,7 @@ export default async function DroitsAuteurPage({ searchParams }: { searchParams:
   await requireRole('admin')
   const { annee: a } = await searchParams
   const annee = /^\d{4}$/.test(a ?? '') ? Number(a) : new Date().getFullYear()
-  const notes = await notesAuteurs(annee)
+  const [notes, aRevoir] = await Promise.all([notesAuteurs(annee), fichesAuteursARevoir()])
   const somme = (l: NoteAuteur[], f: (n: NoteAuteur) => number | null) =>
     Math.round(l.reduce((s, n) => s + Number(f(n) ?? 0), 0) * 100) / 100
 
@@ -34,6 +36,36 @@ export default async function DroitsAuteurPage({ searchParams }: { searchParams:
           </a>
         }
       />
+      {aRevoir.length > 0 && (
+        <Card className="mb-5 overflow-hidden">
+          <div className="border-b border-line px-4 py-3">
+            <h2 className="font-semibold">Fiches auteurs à reprendre ({aRevoir.length})</h2>
+            <p className="text-xs text-ink-soft">
+              Ce qui manque pour payer et déclarer, et les justificatifs qui arrivent à échéance (alerte 30 jours avant).
+            </p>
+          </div>
+          <ul className="divide-y divide-line text-sm">
+            {aRevoir.map((f) => (
+              <li key={f.id} className="flex flex-col gap-1 px-4 py-2.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <Link href={`/admin/prestataires/${f.id}`} className="font-medium hover:underline">
+                    {f.nom}
+                  </Link>
+                  <span className="text-xs text-ink-soft">
+                    Modèle {f.modele} · {STATUT_FICHE_LABEL[f.statut]}
+                  </span>
+                </div>
+                {f.manques.length > 0 && <p className="text-xs text-amber-700">Il manque : {f.manques.join(', ')}.</p>}
+                {f.alertes.map((a) => (
+                  <p key={a.texte} className={`text-xs ${a.niveau === 'rouge' ? 'text-red-700' : 'text-amber-700'}`}>
+                    {a.texte}
+                  </p>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       <p className="mb-4 text-sm text-ink-soft">
         Année{' '}
         {[annee - 1, annee, annee + 1].map((y) => (

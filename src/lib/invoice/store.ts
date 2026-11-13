@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { BRANDS, marqueFacturable, normalizeBrandId } from '@/lib/brand'
 import { renderInvoicePdf, type AuteurPdf } from '@/lib/invoice/pdf'
-import { modeleEffectif, netAuteur } from '@/lib/invoice/net-auteur'
+import { modeleDeLaNote, netAuteur } from '@/lib/invoice/net-auteur'
 import { estAuteur, type Employment, type Invoice, type InvoiceLine } from '@/lib/types'
 
 export const INVOICE_BUCKET = 'invoices'
@@ -73,7 +73,8 @@ async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Pr
   }
   // Le modèle de certification de l'auteur (2, 3 ou 4), à la date de la note.
   // Un modèle 4 sans A1 valide retombe sur le 3, avec une mention visible.
-  const effectif = modeleEffectif(fiche, invoice.issue_date)
+  // Une fois le PDF créé, le modèle est figé sur la note (migration 54).
+  const effectif = modeleDeLaNote(invoice, fiche)
   return {
     secu: (fiche?.social_security_number as string | null)?.trim() || null,
     naissance: (fiche?.birth_date as string | null) ?? null,
@@ -107,7 +108,8 @@ export async function generateAndStorePdf(invoiceId: string): Promise<Buffer> {
     )
   }
 
-  const pdf = await renderInvoicePdf(loaded.invoice, loaded.lines, await auteurDe(loaded.invoice, loaded.lines))
+  const auteur = await auteurDe(loaded.invoice, loaded.lines)
+  const pdf = await renderInvoicePdf(loaded.invoice, loaded.lines, auteur)
   const path = invoicePdfPath(loaded.invoice)
   const supabase = createServiceClient()
 
@@ -117,7 +119,10 @@ export async function generateAndStorePdf(invoiceId: string): Promise<Buffer> {
 
   if (error) throw new Error(`Stockage du PDF impossible : ${error.message}`)
 
-  await supabase.from('inv_invoices').update({ pdf_path: path }).eq('id', invoiceId)
+  // Première création du PDF d'une note d'auteur : on y fige le modèle de
+  // précompte. Une note qui avait déjà un PDF n'est pas touchée.
+  const figer = auteur && !loaded.invoice.pdf_path && !loaded.invoice.da_model ? { da_model: String(auteur.modele) } : {}
+  await supabase.from('inv_invoices').update({ pdf_path: path, ...figer }).eq('id', invoiceId)
 
   return pdf
 }

@@ -631,4 +631,117 @@ MODELES.push({
   },
 })
 
+/**
+ * Contrat de cession de droits d'auteur (Nolwenn, 13/11/2026).
+ *
+ * Pour les auteurs payés en droits : fiches, schémas, QCM, contenus
+ * originaux. Le Code de la propriété intellectuelle (art. L131-3) exige que
+ * chaque droit cédé soit mentionné à part, avec son étendue, sa destination,
+ * son lieu et sa durée : d'où un article par droit. La rémunération est
+ * proportionnelle ou forfaitaire (L131-4, le forfait étant admis pour
+ * l'édition de contenus pédagogiques). Version de travail, à faire relire.
+ */
+MODELES.push({
+  cle: 'cession_droits_auteur',
+  nom: 'Cession de droits d’auteur',
+  pole: 'autres',
+  employment: 'droits_auteur',
+  rateType: 'mission',
+  rateAmount: null,
+  monthlyAuto: false,
+  signable: true,
+  resume: 'Œuvres originales (fiches, schémas, QCM) payées en droits d’auteur, précompte retenu',
+  corps: (p) => {
+    const c = p.marque.company
+    return {
+      intitule: 'Contrat de cession de droits d’auteur',
+      profil: 'Auteur',
+      resume: [
+        p.montant !== null
+          ? `Rémunération : ${euros(p.montant)} brut par œuvre livrée, sauf montant fixé à la commande.`
+          : 'Rémunération : fixée à chaque commande, en brut, sur la plateforme.',
+        'Les cotisations de l’auteur (précompte) sont retenues et déclarées par la société.',
+        `Début : ${dateFr(p.debut)}${p.fin ? ` — fin : ${dateFr(p.fin)}.` : ' — sans terme fixé.'}`,
+      ],
+      articles: [
+        {
+          titre: 'Les parties',
+          texte:
+            `${c.name}${c.legalForm ? `, ${c.legalForm}` : ''}, dont le siège est situé ${c.address}, ` +
+            `${c.postalCode} ${c.city}, immatriculée sous le numéro ${c.siret}, ci-après « le cessionnaire »,\n\n` +
+            `et ${p.nom}${p.adresse ? `, demeurant ${p.adresse}` : ''}, joignable à ${p.email}` +
+            `${p.telephone ? ` et au ${p.telephone}` : ''}, ci-après « l’auteur ».`,
+        },
+        {
+          titre: 'Objet',
+          texte:
+            'L’auteur crée, à la demande du cessionnaire, des œuvres originales destinées à la préparation des ' +
+            'étudiants : fiches de cours, schémas, questions à choix multiples et leurs corrections, et autres ' +
+            'contenus pédagogiques écrits. Chaque œuvre est commandée sur la plateforme ' +
+            `${p.marque.appTitle}, qui en précise le sujet, le format, le délai et la rémunération. L’auteur ` +
+            'garantit qu’il en est l’unique auteur, que l’œuvre est originale et qu’elle ne reproduit pas, sans ' +
+            'autorisation, l’œuvre d’un tiers.',
+        },
+        {
+          titre: 'Droit de reproduction cédé',
+          texte:
+            'L’auteur cède au cessionnaire, à titre exclusif, le droit de reproduire chaque œuvre, en tout ou en ' +
+            'partie, sur tout support papier ou numérique (impression, fichier, plateforme en ligne, application), ' +
+            'en nombre illimité d’exemplaires.',
+        },
+        {
+          titre: 'Droit de représentation cédé',
+          texte:
+            'L’auteur cède au cessionnaire, à titre exclusif, le droit de communiquer chaque œuvre au public par ' +
+            'tout procédé : mise en ligne sur les plateformes du cessionnaire, diffusion aux étudiants inscrits, ' +
+            'projection en cours, envoi par messagerie.',
+        },
+        {
+          titre: 'Droit d’adaptation cédé',
+          texte:
+            'L’auteur cède au cessionnaire le droit d’adapter chaque œuvre pour la tenir à jour : correction, ' +
+            'actualisation au programme, mise en page, traduction, découpage en exercices. Toute modification ' +
+            'respecte l’esprit de l’œuvre ; le droit moral de l’auteur, inaliénable, demeure.',
+        },
+        {
+          titre: 'Étendue, lieu et durée',
+          texte:
+            'Ces droits sont cédés pour le monde entier, pour toute la durée de protection des droits d’auteur, ' +
+            'pour l’usage du cessionnaire dans ses activités de formation et de préparation aux concours. Toute ' +
+            'exploitation qui sortirait de cette destination (édition commerciale d’un ouvrage, par exemple) ' +
+            'ferait l’objet d’un accord distinct.',
+        },
+        {
+          titre: 'Rémunération',
+          texte:
+            (p.montant !== null
+              ? `Chaque œuvre livrée et acceptée est rémunérée ${euros(p.montant)} brut, sauf montant différent fixé à la commande. `
+              : 'Chaque œuvre livrée et acceptée est rémunérée au montant brut fixé à sa commande. ') +
+            'Cette rémunération est forfaitaire, la participation proportionnelle aux recettes étant impossible à ' +
+            'calculer pour un contenu diffusé dans une formation. Elle est soumise au précompte des cotisations ' +
+            'sociales de l’artiste-auteur, retenu par le cessionnaire et déclaré en son nom à l’Urssaf ; le taux ' +
+            'dépend de sa résidence fiscale et de son affiliation. Une note de droits d’auteur, accompagnée de la ' +
+            'certification de précompte, est établie à chaque paiement et reste disponible dans « Mes documents ».',
+        },
+        {
+          titre: 'Informations à fournir',
+          texte:
+            'L’auteur renseigne sur la plateforme son numéro de sécurité sociale, son adresse, son pays de ' +
+            'résidence fiscale et son IBAN, et fournit, le cas échéant, son attestation de résidence fiscale ou ' +
+            'son formulaire A1. Il signale sans délai tout changement : le taux de précompte en dépend.',
+        },
+        CONFIDENTIALITE,
+        resiliation('quinze jours'),
+        {
+          titre: 'Effet de la fin du contrat',
+          texte:
+            'La fin du contrat ne remet pas en cause les droits cédés sur les œuvres déjà livrées et payées.',
+        },
+        LITIGES,
+        ...(p.precisions ? [{ titre: 'Dispositions particulières', texte: p.precisions }] : []),
+      ],
+    }
+  },
+})
+
 export const modele = (cle: string | null | undefined) => MODELES.find((m) => m.cle === cle)

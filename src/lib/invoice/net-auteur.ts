@@ -165,6 +165,7 @@ export function netAuteur(
 /** Ce que la fiche de l'auteur dit de son modèle et de son justificatif A1. */
 export interface ProfilDA {
   da_model?: string | null
+  tax_residence_country?: string | null
   a1_number?: string | null
   a1_start?: string | null
   a1_end?: string | null
@@ -173,7 +174,7 @@ export interface ProfilDA {
 export interface ModeleEffectif {
   /** Le modèle réellement appliqué. */
   modele: ModeleDA
-  /** Le modèle demandé sur la fiche (null = modèle 2 par défaut). */
+  /** Le modèle demandé sur la fiche (null = choix automatique, 2 à défaut). */
   demande: ModeleDA
   /** Vrai quand un modèle 4 est demandé sans A1 valide : on applique le 3. */
   repli: boolean
@@ -183,24 +184,88 @@ export interface ModeleEffectif {
 
 export const MENTION_REPLI_A1 = 'A1 absent ou expiré : modèle 3 appliqué'
 
-function a1Valide(p: ProfilDA, jour: string): boolean {
+/** France, sous ses écritures courantes : « France », « FR », « france ». */
+export function estFrance(pays: string | null | undefined): boolean {
+  const p = (pays ?? '').trim().toLowerCase()
+  return p === 'france' || p === 'fr' || p === 'fra'
+}
+
+export function a1Valide(p: ProfilDA, jour: string): boolean {
   if (!p.a1_number || !p.a1_number.trim() || !p.a1_start) return false
   if (p.a1_start > jour) return false
   return !p.a1_end || p.a1_end >= jour
 }
 
+/** Un A1 a été saisi, mais il n'est plus (ou pas encore) valide à ce jour. */
+export function a1Expire(p: ProfilDA, jour: string): boolean {
+  return Boolean(p.a1_number && p.a1_number.trim()) && !a1Valide(p, jour)
+}
+
+export interface ModeleSuggere {
+  /** null : la résidence fiscale n'est pas renseignée, on ne peut pas trancher. */
+  modele: ModeleDA | null
+  raison: string
+}
+
 /**
- * Le modèle à appliquer à une note. Sans choix sur la fiche : modèle 2 (1
- * archivé se lit comme 2). Un modèle 4 n'est tenu que si le A1 est valide
- * à la date de la note ; sinon on retombe sur le 3, avec une mention.
+ * Le modèle que la fiche appelle, selon les règles de Nolwenn (13/11/2026) :
+ *  - résident fiscal français → modèle 2 ;
+ *  - A1 valide → modèle 4 ;
+ *  - non-résident fiscal, affilié en France (pas de A1 valide) → modèle 3,
+ *    avec la mention quand un A1 a été saisi mais a expiré.
+ * Le modèle 1 est archivé : il n'est jamais proposé.
+ *
+ * Version de travail : un résident fiscal français qui produirait un A1
+ * reste en modèle 2 (la résidence l'emporte). À faire valider.
+ */
+export function modeleSuggere(p: ProfilDA, jour?: string): ModeleSuggere {
+  const j = jour ?? new Date().toISOString().slice(0, 10)
+  const pays = (p.tax_residence_country ?? '').trim()
+  if (!pays) return { modele: null, raison: 'Résidence fiscale non renseignée : impossible de choisir le modèle.' }
+  if (estFrance(pays)) return { modele: 2, raison: 'Résident fiscal français : modèle 2.' }
+  if (a1Valide(p, j)) return { modele: 4, raison: `Non-résident (${pays}) avec un A1 valide : modèle 4.` }
+  if (a1Expire(p, j)) return { modele: 3, raison: `Non-résident (${pays}), ${MENTION_REPLI_A1}.` }
+  return { modele: 3, raison: `Non-résident fiscal (${pays}), affilié en France, sans A1 : modèle 3.` }
+}
+
+/**
+ * Le modèle à appliquer à une note. Choix posé sur la fiche (2, 3 ou 4 ; 1
+ * archivé se lit comme 2) ; sans choix, le modèle suggéré par la résidence
+ * fiscale et le A1, et le 2 si la résidence n'est pas renseignée. Un modèle 4
+ * n'est tenu que si le A1 est valide à la date de la note ; sinon on retombe
+ * sur le 3, avec une mention.
  * `jour` : 'AAAA-MM-JJ', par défaut aujourd'hui.
  */
 export function modeleEffectif(profil: ProfilDA | null | undefined, jour?: string): ModeleEffectif {
   const aujourdhui = jour ?? new Date().toISOString().slice(0, 10)
   const brut = profil?.da_model
-  const demande: ModeleDA = brut === '4' ? 4 : brut === '3' ? 3 : 2
+  const demande: ModeleDA =
+    brut === '4' ? 4 : brut === '3' ? 3 : brut === '2' || brut === '1' ? 2 : (modeleSuggere(profil ?? {}, aujourdhui).modele ?? 2)
   if (demande === 4 && !a1Valide(profil ?? {}, aujourdhui)) {
     return { modele: 3, demande, repli: true, mention: MENTION_REPLI_A1 }
   }
   return { modele: demande, demande, repli: false, mention: null }
+}
+
+/**
+ * Le modèle d'une note déjà émise. Il est figé sur la note à la création de
+ * son PDF (colonne `inv_invoices.da_model`) : changer ensuite la résidence
+ * fiscale ou le A1 de l'auteur ne refait pas le calcul d'une note payée.
+ *
+ * Une note dont le PDF existe sans modèle figé date d'avant le 13/11/2026 :
+ * aucune fiche ne portait alors de modèle, elle a été calculée en modèle 2.
+ * Une note sans PDF (brouillon) suit encore la fiche.
+ */
+export function modeleDeLaNote(
+  note: { da_model?: string | null; pdf_path?: string | null; issue_date?: string | null },
+  profil: ProfilDA | null | undefined
+): ModeleEffectif {
+  const fige = note.da_model
+  if (fige === '2' || fige === '3' || fige === '4') {
+    const m = Number(fige) as ModeleDA
+    const calcule = modeleEffectif(profil, note.issue_date?.slice(0, 10))
+    return { modele: m, demande: m, repli: false, mention: calcule.modele === m ? calcule.mention : null }
+  }
+  if (note.pdf_path) return { modele: 2, demande: 2, repli: false, mention: null }
+  return modeleEffectif(profil, note.issue_date?.slice(0, 10))
 }

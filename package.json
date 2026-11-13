@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint && node scripts/verifier-marque.mjs",
-    "test": "node --test src/lib/echeancier.test.mjs src/lib/relance-factures.test.mjs src/lib/invoice/net-auteur.test.mjs src/lib/invoice/ecart.test.mjs src/lib/justificatifs/correspondance.test.mjs src/lib/brand/jeton-pennylane.test.mjs src/lib/social/social.test.mjs",
+    "test": "node --test src/lib/echeancier.test.mjs src/lib/relance-factures.test.mjs src/lib/invoice/net-auteur.test.mjs src/lib/invoice/ecart.test.mjs src/lib/invoice/fiche-da.test.mjs src/lib/justificatifs/correspondance.test.mjs src/lib/brand/jeton-pennylane.test.mjs src/lib/social/social.test.mjs",
     "setup": "node --experimental-websocket scripts/setup.mjs",
     "e2e": "node --experimental-websocket scripts/e2e.mjs",
     "demo": "node --experimental-websocket scripts/demo.mjs",

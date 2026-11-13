@@ -7,14 +7,15 @@ import { cycleForMonth } from '@/lib/cycle'
 import { formatDate, money } from '@/lib/format'
 import { DOCUMENT_LABEL } from '@/lib/labels'
 import { createServerSupabase } from '@/lib/supabase/server'
-import { isSalaried, type PersonDocument } from '@/lib/types'
+import { estAuteur, isSalaried, type PersonDocument } from '@/lib/types'
 import { activeBrand } from '@/lib/brand/actif'
 
 /** Ce que la personne doit pouvoir retrouver seule : contrats et bulletins. */
 export default async function MesDocumentsPage() {
   const { provider } = await requireProvider()
   const supabase = await createServerSupabase()
-  const [{ data: docs }, { data: contrats }] = await Promise.all([
+  const auteur = estAuteur(provider.employment_type)
+  const [{ data: docs }, { data: contrats }, { data: notes }] = await Promise.all([
     supabase
       .from('inv_documents')
       .select('*')
@@ -27,6 +28,17 @@ export default async function MesDocumentsPage() {
       .eq('provider_id', provider.id)
       .neq('status', 'cancelled')
       .order('created_at', { ascending: false }),
+    // Un auteur retrouve ici ses certifications de précompte : chaque note
+    // de droits d'auteur émise en porte une (Nolwenn, 13/11/2026).
+    auteur
+      ? supabase
+          .from('inv_invoices')
+          .select('id, number, issue_date, paid_at, status, pdf_path')
+          .eq('provider_id', provider.id)
+          .in('status', ['sent', 'validated', 'paid'])
+          .not('pdf_path', 'is', null)
+          .order('issue_date', { ascending: false })
+      : Promise.resolve({ data: [] as { id: string; number: string; issue_date: string; paid_at: string | null; status: string }[] }),
   ])
 
   const documents = (docs ?? []) as PersonDocument[]
@@ -56,6 +68,46 @@ export default async function MesDocumentsPage() {
         </section>
       )}
 
+      {auteur && (
+        <section className="mb-8">
+          <h2 className="mb-1 text-sm font-semibold text-navy">Mes certifications de précompte</h2>
+          <p className="mb-3 text-xs text-muted">
+            Chaque note de droits d’auteur certifie le précompte retenu et déclaré en votre nom à l’Urssaf.
+          </p>
+          {(notes ?? []).length === 0 ? (
+            <EmptyState
+              title="Aucune certification pour l’instant"
+              description="Elles apparaîtront ici dès votre première note de droits d’auteur émise."
+            />
+          ) : (
+            <Card className="divide-y divide-line/60 overflow-hidden">
+              {(notes ?? []).map((n) => (
+                <a
+                  key={n.id}
+                  href={`/api/factures/${n.id}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-4 px-5 py-3 text-sm hover:bg-cream-muted"
+                >
+                  <span className="flex items-center gap-3">
+                    <FileText size={16} className="text-stone" />
+                    <span className="text-navy">
+                      Note {n.number}
+                      <span className="block text-xs text-muted">
+                        {n.paid_at ? `payée le ${formatDate(n.paid_at)}` : `émise le ${formatDate(n.issue_date)}`}
+                      </span>
+                    </span>
+                  </span>
+                  <Download size={15} className="text-muted" />
+                </a>
+              ))}
+            </Card>
+          )}
+        </section>
+      )}
+
+      {!(auteur && bulletins.length === 0) && (
+      <>
       <h2 className="mb-3 text-sm font-semibold text-navy">Mes bulletins de salaire</h2>
       {bulletins.length === 0 ? (
         <EmptyState
@@ -87,6 +139,8 @@ export default async function MesDocumentsPage() {
             </a>
           ))}
         </Card>
+      )}
+      </>
       )}
 
       {autres.length > 0 && (

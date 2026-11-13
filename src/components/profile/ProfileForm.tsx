@@ -178,7 +178,7 @@ export function ProfileForm({
           </h2>
           <p className="mb-5 text-xs text-muted">
             {auteur
-              ? 'Vos cotisations sont retenues et déclarées en votre nom à l’Urssaf : ces deux informations sont indispensables pour que votre note soit émise et payée.'
+              ? 'Vos cotisations sont retenues et déclarées en votre nom à l’Urssaf : ces informations sont indispensables pour que votre note soit émise et payée.'
               : 'Transmis au service qui établit votre bulletin.'}
           </p>
           <div className="grid gap-5 sm:grid-cols-2">
@@ -197,6 +197,16 @@ export function ProfileForm({
               placeholder="1 80 01 75 056 012 89"
               hint="Les 15 caractères, clé comprise. Il n’apparaît nulle part ailleurs."
             />
+            {auteur && (
+              <Input
+                id="tax_residence_country"
+                name="tax_residence_country"
+                label="Pays de résidence fiscale"
+                defaultValue={provider.tax_residence_country ?? ''}
+                placeholder="France"
+                hint="Là où vous payez vos impôts, qui peut différer du pays de votre adresse. Il fixe le taux de cotisations retenu sur vos droits."
+              />
+            )}
           </div>
         </Card>
       )}

@@ -112,6 +112,10 @@ export const DOCUMENT_LABEL: Record<string, string> = {
   bulletin: 'Bulletin de salaire',
   contrat: 'Contrat',
   attestation: 'Attestation',
+  domicile: 'Justificatif de domicile',
+  identite: 'Pièce d’identité',
+  residence_fiscale: 'Attestation de résidence fiscale',
+  a1: 'Formulaire A1',
   autre: 'Document',
 }
 
