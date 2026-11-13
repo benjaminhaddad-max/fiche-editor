@@ -12,8 +12,10 @@
 
 /**
  * Seule une œuvre originale se paie en droits d'auteur : fiches, schémas,
- * QCM, création de contenu. Version de travail : l'actualisation des
- * fiches compte comme de la création de contenu.
+ * QCM, création de contenu. L'actualisation compte quand elle réécrit le
+ * support (œuvre dérivée, branche écrivains : urssaf.fr, 13/11/2026).
+ * Cours, ED et coaching restent « à valider » : l'enseignement est exclu
+ * du régime (CSS art. R382-1). Libellés Medibox : migration 56.
  */
 const ELIGIBLE = /fiche|sch[ée]ma|qcm|cr[ée]ation|contenu|actualisation|r[ée]daction/i
 

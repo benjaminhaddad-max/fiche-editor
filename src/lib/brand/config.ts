@@ -244,7 +244,8 @@ export const BRANDS: Record<BrandId, BrandConfig> = {
     company: {
       name: 'Medibox France',
       legalForm: 'SAS',
-      address: '8 bis rue de Tunis',
+      // « 8 B » : graphie du registre Sirene (B = bis), validée par Nolwenn le 13/11.
+      address: '8 B rue de Tunis',
       postalCode: '75011',
       city: 'Paris',
       siret: '93061905100012',

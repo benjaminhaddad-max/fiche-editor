@@ -222,8 +222,12 @@ export function modeleSuggere(p: ProfilDA, jour?: string): ModeleSuggere {
   const j = jour ?? new Date().toISOString().slice(0, 10)
   const pays = (p.tax_residence_country ?? '').trim()
   if (!pays) return { modele: null, raison: 'Résidence fiscale non renseignée : impossible de choisir le modèle.' }
+  // Un A1 valide prime sur la résidence fiscale : il atteste que l'auteur
+  // cotise dans un autre pays de l'UE, et le règlement (CE) 883/2004
+  // (art. 11) ne permet de cotiser que dans un seul pays. Aucun précompte
+  // français, même pour un résident fiscal français (tranché le 13/11/2026).
+  if (a1Valide(p, j)) return { modele: 4, raison: `A1 valide (${pays}) : modèle 4, aucun précompte.` }
   if (estFrance(pays)) return { modele: 2, raison: 'Résident fiscal français : modèle 2.' }
-  if (a1Valide(p, j)) return { modele: 4, raison: `Non-résident (${pays}) avec un A1 valide : modèle 4.` }
   if (a1Expire(p, j)) return { modele: 3, raison: `Non-résident (${pays}), ${MENTION_REPLI_A1}.` }
   return { modele: 3, raison: `Non-résident fiscal (${pays}), affilié en France, sans A1 : modèle 3.` }
 }

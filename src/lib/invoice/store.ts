@@ -91,6 +91,19 @@ async function auteurDe(invoice: Invoice, lignesFacture: InvoiceLine[] = []): Pr
   }
 }
 
+/**
+ * Rend le PDF d'une note SANS le stocker ni toucher la base, avec au besoin
+ * un autre numéro. Sert à préparer un renvoi (renumérotation des notes DA du
+ * 13/11/2026) pour relecture avant tout changement.
+ */
+export async function renderInvoicePdfApercu(invoiceId: string, numero?: string): Promise<Buffer> {
+  const loaded = await loadInvoiceForRender(invoiceId)
+  if (!loaded) throw new Error('Facture introuvable.')
+  const invoice = numero ? { ...loaded.invoice, number: numero } : loaded.invoice
+  const auteur = await auteurDe(invoice, loaded.lines)
+  return renderInvoicePdf(invoice, loaded.lines, auteur)
+}
+
 /** Genere le PDF et le range dans le bucket. Renvoie le buffer. */
 export async function generateAndStorePdf(invoiceId: string): Promise<Buffer> {
   const loaded = await loadInvoiceForRender(invoiceId)

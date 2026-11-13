@@ -33,7 +33,7 @@ export function FicheAuteurDA({ provider, suggestion }: { provider: Provider; su
             label="Pays de résidence fiscale"
             defaultValue={provider.tax_residence_country ?? ''}
             placeholder="France"
-            hint="Décide du modèle : France → 2, autre pays → 3, ou 4 avec un A1 valide."
+            hint="Décide du modèle : A1 valide → 4 (même pour un résident français), sinon France → 2, autre pays → 3."
           />
           <Input
             id="country"

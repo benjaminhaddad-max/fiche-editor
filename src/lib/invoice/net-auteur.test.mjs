@@ -158,7 +158,9 @@ test('modèle suggéré : résidence, A1', async () => {
   const { modeleSuggere } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`)
   assert.equal(modeleSuggere({}).modele, null)
   assert.equal(modeleSuggere({ tax_residence_country: 'France' }).modele, 2)
-  assert.equal(modeleSuggere({ tax_residence_country: 'FR', a1_number: 'X', a1_start: '2026-01-01' }, '2026-11-13').modele, 2)
+  // Un A1 valide prime sur la résidence française : modèle 4.
+  assert.equal(modeleSuggere({ tax_residence_country: 'FR', a1_number: 'X', a1_start: '2026-01-01' }, '2026-11-13').modele, 4)
+  assert.equal(modeleSuggere({ tax_residence_country: 'FR', a1_number: 'X', a1_start: '2024-01-01', a1_end: '2025-12-31' }, '2026-11-13').modele, 2)
   assert.equal(modeleSuggere({ tax_residence_country: 'Pays-Bas' }, '2026-11-13').modele, 3)
   assert.equal(
     modeleSuggere({ tax_residence_country: 'Pays-Bas', a1_number: 'X', a1_start: '2026-01-01', a1_end: '2026-12-31' }, '2026-11-13').modele,
