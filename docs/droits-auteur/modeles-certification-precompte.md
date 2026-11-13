@@ -286,3 +286,8 @@ La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclar
 - Arrondi : total = somme des lignes arrondies, et non calculé sur le taux global comme dans l'ancien document.
 - Plafond de la vieillesse plafonnée : celui de 2026, soit 48 060 € (arrêté du 22 décembre 2025), et non 47 100 €, qui est celui de 2025.
 - Le cas d'Aurore G. : sa situation réelle (affiliation et certificat de résidence fiscale) est à clarifier avant de lui appliquer le modèle 3 ou A1.
+- Modèle 3 : taux de 6,5 % (vieillesse plafonnée 6,15 % + formation professionnelle 0,35 %), sans CSG ni CRDS. C'est ce qu'applique le code (`net-auteur.ts`).
+- Modèle 4 (A1) : aucun précompte, brut = net. La contribution diffuseur de 1,1 % reste due par la société (1,1 % du brut), et elle n'est pas déduite du net. À confirmer.
+- Remontée d'un net fixé au brut : l'arrondi peut laisser 1 à 2 centimes d'écart. On calcule le brut au centime, puis on cale le total du précompte sur brut − net en ajustant la première ligne (vieillesse plafonnée), de sorte que brut − précompte = net exactement. Le précompte d'une ligne peut donc différer de 1 à 2 centimes d'un calcul au taux global.
+- Numérotation : les notes de droits d'auteur prennent « DA-AAAA-NNNN », une suite continue par société et par année, sans trou. Les notes déjà émises (FACT-2026-0001, etc.) ne sont pas renumérotées. À faire valider : la suite DA peut-elle coexister avec les FACT des indépendants dans le même journal d'achats ?
+- Modèle 4 demandé sans A1 valide (absent, pas encore reçu ou expiré) : le code applique le modèle 3 et écrit sur la note « A1 absent ou expiré : modèle 3 appliqué ». À confirmer, notamment quand le A1 arrive après la note (régularisation).
