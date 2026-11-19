@@ -38,3 +38,14 @@ test('le travail de novembre d’un coach part en décembre', () => {
   assert.equal(moisDeVersement('2026-11', ['prof'], 'medibox'), '2026-11')
   assert.equal(moisDeVersement('2026-09', ['tuteur'], 'medibox'), '2026-09')
 })
+
+test('le type d’intervenant de la fiche passe avant les étiquettes', () => {
+  assert.equal(profilEcheancier({ intervenant_type: 'tuteur', tags: ['prof'] }), 'tuteur_coach')
+  assert.equal(profilEcheancier({ intervenant_type: 'professeur', tags: ['coach'] }), 'mensuel')
+  assert.equal(profilEcheancier({ intervenant_type: 'commercial', tags: null }), 'mensuel')
+  // Fiche pas encore classée : on retombe sur les étiquettes.
+  assert.equal(profilEcheancier({ intervenant_type: null, tags: ['Tutrice'] }), 'tuteur_coach')
+  assert.equal(versementCeMois('2026-11', { intervenant_type: 'coach' }, 'medibox'), false)
+  assert.equal(versementCeMois('2026-11', { intervenant_type: 'professeur' }, 'medibox'), true)
+  assert.equal(moisDeVersement('2026-11', { intervenant_type: 'tuteur' }, 'medibox'), '2026-12')
+})

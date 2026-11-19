@@ -14,6 +14,7 @@ import { logAudit } from '@/lib/audit'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { EMPLOYMENTS } from '@/lib/types'
+import { estIntervenant } from '@/lib/intervenant'
 import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 
 export interface AdminResult {
@@ -353,6 +354,43 @@ export async function changerEtiquette(fd: FormData): Promise<void> {
 
   await db.from('inv_providers').update({ tags }).eq('id', providerId)
   revalidatePath('/admin/equipe')
+}
+
+/**
+ * Type d'intervenant de la fiche : prof, tuteur, coach, commercial, autre
+ * (vide = pas classé). Choisi à la main, il n'est plus « auto » : un nouveau
+ * remplissage automatique ne l'écrasera pas.
+ */
+export async function changerTypeIntervenant(fd: FormData): Promise<void> {
+  const user = await requireRole('manager', 'admin')
+  const providerId = String(fd.get('provider_id') ?? '')
+  const valeur = String(fd.get('intervenant_type') ?? '')
+  if (!providerId || (valeur && !estIntervenant(valeur))) return
+
+  const db = createServiceClient()
+  const ecole = await activeBrandId()
+  const { data: avant } = await db
+    .from('inv_providers')
+    .select('intervenant_type')
+    .eq('id', providerId)
+    .eq('brand', ecole)
+    .maybeSingle()
+  if (!avant) return
+  await db
+    .from('inv_providers')
+    .update({ intervenant_type: valeur || null, intervenant_type_auto: false })
+    .eq('id', providerId)
+    .eq('brand', ecole)
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: providerId,
+    action: 'type_intervenant_change',
+    payload: { avant: avant.intervenant_type, apres: valeur || null },
+  })
+  revalidatePath('/admin/equipe')
+  revalidatePath(`/admin/prestataires/${providerId}`)
+  revalidatePath('/validation/bordereaux')
 }
 
 /**

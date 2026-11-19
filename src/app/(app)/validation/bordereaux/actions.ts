@@ -8,6 +8,7 @@ import { envoyerBordereaux } from '@/lib/bordereaux'
 import { cycleForMonth } from '@/lib/cycle'
 import { notifyStatementReminder } from '@/lib/email/notify'
 import { createServiceClient } from '@/lib/supabase/service'
+import { groupesDepuis } from '@/lib/intervenant'
 
 /** Relance un prestataire dont la facture se fait attendre : email et SMS. */
 export async function relancer(formData: FormData): Promise<void> {
@@ -35,7 +36,9 @@ export async function envoyerMaintenant(formData: FormData): Promise<void> {
   const mois = String(formData.get('mois') ?? '')
   if (!/^\d{4}-\d{2}$/.test(mois)) return
 
-  const resultat = await envoyerBordereaux(cycleForMonth(mois), user.id)
+  // Groupes cochés (profs, tuteurs, coachs…) : rien de coché = tout le monde.
+  const groupes = groupesDepuis(formData.getAll('groupe'))
+  const resultat = await envoyerBordereaux(cycleForMonth(mois), user.id, { groupes })
   // La clé porte l'école, comme celles de la tâche quotidienne : le journal
   // est commun aux deux, et une clé nue y vaut pour tout le monde.
   await createServiceClient()
@@ -43,14 +46,14 @@ export async function envoyerMaintenant(formData: FormData): Promise<void> {
     .upsert({
       cycle_month: mois,
       event: `${(await activeBrandId())}:bordereaux`,
-      detail: { ...resultat, manuel: user.id },
+      detail: { ...resultat, manuel: user.id, groupes },
     })
   await logAudit(null, {
     actorId: user.id,
     entityType: 'user',
     entityId: user.id,
     action: 'bordereaux_envoyes',
-    payload: { mois, ...resultat },
+    payload: { mois, groupes, ...resultat },
   })
 
   revalidatePath('/validation/bordereaux')

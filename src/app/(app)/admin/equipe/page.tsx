@@ -22,6 +22,8 @@ interface Fiche {
   contact_email: string | null
   siret: string | null
   tags: string[]
+  intervenant_type: string | null
+  intervenant_type_auto: boolean
 }
 
 export default async function EquipePage({
@@ -42,7 +44,7 @@ export default async function EquipePage({
     db.from('inv_users').select('*').eq('brand', ecole).order('full_name'),
     db
       .from('inv_providers')
-      .select('id, user_id, legal_name, employment_type, onboarding_complete, phone, contact_email, siret, tags')
+      .select('id, user_id, legal_name, employment_type, onboarding_complete, phone, contact_email, siret, tags, intervenant_type, intervenant_type_auto')
       .eq('brand', ecole),
     db.from('inv_invoices').select('provider_id, total_ttc').eq('brand', ecole),
   ])
@@ -77,6 +79,8 @@ export default async function EquipePage({
       employment: f?.employment_type ?? null,
       onboarding: f?.onboarding_complete,
       tags: f?.tags ?? [],
+      intervenant: f?.intervenant_type ?? null,
+      intervenantAuto: f?.intervenant_type_auto ?? false,
       unreachable: (u as { email_unreachable_reason?: string | null }).email_unreachable_reason ?? null,
       legalName: f?.legal_name ?? null,
       homonyme: confondus.has(u.id),

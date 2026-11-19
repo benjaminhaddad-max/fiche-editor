@@ -9,6 +9,7 @@ import { champsManquants } from '@/lib/profil'
 import { generateAndStorePdf } from '@/lib/invoice/store'
 import type { Provider } from '@/lib/types'
 import { versementCeMois } from '@/lib/echeancier'
+import { dansLesGroupes } from '@/lib/intervenant'
 
 export interface EnvoiBordereaux {
   bordereaux: number
@@ -147,7 +148,15 @@ export async function envoyerBordereaux(
   cycle: BillingCycle,
   auteurId?: string | null,
   /** Une date limite repoussée, quand l'envoi lui-même a pris du retard. */
-  opts: { deadline?: string } = {}
+  opts: {
+    deadline?: string
+    /**
+     * Ne traiter que ces types d'intervenant (prof, tuteur, coach…, ou
+     * « aucun » pour les fiches pas classées). Vide : tout le monde. Les
+     * autres restent validés, sans bordereau : un envoi suivant les reprend.
+     */
+    groupes?: readonly string[]
+  } = {}
 ): Promise<EnvoiBordereaux> {
   const limite = opts.deadline ?? cycle.invoiceDeadline
   const db = createServiceClient()
@@ -158,19 +167,33 @@ export async function envoyerBordereaux(
   // valide d'un coup les prestations des deux écoles, et le regroupement qui
   // suit les mêle dans un même bordereau.
   const ecole = (await activeBrandId())
-  const { data: promues } = await db
+  // Envoi limité à certains groupes : on ne valide que leurs lignes, les
+  // autres attendent leur propre envoi (ou celui du 1er).
+  let duGroupe: string[] | null = null
+  if (opts.groupes && opts.groupes.length > 0) {
+    const { data: fiches } = await db
+      .from('inv_providers')
+      .select('id, intervenant_type')
+      .eq('brand', ecole)
+    duGroupe = ((fiches ?? []) as { id: string; intervenant_type: string | null }[])
+      .filter((f) => dansLesGroupes(f.intervenant_type, opts.groupes))
+      .map((f) => f.id)
+    if (duGroupe.length === 0) return { bordereaux: 0, salaries: 0, promues: 0, montant: 0, reportes: 0 }
+  }
+  let promotion = db
     .from('inv_missions')
     .update({ status: 'approved', admin_approved_at: now, admin_approved_by: auteurId ?? null })
     .eq('brand', ecole)
     .eq('status', 'manager_approved')
     .lte('start_date', cycle.periodEnd)
     .is('invoice_id', null)
-    .select('id')
+  if (duGroupe) promotion = promotion.in('provider_id', duGroupe)
+  const { data: promues } = await promotion.select('id')
 
   // ---- 2. Lignes à regrouper.
   const { data: lignes } = await db
     .from('inv_missions')
-    .select('id, provider_id, total_ht, provider:inv_providers(employment_type, tags)')
+    .select('id, provider_id, total_ht, provider:inv_providers(employment_type, tags, intervenant_type)')
     .eq('brand', ecole)
     .eq('status', 'approved')
     .is('invoice_id', null)
@@ -186,9 +209,10 @@ export async function envoyerBordereaux(
     id: string
     provider_id: string
     total_ht: number
-    provider: { employment_type: Employment; tags: string[] | null } | null
+    provider: { employment_type: Employment; tags: string[] | null; intervenant_type: string | null } | null
   }[]) {
-    if (!versementCeMois(cycle.month, l.provider?.tags, ecole)) {
+    if (!dansLesGroupes(l.provider?.intervenant_type, opts.groupes)) continue
+    if (!versementCeMois(cycle.month, l.provider, ecole)) {
       reportes.add(l.provider_id)
       continue
     }

@@ -2,6 +2,7 @@ import { formatDate } from '@/lib/format'
 import { estAuteur, isSalaried } from '@/lib/types'
 import { nirFormate } from '@/lib/nir'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
+import { INTERVENANT_LABEL, estIntervenant } from '@/lib/intervenant'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
@@ -79,6 +80,15 @@ export default async function ProviderPage({
     // on lisait « Forme juridique : Auto-entrepreneur » un peu plus bas et
     // on croyait que le statut était retombé dessus.
     ['Statut', EMPLOYMENT_LABEL[provider.employment_type] ?? provider.employment_type],
+    // Prof, tuteur, coach… : se change depuis Équipe (menu sous le statut).
+    [
+      'Type d’intervenant',
+      (() => {
+        const p = provider as unknown as { intervenant_type?: string | null; intervenant_type_auto?: boolean }
+        if (!estIntervenant(p.intervenant_type)) return null
+        return `${INTERVENANT_LABEL[p.intervenant_type]}${p.intervenant_type_auto ? ' (classé automatiquement, à confirmer dans Équipe)' : ''}`
+      })(),
+    ],
     // Ce qui ne concerne pas le statut ne s'affiche pas : un auteur n'a ni
     // SIRET ni TVA, et les voir marqués « non renseigné » en orange laissait
     // croire qu'il manquait quelque chose pour le payer.

@@ -34,13 +34,33 @@ export const ECOLES_ECHEANCIER: readonly string[] = ['medibox']
 const sansAccents = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /**
- * Tuteur ou coach, d'après les étiquettes de la fiche. Les étiquettes ont été
- * saisies à la main : « tuteur », « Tutrice », « Coach Medibox »… On lit le
- * mot, pas l'orthographe exacte. Quelqu'un qui est aussi « prof » reste payé
- * chaque mois : on ne retarde pas un cours.
+ * Ce qu'on sait de la personne : sa fiche (type d'intervenant, étiquettes),
+ * ou, à défaut, ses seules étiquettes.
  */
-export function profilEcheancier(tags: readonly string[] | null | undefined): ProfilEcheancier {
-  const mots = (tags ?? []).map(sansAccents)
+export type QuiEcheancier =
+  | readonly string[]
+  | null
+  | undefined
+  | { intervenant_type?: string | null; tags?: readonly string[] | null }
+
+/**
+ * Tuteur ou coach ? Le type d'intervenant de la fiche fait foi (champ posé le
+ * 19/11/2026). Sans type, on lit les étiquettes saisies à la main :
+ * « tuteur », « Tutrice », « Coach Medibox »… On lit le mot, pas
+ * l'orthographe exacte. Quelqu'un qui est aussi « prof » reste payé chaque
+ * mois : on ne retarde pas un cours.
+ */
+export function profilEcheancier(qui: QuiEcheancier): ProfilEcheancier {
+  if (qui && !Array.isArray(qui)) {
+    const fiche = qui as { intervenant_type?: string | null; tags?: readonly string[] | null }
+    if (fiche.intervenant_type) {
+      return fiche.intervenant_type === 'tuteur' || fiche.intervenant_type === 'coach'
+        ? 'tuteur_coach'
+        : 'mensuel'
+    }
+    return profilEcheancier(fiche.tags ?? null)
+  }
+  const mots = ((qui as readonly string[] | null | undefined) ?? []).map(sansAccents)
   if (mots.some((t) => /\b(prof|professeur|professeure|enseignant)/.test(t))) return 'mensuel'
   if (mots.some((t) => /\b(tut(eur|rice)|coach)/.test(t))) return 'tuteur_coach'
   return 'mensuel'
@@ -52,11 +72,11 @@ export function profilEcheancier(tags: readonly string[] | null | undefined): Pr
  */
 export function versementCeMois(
   cycleMonth: string,
-  tags: readonly string[] | null | undefined,
+  qui: QuiEcheancier,
   brand: string | null | undefined
 ): boolean {
   if (!brand || !ECOLES_ECHEANCIER.includes(brand)) return true
-  if (profilEcheancier(tags) !== 'tuteur_coach') return true
+  if (profilEcheancier(qui) !== 'tuteur_coach') return true
   const mois = Number(cycleMonth.slice(5, 7))
   return !MOIS_SANS_VERSEMENT_TUTEURS.includes(mois)
 }
@@ -64,13 +84,13 @@ export function versementCeMois(
 /** Le mois ('YYYY-MM') où sera payé le travail d'un mois donné. */
 export function moisDeVersement(
   cycleMonth: string,
-  tags: readonly string[] | null | undefined,
+  qui: QuiEcheancier,
   brand: string | null | undefined
 ): string {
   let [an, mois] = cycleMonth.split('-').map(Number)
   for (let i = 0; i < 12; i++) {
     const m = `${an}-${String(mois).padStart(2, '0')}`
-    if (versementCeMois(m, tags, brand)) return m
+    if (versementCeMois(m, qui, brand)) return m
     mois++
     if (mois > 12) {
       mois = 1

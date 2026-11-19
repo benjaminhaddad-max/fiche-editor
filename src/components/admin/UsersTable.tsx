@@ -9,11 +9,12 @@ import { ROLE_LABEL } from '@/lib/labels'
 import type { AppUser } from '@/lib/types'
 import { envoyerInvitationsEtRappels, type EnvoiResultat } from '@/app/(app)/admin/utilisateurs/actions'
 import { ImpersonateButton } from '@/components/auth/ImpersonateButton'
-import { changerEtiquette, changerRole, renommerCompte, retirerPrestataire, setUserPhone, toggleUserActive, type RetraitResultat } from '@/app/(app)/admin/actions'
+import { changerEtiquette, changerTypeIntervenant, changerRole, renommerCompte, retirerPrestataire, setUserPhone, toggleUserActive, type RetraitResultat } from '@/app/(app)/admin/actions'
 import Link from 'next/link'
 import { EMPLOYMENT_LABEL } from '@/lib/labels'
 import type { Employment } from '@/lib/types'
 import { memeNom } from '@/lib/noms'
+import { INTERVENANTS, INTERVENANT_LABEL, INTERVENANT_PLURIEL, SANS_TYPE, type Intervenant } from '@/lib/intervenant'
 
 const ROLE_STYLE: Record<string, string> = {
   admin: 'bg-gold/10 text-gold-dark ring-gold/30',
@@ -27,6 +28,10 @@ export type EquipeRow = AppUser & {
   employment?: Employment | null
   onboarding?: boolean
   tags?: string[]
+  /** Prof, tuteur, coach, commercial, autre ; null = pas classé. */
+  intervenant?: string | null
+  /** Rempli par le classement automatique du 19/11, pas encore confirmé. */
+  intervenantAuto?: boolean
   /** Brevo bloque tous les envois à cette adresse : rien ne lui arrive. */
   unreachable?: string | null
   /**
@@ -63,6 +68,14 @@ export function UsersTable({
   const agit = (id: string) => admin || sien.has(id)
   const [recherche, setRecherche] = useState('')
   const [etiquette, setEtiquette] = useState('')
+  const [groupe, setGroupe] = useState('')
+
+  // Les types d'intervenant présents dans l'onglet, pour filtrer dessus.
+  const groupes = useMemo(() => {
+    const c = new Map<string, number>()
+    for (const u of users) if (u.providerId) c.set(u.intervenant ?? SANS_TYPE, (c.get(u.intervenant ?? SANS_TYPE) ?? 0) + 1)
+    return [...INTERVENANTS, SANS_TYPE].filter((g) => c.has(g)).map((g) => [g, c.get(g)!] as const)
+  }, [users])
 
   // Toutes les étiquettes en usage, pour proposer de filtrer dessus.
   const etiquettes = useMemo(() => {
@@ -76,6 +89,7 @@ export function UsersTable({
     return users.filter(
       (u) =>
         (!etiquette || (u.tags ?? []).includes(etiquette)) &&
+        (!groupe || (u.providerId && (u.intervenant ?? SANS_TYPE) === groupe)) &&
         (!q ||
           u.full_name.toLowerCase().includes(q) ||
           (u.legalName ?? '').toLowerCase().includes(q) ||
@@ -84,7 +98,7 @@ export function UsersTable({
           (u.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
           ('injoignable'.includes(q) && Boolean(u.unreachable)))
     )
-  }, [users, recherche, etiquette])
+  }, [users, recherche, etiquette, groupe])
 
   // On n'invite que des comptes actifs : un compte désactivé ne doit pas
   // recevoir de lien de connexion.
@@ -127,6 +141,24 @@ export function UsersTable({
           {visibles.length} / {users.length}
         </p>
       </div>
+
+      {groupes.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-medium text-muted">Type</span>
+          {[['', users.filter((u) => u.providerId).length] as const, ...groupes].map(([g, n]) => (
+            <button
+              key={g || 'tous'}
+              type="button"
+              onClick={() => setGroupe(g)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                groupe === g ? 'border-navy bg-navy text-cream' : 'border-line bg-white text-navy/70 hover:border-gold/40'
+              }`}
+            >
+              {g === '' ? 'Tous' : g === SANS_TYPE ? 'Sans type' : INTERVENANT_PLURIEL[g as Intervenant]} ({n})
+            </button>
+          ))}
+        </div>
+      )}
 
       {etiquettes.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-1.5">
@@ -338,6 +370,7 @@ export function UsersTable({
                       {u.employment && (
                         <span className="mt-1 block text-xs text-muted">{EMPLOYMENT_LABEL[u.employment]}</span>
                       )}
+                      {u.providerId && <TypeIntervenant providerId={u.providerId} type={u.intervenant ?? null} auto={u.intervenantAuto ?? false} />}
                       {u.providerId && (
                         <Link href={`/admin/prestataires/${u.providerId}`} className="mt-1 block text-xs font-medium text-gold-dark hover:underline">
                           Fiche{u.onboarding === false ? ' · infos manquantes' : ''}
@@ -496,5 +529,32 @@ function Etiquettes({
         </button>
       )}
     </span>
+  )
+}
+
+/**
+ * Le type d'intervenant, modifiable d'un choix : il part dès qu'on change
+ * la valeur. « à confirmer » tant que c'est le classement automatique.
+ */
+function TypeIntervenant({ providerId, type, auto }: { providerId: string; type: string | null; auto: boolean }) {
+  return (
+    <form action={changerTypeIntervenant} className="mt-1 flex items-center gap-1">
+      <input type="hidden" name="provider_id" value={providerId} />
+      <select
+        name="intervenant_type"
+        defaultValue={type ?? ''}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        aria-label="Type d’intervenant"
+        className={`rounded border px-1.5 py-0.5 text-[11px] ${type ? 'border-line text-navy' : 'border-amber-300 text-amber-700'}`}
+      >
+        <option value="">Type ?</option>
+        {INTERVENANTS.map((t) => (
+          <option key={t} value={t}>
+            {INTERVENANT_LABEL[t]}
+          </option>
+        ))}
+      </select>
+      {type && auto && <span className="text-[10px] text-muted" title="Classé automatiquement d’après le contrat et les prestations">à confirmer</span>}
+    </form>
   )
 }

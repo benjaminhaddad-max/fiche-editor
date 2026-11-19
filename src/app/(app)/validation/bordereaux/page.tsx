@@ -19,6 +19,7 @@ import { echeancesProposees } from '@/lib/echeances'
 import { activeBrandId } from '@/lib/brand/actif'
 import { estAuteur, isSalaried } from '@/lib/types'
 import { moisDeVersement, versementCeMois } from '@/lib/echeancier'
+import { INTERVENANTS, INTERVENANT_LABEL, INTERVENANT_PLURIEL, SANS_TYPE, estIntervenant, type Intervenant } from '@/lib/intervenant'
 
 interface Ligne {
   id: string
@@ -29,7 +30,7 @@ interface Ligne {
   total_ht: number
   status: string
   statement_id: string | null
-  provider: { legal_name: string; employment_type: Employment; tags: string[] | null } | null
+  provider: { legal_name: string; employment_type: Employment; tags: string[] | null; intervenant_type: string | null } | null
   category: { name: string } | null
   manager: { full_name: string } | null
 }
@@ -37,10 +38,10 @@ interface Ligne {
 export default async function BordereauxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mois?: string; q?: string }>
+  searchParams: Promise<{ mois?: string; q?: string; type?: string }>
 }) {
   const user = await requireRole('manager', 'admin')
-  const { mois, q } = await searchParams
+  const { mois, q, type: filtreType } = await searchParams
   const cherche = (q ?? '').trim()
   // La recherche suit le changement de mois : on cherche une personne, pas un mois.
   const suffixe = cherche ? `&q=${encodeURIComponent(cherche)}` : ''
@@ -55,7 +56,7 @@ export default async function BordereauxPage({
     .from('inv_missions')
     .select(
       `id, provider_id, manager_id, detail, start_date, total_ht, status, statement_id,
-       provider:inv_providers(legal_name, employment_type, tags),
+       provider:inv_providers(legal_name, employment_type, tags, intervenant_type),
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
@@ -90,6 +91,8 @@ export default async function BordereauxPage({
     {
       nom: string
       salarie: boolean
+      /** Prof, tuteur, coach… ; null si la fiche n'est pas classée. */
+      type: Intervenant | null
       total: number
       auteur: boolean
       /** Tuteur ou coach sans versement ce mois-ci : payé avec le mois suivant. */
@@ -103,8 +106,9 @@ export default async function BordereauxPage({
     const c = parPresta.get(l.provider_id) ?? {
       nom: l.provider?.legal_name ?? '—',
       salarie: isSalaried(l.provider?.employment_type),
+      type: estIntervenant(l.provider?.intervenant_type) ? l.provider.intervenant_type : null,
       auteur: estAuteur(l.provider?.employment_type),
-      reporte: !versementCeMois(cycle.month, l.provider?.tags, ecole),
+      reporte: !versementCeMois(cycle.month, l.provider, ecole),
       total: 0,
       sienne: 0,
       enAttente: 0,
@@ -137,7 +141,7 @@ export default async function BordereauxPage({
   }).length
   const independants = visibles.filter(([, v]) => !v.salarie && !v.reporte)
   const reportes = visibles.filter(([, v]) => v.reporte)
-  const versementReporte = cycleForMonth(moisDeVersement(cycle.month, ['tuteur'], ecole))
+  const versementReporte = cycleForMonth(moisDeVersement(cycle.month, { intervenant_type: 'tuteur' }, ecole))
   const enAttente = visibles.reduce((n, [, v]) => n + v.enAttente, 0)
 
   // Les tuiles gardent le mois entier ; seule la liste suit la recherche.
@@ -151,7 +155,13 @@ export default async function BordereauxPage({
         : visibles.every(([, v]) => v.auteur)
           ? 'brut'
           : ''
-  const affiches = visibles.filter(([, v]) => correspondPrestataire(v.nom, cherche))
+  // Combien de personnes par groupe : c'est ce que Nolwenn coche à l'envoi.
+  const parGroupe = new Map<string, number>()
+  for (const [, v] of visibles) parGroupe.set(v.type ?? SANS_TYPE, (parGroupe.get(v.type ?? SANS_TYPE) ?? 0) + 1)
+  const groupeFiltre = filtreType && (estIntervenant(filtreType) || filtreType === SANS_TYPE) ? filtreType : null
+  const affiches = visibles.filter(
+    ([, v]) => correspondPrestataire(v.nom, cherche) && (!groupeFiltre || (v.type ?? SANS_TYPE) === groupeFiltre)
+  )
 
   // Ce que les contrats prévoient et que personne n'a porté sur le mois :
   // une échéance oubliée, c'est quelqu'un qui n'est pas payé.
@@ -183,8 +193,21 @@ export default async function BordereauxPage({
           </span>
         </div>
         {user.role === 'admin' && (
-          <form action={envoyerMaintenant}>
+          <form action={envoyerMaintenant} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="mois" value={cycle.month} />
+            {/* Groupes à traiter : rien de coché = tout le monde. Les autres
+                restent validés et partiront avec un envoi suivant. */}
+            {[...INTERVENANTS, SANS_TYPE].map((g) =>
+              parGroupe.get(g) ? (
+                <label
+                  key={g}
+                  className="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-navy"
+                >
+                  <input type="checkbox" name="groupe" value={g} />
+                  {g === SANS_TYPE ? 'Sans type' : INTERVENANT_PLURIEL[g as Intervenant]} ({parGroupe.get(g)})
+                </label>
+              ) : null
+            )}
             <SubmitButton size="sm" variant="secondary" pendingLabel="Envoi…">
               <Send size={14} />
               {envoye ? 'Renvoyer les lignes ajoutées' : 'Envoyer les bordereaux maintenant'}
@@ -192,6 +215,36 @@ export default async function BordereauxPage({
           </form>
         )}
       </div>
+      {user.role === 'admin' && parGroupe.size > 1 && (
+        <p className="-mt-2 mb-4 text-xs text-muted">
+          Cochez un ou plusieurs groupes pour n’envoyer que leurs bordereaux ; sans case cochée,
+          tout le monde part.
+        </p>
+      )}
+
+      {parGroupe.size > 1 && (
+        <nav className="mb-4 flex flex-wrap gap-1.5 text-xs">
+          {[null, ...INTERVENANTS, SANS_TYPE].map((g) =>
+            g === null || parGroupe.get(g) ? (
+              <a
+                key={g ?? 'tous'}
+                href={`/validation/bordereaux?mois=${cycle.month}${suffixe}${g ? `&type=${g}` : ''}`}
+                className={`rounded-full border px-2.5 py-1 ${
+                  (groupeFiltre ?? null) === g
+                    ? 'border-navy bg-navy text-white'
+                    : 'border-line text-navy hover:bg-cream-muted'
+                }`}
+              >
+                {g === null
+                  ? `Tous (${visibles.length})`
+                  : g === SANS_TYPE
+                    ? `Sans type (${parGroupe.get(g)})`
+                    : `${INTERVENANT_PLURIEL[g as Intervenant]} (${parGroupe.get(g)})`}
+              </a>
+            ) : null
+          )}
+        </nav>
+      )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatTile
@@ -312,7 +365,7 @@ export default async function BordereauxPage({
                   return (
                     <LigneBordereau
                       key={id}
-                      nom={v.reporte ? `${v.nom} — payé en ${versementReporte.label}` : v.nom}
+                      nom={`${v.nom}${v.type ? ` · ${INTERVENANT_LABEL[v.type]}` : ''}${v.reporte ? ` — payé en ${versementReporte.label}` : ''}`}
                       salarie={v.salarie}
                       enAttente={v.enAttente}
                       total={st?.total_ht ?? v.total}
