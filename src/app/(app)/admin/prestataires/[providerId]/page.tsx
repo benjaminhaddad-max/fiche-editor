@@ -62,7 +62,7 @@ export default async function ProviderPage({
       .from('inv_documents')
       .select('id, kind, label, filename, expires_at, created_at')
       .eq('provider_id', providerId)
-      .in('kind', ['residence_fiscale', 'a1'])
+      .in('kind', ['residence_fiscale', 'a1', 'droits_maladie'])
       .order('created_at', { ascending: false }),
   ])
   const sesContrats = (contrats ?? []) as unknown as ContractRow[]

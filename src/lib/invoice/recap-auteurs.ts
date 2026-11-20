@@ -40,7 +40,7 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
   const { data } = await db
     .from('inv_invoices')
     .select(
-      `id, number, status, issue_date, paid_at, subtotal_ht, da_model, pdf_path,
+      `id, number, status, issue_date, paid_at, subtotal_ht, da_model, pdf_path, provider_id,
        provider:inv_providers!inner(legal_name, employment_type, social_security_number, da_model, tax_residence_country, a1_number, a1_start, a1_end),
        missions:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis, category:inv_categories(name)),
        lignes:inv_invoice_lines(total_ht, mission_id)`
@@ -59,14 +59,22 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
     subtotal_ht: number
     da_model: string | null
     pdf_path: string | null
+    provider_id: string
     provider: ({ legal_name: string; social_security_number: string | null } & ProfilDA) | null
     missions: { total_ht: number; pay_basis: string | null; category: { name: string } | null }[]
     lignes: { total_ht: number; mission_id: string | null }[]
   }
 
+  // Plafond de la vieillesse : par auteur et par année de versement, dans
+  // l'ordre des versements (Meghira, 20/11/2026).
+  const cumuls = new Map<string, number>()
   return ((data ?? []) as unknown as Row[])
+    .sort((a, b) => (a.paid_at ?? a.issue_date).localeCompare(b.paid_at ?? b.issue_date))
     .map((r) => {
       const date = (r.paid_at ?? r.issue_date).slice(0, 10)
+      const annee = Number(date.slice(0, 4))
+      const cle = `${r.provider_id}:${annee}`
+      const cumulAnnee = cumuls.get(cle) ?? 0
       // Le modèle figé sur la note (2, 3 ou 4) ; à défaut, celui de la fiche.
       const modele = modeleDeLaNote(r, r.provider).modele
       const calc = netAuteur([
@@ -74,7 +82,8 @@ export async function notesAuteurs(annee: number): Promise<NoteAuteur[]> {
         ...(r.lignes ?? [])
           .filter((l) => !l.mission_id)
           .map((l) => ({ total_ht: Number(l.total_ht), pay_basis: 'brut' })),
-      ], modele)
+      ], modele, { cumulAnnee, annee })
+      cumuls.set(cle, round2(cumulAnnee + calc.brutTotal))
       // Toujours les quatre lignes du modèle 2 (zéro quand le modèle n'en a pas) :
       // les colonnes de l'export restent alignées d'une note à l'autre.
       const precompte = lignesPrecompte(2).map((l) => ({

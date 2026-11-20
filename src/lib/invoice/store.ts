@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { BRANDS, marqueFacturable, normalizeBrandId } from '@/lib/brand'
 import { renderInvoicePdf, type AuteurPdf } from '@/lib/invoice/pdf'
-import { modeleDeLaNote, netAuteur } from '@/lib/invoice/net-auteur'
+import { estFrance, modeleDeLaNote, netAuteur, plafondAnnuel } from '@/lib/invoice/net-auteur'
 import { estAuteur, type Employment, type Invoice, type InvoiceLine } from '@/lib/types'
 
 export const INVOICE_BUCKET = 'invoices'
@@ -85,6 +85,18 @@ async function auteurDe(
   // Un modèle 4 sans A1 valide retombe sur le 3, avec une mention visible.
   // Une fois le PDF créé, le modèle est figé sur la note (migration 54).
   const effectif = modeleDeLaNote(invoice, fiche)
+  // Plafond de la vieillesse (Meghira, 20/11/2026) : par auteur et par année
+  // de versement. On cumule le brut des autres notes de l'auteur dans l'année.
+  const annee = Number((invoice.paid_at ?? invoice.issue_date ?? new Date().toISOString()).slice(0, 4))
+  const cumulAnnee = await brutDejaVerse(invoice, annee)
+  // Retenue à la source d'un non-résident (art. 182 B du CGI).
+  const pays = (fiche?.tax_residence_country as string | null)?.trim() || null
+  const { data: cerfa } = await supabase
+    .from('inv_documents')
+    .select('id')
+    .eq('provider_id', invoice.provider_id)
+    .eq('kind', 'residence_fiscale')
+    .limit(1)
   const calcul: AuteurPdf = {
     secu: (fiche?.social_security_number as string | null)?.trim() || null,
     naissance: (fiche?.birth_date as string | null) ?? null,
@@ -97,11 +109,65 @@ async function auteurDe(
       debut: (fiche?.a1_start as string | null) ?? null,
       fin: (fiche?.a1_end as string | null) ?? null,
     },
-    ...netAuteur(prestations, effectif.modele),
+    plafond: { montant: plafondAnnuel(annee), annee },
+    retenueSource: mentionRetenueSource(pays, (cerfa ?? []).length > 0),
+    ...netAuteur(prestations, effectif.modele, { cumulAnnee, annee }),
   }
   if (apercu === 'net_verse') return { ...calcul, netVerse: true }
   if (apercu !== 'non_retenu') return calcul
   return { ...calcul, net: calcul.brutTotal, precompte: [], precompteNonRetenu: true }
+}
+
+/**
+ * Retenue à la source sur les droits d'auteur versés à un non-résident
+ * (art. 182 B du CGI). Meghira (20/11/2026) : 0 % avec la convention
+ * franco-néerlandaise, à condition d'avoir le certificat de résidence fiscale
+ * (Cerfa 5000). Les autres pays n'ont pas encore de règle validée : pas de
+ * mention, à voir avec le comptable.
+ */
+export function mentionRetenueSource(pays: string | null, cerfa5000: boolean): string | null {
+  if (!pays || estFrance(pays)) return null
+  if (!/^(pays[- ]bas|nl|nld|netherlands|nederland)$/i.test(pays)) return null
+  return cerfa5000
+    ? 'Retenue à la source (art. 182 B du CGI) : 0 %, en application de la convention fiscale entre la France et les Pays-Bas, sur présentation du certificat de résidence fiscale (Cerfa 5000).'
+    : 'Retenue à la source (art. 182 B du CGI) : 0 % en application de la convention fiscale entre la France et les Pays-Bas, sous réserve de la remise du certificat de résidence fiscale (Cerfa 5000), non encore reçu.'
+}
+
+/**
+ * Le brut déjà versé à l'auteur dans l'année, hors cette note : notes émises
+ * (envoyées, validées, payées) dont le versement, ou à défaut la date, tombe
+ * dans l'année. Le net convenu est remonté au brut au taux de son modèle.
+ */
+async function brutDejaVerse(invoice: Invoice, annee: number): Promise<number> {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('inv_invoices')
+    .select(
+      'id, issue_date, paid_at, da_model, pdf_path, missions:inv_missions!inv_missions_invoice_id_fkey(total_ht, pay_basis), lignes:inv_invoice_lines(total_ht, mission_id)'
+    )
+    .eq('provider_id', invoice.provider_id)
+    .neq('id', invoice.id)
+    .in('status', ['sent', 'validated', 'paid'])
+  type Row = {
+    issue_date: string
+    paid_at: string | null
+    da_model: string | null
+    pdf_path: string | null
+    missions: { total_ht: number; pay_basis: string | null }[] | null
+    lignes: { total_ht: number; mission_id: string | null }[] | null
+  }
+  const date = (invoice.paid_at ?? invoice.issue_date ?? '').slice(0, 10)
+  let cumul = 0
+  for (const r of (data ?? []) as unknown as Row[]) {
+    const d = (r.paid_at ?? r.issue_date).slice(0, 10)
+    if (Number(d.slice(0, 4)) !== annee || (date && d > date)) continue
+    const lignes = [
+      ...(r.missions ?? []),
+      ...(r.lignes ?? []).filter((l) => !l.mission_id).map((l) => ({ total_ht: Number(l.total_ht), pay_basis: 'brut' })),
+    ]
+    cumul += netAuteur(lignes, modeleDeLaNote(r, null).modele).brutTotal
+  }
+  return Math.round(cumul * 100) / 100
 }
 
 /**

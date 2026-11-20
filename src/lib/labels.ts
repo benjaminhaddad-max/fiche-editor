@@ -114,8 +114,9 @@ export const DOCUMENT_LABEL: Record<string, string> = {
   attestation: 'Attestation',
   domicile: 'Justificatif de domicile',
   identite: 'Pièce d’identité',
-  residence_fiscale: 'Attestation de résidence fiscale',
+  residence_fiscale: 'Certificat de résidence fiscale (Cerfa 5000)',
   a1: 'Formulaire A1',
+  droits_maladie: 'Attestation de droits maladie',
   autre: 'Document',
 }
 

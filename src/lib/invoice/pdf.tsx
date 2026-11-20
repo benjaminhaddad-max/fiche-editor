@@ -160,6 +160,15 @@ export interface AuteurPdf {
   modele: ModeleDA
   /** La contribution du diffuseur (1,1 % du brut). */
   contributionDiffuseur: number
+  /** Une part du brut dépasse le plafond annuel : la vieillesse plafonnée s'arrête. */
+  plafondAtteint: boolean
+  /** Le plafond de l'année de versement, pour la mention. */
+  plafond: { montant: number; annee: number }
+  /**
+   * La mention de retenue à la source (art. 182 B du CGI) d'un non-résident
+   * fiscal, quand elle est connue ; null pour un résident ou un pays sans règle.
+   */
+  retenueSource: string | null
   /** Mention à afficher quand un modèle 4 retombe sur le 3 (A1 absent ou expiré). */
   mentionRepli: string | null
   /** Pays de résidence fiscale, quand il est renseigné. */

@@ -67,8 +67,8 @@ test('net estimé : décimales et centime, comme au paiement', () => {
   assert.equal(estime(0.01), 0.01)
 })
 
-test('net estimé : un très gros brut ne dérive pas', () => {
-  assert.equal(estime(1234567.89), 1036663.57)
+test('net estimé : un très gros brut ne dérive pas (vieillesse limitée au plafond 2026)', () => {
+  assert.equal(estime(1234567.89), 1109633.81)
 })
 
 test('net estimé : un brut nul donne zéro, pas une erreur', () => {
@@ -91,8 +91,9 @@ test('modèle 2 : 1 400 net fixé donnent 1 667,27 brut', () => {
   assert.equal(somme(r), 267.27)
 })
 
-test('modèle 3 : 6,5 % sans CSG ni CRDS, 1 400 net donnent 1 497,33 brut', () => {
-  assert.equal(tauxAffiche(3), '6,5 %')
+test('modèle 3 : 6,50 % sans CSG ni CRDS, 1 400 net donnent 1 497,33 brut', () => {
+  assert.equal(tauxAffiche(3), '6,50 %')
+  assert.equal(tauxAffiche(4), '0 %')
   const r = netAuteur([net(1400)], 3)
   assert.equal(r.brutTotal, 1497.33)
   assert.equal(somme(r), 97.33)
@@ -184,4 +185,50 @@ test('modèle figé sur la note : la fiche changée ne refait pas une note émis
   // Pas encore de PDF : suit la fiche.
   assert.equal(modeleDeLaNote({ da_model: null, pdf_path: null, issue_date: '2026-11-13' }, fiche).modele, 3)
   assert.equal(modeleDeLaNote({ da_model: '4', pdf_path: 'x.pdf' }, {}).modele, 4)
+})
+
+test('Meghira 20/11 : Aurore, 1 400 € brut en modèle 3 → 91,00 € de précompte, net 1 309,00 €', () => {
+  const r = netAuteur([200, 200, 200, 200, 200, 200, 200].map(brut), 3)
+  assert.deepEqual(r.precompte.map((l) => l.montant), [86.1, 4.9])
+  assert.equal(r.net, 1309)
+  assert.equal(r.contributionDiffuseur, 15.4)
+  assert.equal(r.plafondAtteint, false)
+})
+
+test('modèle 4 : brut = net, la contribution 1,1 % reste due', () => {
+  const r = netAuteur([brut(1400)], 4)
+  assert.equal(r.net, 1400)
+  assert.deepEqual(r.precompte, [])
+  assert.equal(r.contributionDiffuseur, 15.4)
+})
+
+test('arrondi : le précompte est la somme des lignes arrondies, et brut − précompte = net', () => {
+  const r = netAuteur([brut(333.33)], 2)
+  const somme = Math.round(r.precompte.reduce((t, l) => t + l.montant, 0) * 100) / 100
+  assert.equal(r.net, Math.round((r.brutTotal - somme) * 100) / 100)
+  for (const l of r.precompte) assert.equal(l.montant, Math.round(l.montant * 100) / 100)
+})
+
+test('plafond annuel : 48 060 € en 2026, 47 100 € en 2025, la vieillesse s’arrête au-delà', async () => {
+  const { plafondAnnuel } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`)
+  assert.equal(plafondAnnuel(2026), 48060)
+  assert.equal(plafondAnnuel(2025), 47100)
+  assert.equal(plafondAnnuel(2027), 48060)
+  // 1 000 € de plafond restant sur une note de 3 000 € brut : vieillesse sur 1 000 € seulement.
+  const r = netAuteur([brut(3000)], 3, { cumulAnnee: 47060, annee: 2026 })
+  assert.equal(r.precompte[0].montant, 61.5)
+  assert.equal(r.precompte[1].montant, 10.5)
+  assert.equal(r.plafondAtteint, true)
+  // Plafond 2025 plus bas : déjà dépassé avec 47 100 € versés.
+  const r25 = netAuteur([brut(1000)], 3, { cumulAnnee: 47100, annee: 2025 })
+  assert.equal(r25.precompte[0].montant, 0)
+  // Sous le plafond : rien ne change.
+  assert.equal(netAuteur([brut(1000)], 2, { cumulAnnee: 10000 }).net, netAuteur([brut(1000)], 2).net)
+})
+
+test('plafond : un net convenu qui le franchit se remonte sans la vieillesse au-delà', () => {
+  const r = netAuteur([net(2000)], 3, { cumulAnnee: 47060, annee: 2026 })
+  const retenu = Math.round(r.precompte.reduce((t, l) => t + l.montant, 0) * 100) / 100
+  assert.equal(Math.round((r.brutTotal - retenu) * 100) / 100, 2000)
+  assert.equal(r.precompte[0].montant, 61.5)
 })

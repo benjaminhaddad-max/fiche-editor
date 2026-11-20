@@ -1,6 +1,6 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { formatDate, money } from '@/lib/format'
-import { lignesPrecompte, tauxAffiche } from '@/lib/invoice/net-auteur'
+import { lignesPrecompte, MENTION_PROVISOIRE_M3, tauxAffiche } from '@/lib/invoice/net-auteur'
 import { BRANDS } from '@/lib/brand/config'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 import type { AuteurPdf } from '@/lib/invoice/pdf'
@@ -314,7 +314,8 @@ export function MediboxInvoiceDocument({
                 <Text>
                   Auteur affilié à la sécurité sociale d’un autre État par un formulaire A1 en cours de
                   validité : aucune cotisation ni contribution n’est précomptée en France. Le brut est égal
-                  au net.
+                  au net. La contribution diffuseur reste due par {societe.name} et figure dans sa déclaration
+                  trimestrielle.
                 </Text>
               ) : (
                 <Text>
@@ -324,6 +325,14 @@ export function MediboxInvoiceDocument({
                   {auteur.modele === 3 ? ' Auteur non-résident fiscal : ni CSG ni CRDS.' : ''}
                 </Text>
               )}
+              {auteur.modele === 3 && <Text>{MENTION_PROVISOIRE_M3}</Text>}
+              {auteur.plafondAtteint && (
+                <Text>
+                  Vieillesse plafonnée limitée au plafond annuel de {money(auteur.plafond.montant)} (versements{' '}
+                  {auteur.plafond.annee}) : elle ne porte pas sur la part du brut qui le dépasse.
+                </Text>
+              )}
+              {auteur.retenueSource && <Text>{auteur.retenueSource}</Text>}
               <Text>
                 Contribution diffuseur (1,1 %, soit {money(auteur.contributionDiffuseur)}) à la charge de{' '}
                 {societe.name}, non déduite du net. Déclaration Urssaf : {trimestre.label}, avant le{' '}

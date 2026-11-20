@@ -315,3 +315,16 @@ La contribution diffuseur de 1,10 % reste due par Medibox (1 % + 0,1 %), déclar
   - Agathe : net versé 307,60 € d'après son relevé n° 2 (253,60 € de coaching et 54 € de régularisation), confirmé par Nolwenn le 13/11 ; brut 366,32 €. En base, la note garde 371 € (montant jamais versé). Marie : net 89,00 €, brut 105,99 €.
   - Medibox n'utilise pas de logiciel comptable synchronisé : rien à reporter côté outil.
 - **Régul Aurore si A1 reçu.** Aurore G. est payée par Nolwenn en net sur sa note en modèle 2 (DA-2026-0013 : brut 1 400,00 €, net 1 175,57 €), sans attendre son A1, demandé et annoncé à 8 semaines. Si le A1 arrive et couvre la période, la note passe en modèle 4, sans précompte : il faudra une note rectificative et une régularisation, soit reverser le précompte à Aurore, soit le récupérer auprès de l'Urssaf. Sa résidence (adresse en Belgique) et la nature de sa mission (cours) sont à confirmer en même temps.
+
+## Règles validées par Meghira (20/11/2026, transmises par Nolwenn)
+
+- **Modèle 3** (non-résident fiscal sans A1) : 6,50 % (vieillesse plafonnée 6,15 % + formation professionnelle 0,35 %), sans CSG ni CRDS. Taux **provisoire** : Meghira attend une confirmation écrite de l'Urssaf Limousin. La note porte la mention « appliqué à titre provisoire » et on régularise si l'Urssaf répond autrement.
+- **Modèle 4** (A1) : aucun précompte, l'auteur touche le brut. La contribution diffuseur de 1,10 % reste à la charge de Medibox France et figure dans la déclaration trimestrielle.
+- **Arrondi** : on arrondit chaque ligne au centime, et le précompte est la somme de ces lignes. La déclaration Urssaf reprend ce même montant.
+- **Plafond de la vieillesse plafonnée** : 48 060 € pour 2026 et 47 100 € pour les paiements de 2025, apprécié par auteur et par année de versement.
+- **Pièces à demander avant de payer un non-résident** :
+  - le certificat de résidence fiscale (Cerfa 5000) ;
+  - le A1 s'il existe, sinon une attestation de droits maladie ;
+  - le NIR et l'IBAN ;
+  - la note au brut, générée par Invoice.
+- **Retenue à la source (art. 182 B du CGI)** : 0 % avec la convention franco-néerlandaise, à condition d'avoir le Cerfa 5000. Aucune règle n'est encore validée pour les autres pays.

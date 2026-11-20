@@ -29,10 +29,22 @@ test('fiche complète en modèle 2', () => {
   assert.equal(statutCalcule(complete, []), 'complete')
 })
 
-test('non-résident : attestation de résidence exigée, statut à valider une fois complet', () => {
+test('non-résident sans A1 (Meghira 20/11) : Cerfa 5000 et droits maladie exigés avant de payer', () => {
   const f = { ...complete, country: 'Pays-Bas', tax_residence_country: 'Pays-Bas' }
-  assert.ok(manquesFicheDA(f, []).includes('attestation de résidence fiscale'))
-  assert.equal(statutCalcule(f, [{ kind: 'residence_fiscale', expires_at: null }]), 'a_valider')
+  const m = manquesFicheDA(f, [])
+  assert.ok(m.includes('certificat de résidence fiscale (Cerfa 5000)'))
+  assert.ok(m.includes('formulaire A1, ou à défaut attestation de droits maladie'))
+  assert.equal(statutCalcule(f, [{ kind: 'residence_fiscale', expires_at: null }]), 'incomplete')
+  const pieces = [{ kind: 'residence_fiscale', expires_at: null }, { kind: 'droits_maladie', expires_at: null }]
+  assert.deepEqual(manquesFicheDA(f, pieces), [])
+  assert.equal(statutCalcule(f, pieces), 'complete')
+})
+
+test('modèle 4 avec A1 valide et sa copie : fiche complète, pas de droits maladie demandés', () => {
+  const f = { ...complete, tax_residence_country: 'Pays-Bas', da_model: '4', a1_number: 'NL1', a1_issuer: 'SVB', a1_start: '2026-01-01' }
+  const pieces = [{ kind: 'residence_fiscale', expires_at: null }, { kind: 'a1', expires_at: null }]
+  assert.deepEqual(manquesFicheDA(f, pieces, '2026-11-20'), [])
+  assert.equal(statutCalcule(f, pieces, '2026-11-20'), 'complete')
 })
 
 test('modèle 4 : A1 et copie exigés', () => {

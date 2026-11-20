@@ -33,7 +33,7 @@ export async function fichesAuteursARevoir(): Promise<FicheARevoir[]> {
     .from('inv_documents')
     .select('provider_id, kind, expires_at')
     .in('provider_id', liste.map((a) => a.id))
-    .in('kind', ['residence_fiscale', 'a1'])
+    .in('kind', ['residence_fiscale', 'a1', 'droits_maladie'])
   const pieces = (docs ?? []) as { provider_id: string; kind: string; expires_at: string | null }[]
 
   return liste

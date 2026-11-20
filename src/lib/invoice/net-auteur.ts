@@ -8,15 +8,23 @@
  *    soit 6,15 % sur 100 % du brut ; vieillesse déplafonnée 0,40 %, entièrement
  *    prise en charge : 0 % ; CSG 9,20 % et CRDS 0,50 % sur 98,25 % du brut ;
  *    formation professionnelle 0,35 %. Soit 16,03 % du brut.
- *  - Modèle 3 (non-résident fiscal, affilié en France) : vieillesse plafonnée
- *    6,15 % et formation professionnelle 0,35 %, sans CSG ni CRDS : 6,5 %.
+ *  - Modèle 3 (non-résident fiscal, affilié en France, sans A1) : vieillesse
+ *    plafonnée 6,15 % et formation professionnelle 0,35 %, sans CSG ni CRDS :
+ *    6,50 %. Validé par Meghira le 20/11/2026 à titre PROVISOIRE, dans
+ *    l'attente d'une confirmation écrite de l'Urssaf Limousin : la note le
+ *    dit (MENTION_PROVISOIRE_M3), et on régularise si l'Urssaf répond autrement.
  *  - Modèle 4 (formulaire A1 valide, affilié dans un autre pays de l'UE) :
  *    aucun précompte, le brut est égal au net. La contribution du diffuseur
  *    (1,1 %) reste due par la société.
  *  - Modèle 1 : archivé, il se lit comme le 2.
  *
- * La vieillesse plafonnée ne porte que sous le plafond annuel (48 060 € en
- * 2026) : aucun auteur de la plateforme n'en approche.
+ * Arrondi (Meghira, 20/11/2026) : chaque ligne est arrondie au centime, le
+ * précompte est la somme des lignes arrondies, et c'est ce même montant qui
+ * part dans la déclaration Urssaf.
+ *
+ * La vieillesse plafonnée ne porte que sous le plafond annuel, apprécié par
+ * auteur et par année de versement : 47 100 € pour les paiements de 2025,
+ * 48 060 € pour ceux de 2026. Au-delà, seule la ligne vieillesse s'arrête.
  */
 export type ModeleDA = 2 | 3 | 4
 
@@ -56,10 +64,29 @@ export const PRECOMPTE_AUTEUR = tauxPrecompte(2)
 
 /** « 16,03 % » (ou « 6,5 % », « 0 % »), pour les écrans et les PDF. */
 export function tauxAffiche(modele: ModeleDA = 2): string {
-  return `${(Math.round(tauxPrecompte(modele) * 10000) / 100).toLocaleString('fr-FR')} %`
+  const t = Math.round(tauxPrecompte(modele) * 10000) / 100
+  return `${t === 0 ? '0' : t.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`
 }
 
 export const PRECOMPTE_AFFICHE = tauxAffiche(2)
+
+/** Plafond annuel de la vieillesse plafonnée, par année de versement. */
+export const PLAFONDS_VIEILLESSE: Record<number, number> = { 2025: 47100, 2026: 48060 }
+
+/** Le plafond d'une année ; une année non connue prend le dernier plafond connu. */
+export function plafondAnnuel(annee: number): number {
+  if (PLAFONDS_VIEILLESSE[annee]) return PLAFONDS_VIEILLESSE[annee]
+  const connues = Object.keys(PLAFONDS_VIEILLESSE).map(Number).sort((a, b) => a - b)
+  const avant = connues.filter((a) => a <= annee)
+  return PLAFONDS_VIEILLESSE[(avant.length ? avant : connues).at(-1) as number]
+}
+
+/** Mention portée sur toute note en modèle 3, tant que l'Urssaf n'a pas confirmé. */
+export const MENTION_PROVISOIRE_M3 =
+  'Taux de 6,50 % appliqué à titre provisoire, dans l’attente de la confirmation écrite de l’Urssaf Limousin ; ' +
+  'il sera régularisé si l’Urssaf retient un autre taux.'
+
+const VIEILLESSE = 'Vieillesse plafonnée'
 
 /** Contribution du diffuseur : 1,1 % du brut, à la charge de la société. */
 export const TAUX_CONTRIBUTION_DIFFUSEUR = 0.011
@@ -73,12 +100,17 @@ export interface LignePrecompte {
   montant: number
 }
 
-/** Le détail du précompte d'un brut, ligne par ligne, au centime. */
-export function detailPrecompte(brut: number, modele: ModeleDA = 2): LignePrecompte[] {
+/**
+ * Le détail du précompte d'un brut, ligne par ligne, au centime.
+ * `sousPlafond` : la part du brut encore sous le plafond annuel (tout le brut
+ * par défaut) ; la vieillesse plafonnée ne porte que sur elle.
+ */
+export function detailPrecompte(brut: number, modele: ModeleDA = 2, sousPlafond: number = brut): LignePrecompte[] {
+  const plafonnable = Math.max(0, Math.min(brut, sousPlafond))
   return lignesPrecompte(modele).map((l) => ({
     libelle: l.libelle,
     taux: l.taux * l.assiette,
-    montant: arrondi(brut * l.taux * l.assiette),
+    montant: arrondi((l.libelle === VIEILLESSE ? plafonnable : brut) * l.taux * l.assiette),
   }))
 }
 
@@ -87,11 +119,24 @@ export function detailPrecompte(brut: number, modele: ModeleDA = 2): LignePrecom
  * précompte total sur brut − net : l'écart d'arrondi (1 à 2 centimes) est
  * porté par la première ligne, pour que brut − retenues = net exactement.
  */
-export function brutPourNet(net: number, modele: ModeleDA = 2): { brut: number; precompte: LignePrecompte[] } {
+export function brutPourNet(
+  net: number,
+  modele: ModeleDA = 2,
+  sousPlafond: number = Infinity
+): { brut: number; precompte: LignePrecompte[] } {
   const taux = tauxPrecompte(modele)
   if (taux === 0) return { brut: arrondi(net), precompte: [] }
-  const brut = arrondi(net / (1 - taux))
-  const precompte = detailPrecompte(brut, modele)
+  const reste = Math.max(0, sousPlafond)
+  let brut = arrondi(net / (1 - taux))
+  if (brut > reste) {
+    // Au-delà du plafond, la vieillesse ne porte plus : le reste du net se
+    // remonte au taux sans elle.
+    const horsVieillesse = lignesPrecompte(modele)
+      .filter((l) => l.libelle !== VIEILLESSE)
+      .reduce((t, l) => t + l.taux * l.assiette, 0)
+    brut = arrondi(reste + (net - reste * (1 - taux)) / (1 - horsVieillesse))
+  }
+  const precompte = detailPrecompte(brut, modele, reste)
   const ecart = arrondi(brut - net - precompte.reduce((t, l) => t + l.montant, 0))
   if (ecart !== 0 && precompte.length > 0) {
     precompte[0] = { ...precompte[0], montant: arrondi(precompte[0].montant + ecart) }
@@ -116,6 +161,8 @@ export interface NetAuteur {
   modele: ModeleDA
   /** La contribution du diffuseur (1,1 % du brut), due par la société. */
   contributionDiffuseur: number
+  /** Vrai quand une part du brut dépasse le plafond annuel : vieillesse limitée. */
+  plafondAtteint: boolean
 }
 
 /**
@@ -130,6 +177,12 @@ export interface NetAuteur {
 export function netAuteur(
   lignes: { total_ht: number; pay_basis: string | null }[],
   modele: ModeleDA = 2,
+  opts: {
+    /** Le brut déjà versé à l'auteur dans l'année, avant cette note. */
+    cumulAnnee?: number
+    /** L'année de versement, pour le plafond (2026 par défaut). */
+    annee?: number
+  } = {},
 ): NetAuteur {
   let brutSoumis = 0
   let netFixe = 0
@@ -141,8 +194,10 @@ export function netAuteur(
   brutSoumis = arrondi(brutSoumis)
   netFixe = arrondi(netFixe)
 
-  const surBrut = detailPrecompte(brutSoumis, modele)
-  const surNet = brutPourNet(netFixe, modele)
+  // Les lignes en brut prennent le plafond d'abord, les nets convenus ensuite.
+  const reste = Math.max(0, plafondAnnuel(opts.annee ?? 2026) - (opts.cumulAnnee ?? 0))
+  const surBrut = detailPrecompte(brutSoumis, modele, reste)
+  const surNet = brutPourNet(netFixe, modele, Math.max(0, reste - brutSoumis))
   const precompte = surBrut.map((l, i) => ({
     ...l,
     montant: arrondi(l.montant + (surNet.precompte[i]?.montant ?? 0)),
@@ -159,6 +214,7 @@ export function netAuteur(
     precompte,
     modele,
     contributionDiffuseur: arrondi(brutTotal * TAUX_CONTRIBUTION_DIFFUSEUR),
+    plafondAtteint: brutTotal > reste && precompte.some((l) => l.libelle === VIEILLESSE),
   }
 }
 

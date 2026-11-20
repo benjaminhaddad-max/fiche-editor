@@ -2,8 +2,12 @@
  * La fiche d'un auteur payé en droits d'auteur : ce qui manque pour le
  * payer et le déclarer, et les justificatifs qui arrivent à échéance.
  *
- * Règles de travail de Nolwenn (13/11/2026). Rien ici ne modifie la fiche :
- * on calcule, l'écran affiche, l'administration décide.
+ * Règles de travail de Nolwenn (13/11/2026), complétées par Meghira le
+ * 20/11/2026 : avant de payer un non-résident fiscal, il faut le certificat
+ * de résidence fiscale (Cerfa 5000), le A1 s'il existe, sinon une
+ * attestation de droits maladie, plus le NIR, l'IBAN et la note au brut
+ * (celle qu'Invoice génère). Rien ici ne modifie la fiche : on calcule,
+ * l'écran affiche, l'administration décide.
  */
 import { a1Expire, a1Valide, estFrance, modeleSuggere, type ProfilDA } from './net-auteur'
 
@@ -19,7 +23,7 @@ export const STATUT_FICHE_LABEL: Record<string, string> = {
 export const MODELE_LABEL: Record<string, string> = {
   '1': 'Modèle 1 — ancien modèle (archivé)',
   '2': 'Modèle 2 — résident fiscal français (16,03 %)',
-  '3': 'Modèle 3 — non-résident, affilié en France, sans A1 (6,5 %)',
+  '3': 'Modèle 3 — non-résident, affilié en France, sans A1 (6,50 %, provisoire)',
   '4': 'Modèle 4 — avec formulaire A1 (aucun précompte)',
 }
 
@@ -55,7 +59,7 @@ const plusJours = (jour: string, n: number) => {
 export function manquesFicheDA(f: FicheDA, pieces: PieceDA[], jour?: string): string[] {
   const j = jour ?? new Date().toISOString().slice(0, 10)
   const manques: string[] = []
-  if (!f.social_security_number) manques.push('numéro de sécurité sociale')
+  if (!f.social_security_number) manques.push('numéro de sécurité sociale (NIR)')
   if (!f.address_line1 || !f.postal_code || !f.city) manques.push('adresse complète')
   if (!f.country) manques.push('pays de l’adresse')
   if (!f.tax_residence_country) manques.push('pays de résidence fiscale')
@@ -63,13 +67,21 @@ export function manquesFicheDA(f: FicheDA, pieces: PieceDA[], jour?: string): st
 
   const nonResident = f.tax_residence_country && !estFrance(f.tax_residence_country)
   if (nonResident && !pieces.some((p) => p.kind === 'residence_fiscale')) {
-    manques.push('attestation de résidence fiscale')
+    manques.push('certificat de résidence fiscale (Cerfa 5000)')
   }
   const modele = f.da_model ?? modeleSuggere(f, j).modele?.toString()
-  if (modele === '4') {
+  // Le A1 n'est tenu que s'il est valide : sinon la note part en modèle 3.
+  const a1Tenu = modele === '4' && a1Valide(f, j)
+  if (modele === '4' && !a1Tenu) {
     if (!f.a1_number || !f.a1_start) manques.push('numéro et date de début du A1')
     if (!f.a1_issuer) manques.push('organisme du A1')
     if (!pieces.some((p) => p.kind === 'a1')) manques.push('copie du formulaire A1')
+  } else if (modele === '4' && !pieces.some((p) => p.kind === 'a1')) {
+    manques.push('copie du formulaire A1')
+  }
+  // Non-résident sans A1 : l'attestation de droits maladie prouve l'affiliation.
+  if (nonResident && !a1Tenu && !pieces.some((p) => p.kind === 'droits_maladie' || p.kind === 'a1')) {
+    manques.push('formulaire A1, ou à défaut attestation de droits maladie')
   }
   return manques
 }
@@ -77,10 +89,9 @@ export function manquesFicheDA(f: FicheDA, pieces: PieceDA[], jour?: string): st
 /** Le statut que la fiche devrait porter, d'après ce qui manque. */
 export function statutCalcule(f: FicheDA, pieces: PieceDA[], jour?: string): 'complete' | 'incomplete' | 'a_valider' {
   if (manquesFicheDA(f, pieces, jour).length > 0) return 'incomplete'
-  // Modèle 3 et 4 : règles non encore validées par le comptable.
-  const j = jour ?? new Date().toISOString().slice(0, 10)
-  const m = f.da_model ?? modeleSuggere(f, j).modele?.toString()
-  return m === '3' || m === '4' ? 'a_valider' : 'complete'
+  // Modèles 3 et 4 validés par Meghira le 20/11/2026 (le 3 à titre provisoire :
+  // la note le dit). Une fiche complète l'est, quel que soit le modèle.
+  return 'complete'
 }
 
 /**
@@ -92,7 +103,14 @@ export function alertesFicheDA(f: FicheDA, pieces: (PieceDA & { label?: string |
   const j = jour ?? new Date().toISOString().slice(0, 10)
   const limite = plusJours(j, JOURS_ALERTE)
   const alertes: Alerte[] = []
-  const nom = (k: string) => (k === 'a1' ? 'Formulaire A1' : k === 'residence_fiscale' ? 'Attestation de résidence fiscale' : 'Justificatif')
+  const nom = (k: string) =>
+    k === 'a1'
+      ? 'Formulaire A1'
+      : k === 'residence_fiscale'
+        ? 'Certificat de résidence fiscale'
+        : k === 'droits_maladie'
+          ? 'Attestation de droits maladie'
+          : 'Justificatif'
 
   for (const p of pieces) {
     if (!p.expires_at) continue

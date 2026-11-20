@@ -104,7 +104,7 @@ export async function deposerJustificatifDA(_prev: DAResult, fd: FormData): Prom
   const expires = String(fd.get('expires_at') ?? '')
   const fichier = fd.get('file')
   if (!z.uuid().safeParse(providerId).success) return { error: 'Fiche introuvable.' }
-  if (kind !== 'residence_fiscale' && kind !== 'a1') return { error: 'Choisissez le type de justificatif.' }
+  if (kind !== 'residence_fiscale' && kind !== 'a1' && kind !== 'droits_maladie') return { error: 'Choisissez le type de justificatif.' }
   if (expires && !/^\d{4}-\d{2}-\d{2}$/.test(expires)) return { error: 'Date d’expiration invalide.' }
   if (!(fichier instanceof File) || fichier.size === 0) return { error: 'Choisissez le PDF du justificatif.' }
   if (!fichier.name.toLowerCase().endsWith('.pdf') && fichier.type !== 'application/pdf') {
@@ -119,7 +119,12 @@ export async function deposerJustificatifDA(_prev: DAResult, fd: FormData): Prom
     .upload(path, Buffer.from(await fichier.arrayBuffer()), { contentType: 'application/pdf' })
   if (e1) return { error: `Dépôt impossible : ${e1.message}` }
 
-  const label = kind === 'a1' ? 'Formulaire A1' : 'Attestation de résidence fiscale'
+  const label =
+    kind === 'a1'
+      ? 'Formulaire A1'
+      : kind === 'droits_maladie'
+        ? 'Attestation de droits maladie'
+        : 'Certificat de résidence fiscale (Cerfa 5000)'
   const { error: e2 } = await db.from('inv_documents').insert({
     provider_id: providerId,
     kind,

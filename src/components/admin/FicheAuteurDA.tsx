@@ -97,8 +97,9 @@ export function FicheAuteurDA({ provider, suggestion }: { provider: Provider; su
         <p className="text-xs font-semibold text-navy">Déposer un justificatif</p>
         <div className="grid gap-4 sm:grid-cols-3">
           <Select id="kind" name="kind" label="Type" defaultValue="residence_fiscale">
-            <option value="residence_fiscale">Attestation de résidence fiscale</option>
+            <option value="residence_fiscale">Certificat de résidence fiscale (Cerfa 5000)</option>
             <option value="a1">Formulaire A1</option>
+            <option value="droits_maladie">Attestation de droits maladie (sans A1)</option>
           </Select>
           <Input
             id="expires_at"
