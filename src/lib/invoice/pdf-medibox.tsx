@@ -319,7 +319,7 @@ export function MediboxInvoiceDocument({
                 </Text>
               ) : (
                 <Text>
-                  Cotisations précomptées par le diffuseur et versées à l’Urssaf (taux 2026, {tauxAffiche(auteur.modele)}
+                  Cotisations précomptées par le diffuseur et versées à l’Urssaf (taux 2026, {tauxAffiche(auteur.modele)}{' '}
                   du brut). La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont
                   pris en charge par l’État.
                   {auteur.modele === 3 ? ' Auteur non-résident fiscal : ni CSG ni CRDS.' : ''}
