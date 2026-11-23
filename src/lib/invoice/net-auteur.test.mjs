@@ -27,10 +27,27 @@ test('1 000 € brut donnent 839,70 € net, comme la calculette de la SGDL', ()
 
 test('un net fixé est remonté au brut : Agathe (317 brut + 54 net)', () => {
   const r = netAuteur([brut(317), net(54)])
-  // 317 brut -> 266,18 net ; 54 net fixé -> 64,31 brut ; le net total est 320,18
-  assert.equal(r.net, 320.18)
-  assert.equal(r.brutDeduit, 64.31)
-  assert.equal(r.brutTotal, 381.31)
+  // 54 net fixé -> 64,32 brut (le précompte arrondi ligne par ligne redonne 54,00) ;
+  // précompte calculé une seule fois sur le brut total (23/11/2026, Nolwenn).
+  assert.equal(r.brutDeduit, 64.32)
+  assert.equal(r.brutTotal, 381.32)
+  assert.equal(r.net, 320.2)
+})
+
+test('note mixte : un seul calcul du précompte sur le brut total (500 net + 400 brut)', () => {
+  const r = netAuteur([net(500), brut(400)])
+  assert.equal(r.brutDeduit, 595.45)
+  assert.equal(r.brutTotal, 995.45)
+  assert.deepEqual(r.precompte.map((l) => l.montant), [61.22, 89.98, 4.89, 3.48])
+  assert.equal(r.net, 835.88)
+})
+
+test('net convenu de 900 € seul : brut 1 071,82 et précompte 65,92 / 96,88 / 5,27 / 3,75', () => {
+  const r = netAuteur([net(900)])
+  assert.equal(r.brutTotal, 1071.82)
+  assert.deepEqual(r.precompte.map((l) => l.montant), [65.92, 96.88, 5.27, 3.75])
+  assert.equal(r.net, 900)
+  assert.equal(r.contributionDiffuseur, 11.79)
 })
 
 test('un net fixé garde son net : Marie (89 net)', () => {

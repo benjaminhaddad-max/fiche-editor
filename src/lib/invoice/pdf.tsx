@@ -362,7 +362,9 @@ export async function renderInvoicePdf(
   auteur?: AuteurPdf
 ): Promise<Buffer> {
   // Medibox a son propre modèle de facture : pas celui de Diploma recoloré.
-  if (normalizeBrandId(invoice.brand) === 'medibox') {
+  // Une note de droits d'auteur, elle, a le même modèle quelle que soit la
+  // marque (23/11/2026, Nolwenn) : jamais « FACTURE » avec un net à payer au brut.
+  if (auteur || normalizeBrandId(invoice.brand) === 'medibox') {
     return renderToBuffer(<MediboxInvoiceDocument invoice={invoice} lines={lines} auteur={auteur} />)
   }
   return renderToBuffer(<InvoiceDocument invoice={invoice} lines={lines} auteur={auteur} />)

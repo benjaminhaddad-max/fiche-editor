@@ -128,6 +128,20 @@ export function brutPourNet(
   if (taux === 0) return { brut: arrondi(net), precompte: [] }
   const reste = Math.max(0, sousPlafond)
   let brut = arrondi(net / (1 - taux))
+  if (brut <= reste) {
+    // Règle de remontée de Nolwenn (23/11/2026) : on garde le brut dont le
+    // précompte, arrondi ligne par ligne, redonne exactement le net convenu.
+    // Si l'arrondi du quotient n'y arrive pas, on essaie un centime de plus,
+    // puis un centime de moins, avant de recourir à l'ajustement ci-dessous.
+    for (const delta of [0, 0.01, -0.01]) {
+      const candidat = arrondi(brut + delta)
+      if (candidat > reste || candidat <= net) continue
+      const lignes = detailPrecompte(candidat, modele, reste)
+      if (arrondi(candidat - lignes.reduce((t, l) => t + l.montant, 0)) === arrondi(net)) {
+        return { brut: candidat, precompte: lignes }
+      }
+    }
+  }
   if (brut > reste) {
     // Au-delà du plafond, la vieillesse ne porte plus : le reste du net se
     // remonte au taux sans elle.
@@ -196,14 +210,14 @@ export function netAuteur(
 
   // Les lignes en brut prennent le plafond d'abord, les nets convenus ensuite.
   const reste = Math.max(0, plafondAnnuel(opts.annee ?? 2026) - (opts.cumulAnnee ?? 0))
-  const surBrut = detailPrecompte(brutSoumis, modele, reste)
   const surNet = brutPourNet(netFixe, modele, Math.max(0, reste - brutSoumis))
-  const precompte = surBrut.map((l, i) => ({
-    ...l,
-    montant: arrondi(l.montant + (surNet.precompte[i]?.montant ?? 0)),
-  }))
   const brutDeduit = surNet.brut
+  // Un seul calcul du précompte, sur le brut total de la note (Nolwenn,
+  // 23/11/2026) : la certification montre le taux appliqué au brut affiché,
+  // sans écart d'arrondi entre lignes en brut et lignes en net. Sans ligne en
+  // brut, on garde le détail de la remontée, qui redonne le net convenu exact.
   const brutTotal = arrondi(brutSoumis + brutDeduit)
+  const precompte = brutSoumis === 0 ? surNet.precompte : detailPrecompte(brutTotal, modele, reste)
   const retenu = precompte.reduce((t, l) => t + l.montant, 0)
   return {
     net: lignes.length === 0 ? null : arrondi(brutTotal - retenu),

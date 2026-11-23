@@ -1,7 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { formatDate, money } from '@/lib/format'
 import { lignesPrecompte, MENTION_PROVISOIRE_M3, tauxAffiche } from '@/lib/invoice/net-auteur'
-import { BRANDS } from '@/lib/brand/config'
+import { BRANDS, normalizeBrandId, type BrandId } from '@/lib/brand/config'
 import { mentionTva, societeDe, type Invoice, type InvoiceLine } from '@/lib/types'
 import type { AuteurPdf } from '@/lib/invoice/pdf'
 import { trimestreDe } from '@/lib/invoice/trimestre'
@@ -27,9 +27,7 @@ import { trimestreDe } from '@/lib/invoice/trimestre'
  *    2 (résident fiscal en France), 3 (non-résident, affilié en France) ou
  *    4 (formulaire A1 valide : aucun précompte).
  */
-const p = BRANDS.medibox.palette
-
-const s = StyleSheet.create({
+const creerStyles = (p: (typeof BRANDS)[BrandId]['palette']) => StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontSize: 9, fontFamily: 'Helvetica', color: p.ink },
   haut: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 },
   titre: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: p.ink },
@@ -68,7 +66,13 @@ const s = StyleSheet.create({
   pied: { position: 'absolute', bottom: 24, left: 40, right: 40, textAlign: 'center', fontSize: 7, color: '#8B82A6' },
 })
 
-function Info({ label, value }: { label: string; value: string | null | undefined }) {
+type Styles = ReturnType<typeof creerStyles>
+/** Les styles de chaque marque, créés une fois : la couleur est celle de la marque émettrice. */
+const STYLES = Object.fromEntries(
+  (Object.keys(BRANDS) as BrandId[]).map((id) => [id, creerStyles(BRANDS[id].palette)])
+) as Record<BrandId, Styles>
+
+function Info({ label, value, s }: { label: string; value: string | null | undefined; s: Styles }) {
   if (!value?.trim()) return null
   return (
     <View style={s.ligneInfo}>
@@ -101,6 +105,7 @@ export function MediboxInvoiceDocument({
   lines: InvoiceLine[]
   auteur?: AuteurPdf
 }) {
+  const s = STYLES[normalizeBrandId(invoice.brand)]
   const issuer = invoice.issuer_snapshot
   const societe = societeDe(invoice.brand)
   const tva = issuer.vat_regime === 'normal'
@@ -143,24 +148,24 @@ export function MediboxInvoiceDocument({
         <View style={s.parties}>
           <View style={s.partie}>
             {auteur ? (
-              <Info label="Nom et prénom :" value={issuer.legal_name} />
+              <Info s={s} label="Nom et prénom :" value={issuer.legal_name} />
             ) : (
-              <Info label="Nom de la société :" value={issuer.legal_name} />
+              <Info s={s} label="Nom de la société :" value={issuer.legal_name} />
             )}
-            <Info label="Adresse :" value={[issuer.address_line1, issuer.address_line2].filter(Boolean).join(', ')} />
-            <Info label="Code postal et ville :" value={[issuer.postal_code, issuer.city].filter(Boolean).join(' ')} />
-            <Info label="Mail :" value={issuer.email} />
-            <Info label="Téléphone :" value={issuer.phone} />
+            <Info s={s} label="Adresse :" value={[issuer.address_line1, issuer.address_line2].filter(Boolean).join(', ')} />
+            <Info s={s} label="Code postal et ville :" value={[issuer.postal_code, issuer.city].filter(Boolean).join(' ')} />
+            <Info s={s} label="Mail :" value={issuer.email} />
+            <Info s={s} label="Téléphone :" value={issuer.phone} />
             {auteur ? (
               <>
-                <Info label="Date de naissance :" value={auteur.naissance ? formatDate(auteur.naissance) : null} />
-                <Info label="N° de sécurité sociale :" value={auteur.secu} />
-                <Info label="Résidence fiscale :" value={auteur.paysResidence} />
+                <Info s={s} label="Date de naissance :" value={auteur.naissance ? formatDate(auteur.naissance) : null} />
+                <Info s={s} label="N° de sécurité sociale :" value={auteur.secu} />
+                <Info s={s} label="Résidence fiscale :" value={auteur.paysResidence} />
               </>
             ) : (
               <>
-                <Info label="SIRET :" value={issuer.siret} />
-                <Info label="N° de TVA :" value={issuer.vat_number} />
+                <Info s={s} label="SIRET :" value={issuer.siret} />
+                <Info s={s} label="N° de TVA :" value={issuer.vat_number} />
               </>
             )}
           </View>
@@ -319,8 +324,9 @@ export function MediboxInvoiceDocument({
                 </Text>
               ) : (
                 <Text>
-                  Cotisations précomptées par le diffuseur et versées à l’Urssaf (taux 2026, {tauxAffiche(auteur.modele)}{' '}
-                  du brut). La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont
+                  {auteur.netVerse
+                    ? `Cotisations calculées au taux 2026 (${tauxAffiche(auteur.modele)} du brut), versées à l’Urssaf par ${societe.name}.`
+                    : `Cotisations précomptées par le diffuseur et versées à l’Urssaf (taux 2026, ${tauxAffiche(auteur.modele)} du brut).`} La vieillesse déplafonnée (0,40 %) et 0,75 point de la vieillesse plafonnée sont
                   pris en charge par l’État.
                   {auteur.modele === 3 ? ' Auteur non-résident fiscal : ni CSG ni CRDS.' : ''}
                 </Text>
