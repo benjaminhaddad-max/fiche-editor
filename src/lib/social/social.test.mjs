@@ -140,6 +140,15 @@ test('transport : hors du fichier Silae par défaut, récapitulatif joint à la 
   assert.match(sa.csvRecapTransport(r), /^Matricule;Salarié;Abonnement \(€\);Remboursé à 50 % \(€\)\r\n00063;.*;90,80;45,40\r\n$/)
 })
 
+test('transport : « Non » et abonnement annuel ne déclenchent aucune anomalie, ni récap', () => {
+  for (const extra of [{ transport: false }, { transport: false, transport_annuel: true }]) {
+    const x = sa.lireSaisie({ status: 'a_valider', submitted_at: 'x', ...extra }, '2026-11')
+    assert.deepEqual(sa.controler(SAL, x, 0).filter((a) => a.code.includes('transport')), [])
+    assert.equal(sa.recapTransport([{ salarie: SAL, saisie: x }]).length, 0)
+  }
+  assert.equal(sa.lireSaisie({ transport_annuel: true }, '2026-11').transport_annuel, true)
+})
+
 test('vacataire : le net des missions part en net, jamais de brut', () => {
   const x = sa.lireSaisie({ status: 'valide', submitted_at: 'x', nothing_to_report: true }, '2026-10')
   const l = sa.lignesSilae({ ...SAL, profil: 'vacataire' }, x, 412.5, CODES)

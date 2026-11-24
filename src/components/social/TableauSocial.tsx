@@ -150,6 +150,8 @@ export function TableauSocial({ mois, groupe, lignes }: { mois: string; groupe: 
                           {money(s.transport_amount)} → {money(priseEnChargeTransport(s.transport_amount))}
                           {s.transport_document && <FileText size={12} className="ml-1 inline text-gold-dark" aria-label="justificatif" />}
                         </span>
+                      ) : s.transport_annuel ? (
+                        'annuel'
                       ) : (
                         'non'
                       )}

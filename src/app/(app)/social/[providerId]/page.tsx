@@ -123,7 +123,9 @@ export default async function FicheSocialPage({
                   <Ligne titre="Transport">
                     {s.transport
                       ? `${money(s.transport_amount)} par mois — prise en charge ${money(priseEnChargeTransport(s.transport_amount))} (50 %)${s.transport_renewed ? ' · reconduit' : ''}`
-                      : 'Pas d’abonnement'}
+                      : s.transport_annuel
+                        ? 'Abonnement annuel, déjà transmis'
+                        : 'Pas d’abonnement'}
                   </Ligne>
                   <Ligne titre="Congés payés">{s.paid_leave_days ? `${s.paid_leave_days} j ${periode(s.paid_leave_start, s.paid_leave_end)}` : '—'}</Ligne>
                   <Ligne titre="Congé sans solde">{s.unpaid_leave_days ? `${s.unpaid_leave_days} j ${periode(s.unpaid_leave_start, s.unpaid_leave_end)}` : '—'}</Ligne>

@@ -27,7 +27,7 @@ export const SchemaFormulaire = z.object({
   sick_leave_days: jours,
   sick_leave_start: dateFac,
   sick_leave_end: dateFac,
-  transport: z.enum(['oui', 'non']),
+  transport: z.enum(['oui', 'non', 'annuel']),
   transport_amount: z.union([z.coerce.number<number>().min(0).max(1000), z.literal('')]).optional(),
   transport_renewed: z.string().optional(),
   mutuelle: z.enum(['adherent', 'dispense', 'changement']),

@@ -47,7 +47,7 @@ export function ElementsForm({
 }) {
   const [state, action] = useActionState<ElementsResult, FormData>(correction ? corrigerSaisie : enregistrerElements, {})
   const [rien, actionRien] = useActionState<ElementsResult, FormData>(rienASignaler, {})
-  const [transport, setTransport] = useState(existant?.transport ? 'oui' : 'non')
+  const [transport, setTransport] = useState(existant?.transport ? 'oui' : existant?.transport_annuel ? 'annuel' : 'non')
   const [montant, setMontant] = useState(existant?.transport_amount != null ? String(existant.transport_amount) : '')
   const [mutuelle, setMutuelle] = useState(existant && existant.mutuelle !== 'inconnu' && existant.mutuelle !== 'refus' ? existant.mutuelle : '')
   const [hs, setHs] = useState<LigneHS[]>(
@@ -102,10 +102,14 @@ export function ElementsForm({
               {precedent?.transport_amount ? ` (${money(precedent.transport_amount)})` : ''}
             </button>
           )}
+          {transport === 'annuel' && (
+            <p className="mb-3 text-xs text-navy/70">Votre abonnement annuel est déjà enregistré : rien à saisir ni à joindre chaque mois.</p>
+          )}
           <div className="grid gap-4 sm:grid-cols-3">
             <Select id="transport" name="transport" label="Abonnement" value={transport} onChange={(e) => setTransport(e.target.value)}>
               <option value="non">Non</option>
               <option value="oui">Oui</option>
+              <option value="annuel">Abonnement annuel, déjà transmis</option>
             </Select>
             {transport === 'oui' && (
               <>

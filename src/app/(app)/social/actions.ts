@@ -155,7 +155,7 @@ const CHAMPS_TRACES = [
   'paid_leave_days', 'paid_leave_start', 'paid_leave_end',
   'unpaid_leave_days', 'unpaid_leave_start', 'unpaid_leave_end',
   'sick_leave_days', 'sick_leave_start', 'sick_leave_end',
-  'transport', 'transport_amount', 'mutuelle', 'mutuelle_detail', 'comment', 'overtime_hours', 'overtime_lines',
+  'transport', 'transport_annuel', 'transport_amount', 'mutuelle', 'mutuelle_detail', 'comment', 'overtime_hours', 'overtime_lines',
 ] as const
 
 /**
@@ -200,6 +200,7 @@ export async function corrigerSaisie(_p: Resultat, fd: FormData): Promise<Result
     sick_leave_start: v.sick_leave_start,
     sick_leave_end: v.sick_leave_end,
     transport,
+    transport_annuel: v.transport === 'annuel',
     transport_amount: transport && v.transport_amount !== '' && v.transport_amount !== undefined ? Number(v.transport_amount) : null,
     mutuelle: v.mutuelle,
     mutuelle_detail: v.mutuelle_detail || null,
@@ -307,7 +308,7 @@ export async function envoyerNetPaye(_p: Resultat, fd: FormData): Promise<Result
 
   const db = createServiceClient()
   // Les justificatifs, en pièces jointes tant que le total reste raisonnable.
-  const ids = retenues.flatMap((l) => [l.saisie.transport_document, l.saisie.sick_leave_document, l.saisie.mutuelle_document]).filter(Boolean) as string[]
+  const ids = retenues.flatMap((l) => [l.saisie.transport ? l.saisie.transport_document : null, l.saisie.sick_leave_document, l.saisie.mutuelle_document]).filter(Boolean) as string[]
   const { data: docs } = ids.length
     ? await db.from('inv_documents').select('id, path, filename, label, provider_id').in('id', ids)
     : { data: [] }

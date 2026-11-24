@@ -52,6 +52,8 @@ export interface Saisie {
   transport_amount: number | null
   transport_document: string | null
   transport_renewed: boolean
+  /** Abonnement annuel déjà transmis à Net Paye : rien à déclarer, ni montant ni justificatif. */
+  transport_annuel: boolean
   mutuelle: Mutuelle
   mutuelle_detail: string | null
   mutuelle_document: string | null
@@ -97,6 +99,7 @@ export function lireSaisie(row: Record<string, unknown> | null | undefined, peri
     transport_amount: nn(r.transport_amount),
     transport_document: s(r.transport_document),
     transport_renewed: Boolean(r.transport_renewed),
+    transport_annuel: Boolean(r.transport_annuel),
     mutuelle: ((r.mutuelle as Mutuelle) ?? 'inconnu') as Mutuelle,
     mutuelle_detail: s(r.mutuelle_detail),
     mutuelle_document: s(r.mutuelle_document),
