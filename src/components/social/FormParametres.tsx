@@ -53,7 +53,7 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
           <ChampMoment id="f_cloture" label="Clôture de la saisie" m={f.cloture} aide="24 h = minuit ; alerte à l’équipe paie" />
           <ChampMoment id="f_validation" label="Validation par l’équipe paie" m={f.validation} />
           <ChampMoment id="f_envoi" label="Envoi à Net Paye" m={f.envoi} aide="sur clic, après validation" />
-          <ChampJour id="f_limite" label="Limite de réception chez Net Paye" jour={f.limiteNetPaye} aide="jour calendaire, même un week-end" />
+          <ChampJour id="f_limite" label="Limite de réception chez Net Paye" jour={f.limiteNetPaye} aide="si le jour tombe un week-end ou un férié : jour ouvré précédent" />
           <ChampJour id="f_versement" label="Versement des salaires" jour={f.versement} aide="31 = dernier jour du mois" />
         </Card>
         <Card className="flex flex-col gap-3 p-5">

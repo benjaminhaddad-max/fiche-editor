@@ -14,7 +14,7 @@ import { joursFeries } from '@/lib/cycle'
  *     le 26 à minuit    clôture de la saisie
  *     le 27 au matin    validation par Shirel
  *     le 27 à midi      envoi à Net Paye (sur clic de Shirel)
- *     le 28             limite de réception chez Net Paye
+ *     le 28             limite de réception chez Net Paye (jour ouvré précédent si week-end)
  *     le 30             versement
  *
  * Vacataires : demande et relances comme les fixes (25, 25, 26), mais leurs
@@ -26,7 +26,8 @@ import { joursFeries } from '@/lib/cycle'
  * précédent (versement du 30 compris ; en février : le dernier jour). Les
  * dates « du mois suivant » des vacataires, elles, glissent au jour ouvré
  * suivant (le 1er novembre 2026 est un dimanche). La limite chez Net Paye
- * est un jour calendaire : le 28, même un samedi.
+ * (le 28) est avancée comme les autres : si le 28 tombe un week-end ou un
+ * jour férié, c'est le jour ouvré précédent (novembre 2026 : vendredi 27).
  */
 
 /** Un moment du mois : un jour (31 = le dernier) et une heure (24 = minuit, fin du jour). */
@@ -186,7 +187,7 @@ export function etapesFixes(mois: string, cal: CalendrierSocial): Etape[] {
     { cle: 'cloture', libelle: 'Clôture de la saisie', ...m(mois, f.cloture), automatique: true },
     { cle: 'validation', libelle: 'Validation par Shirel', ...m(mois, f.validation), automatique: false },
     { cle: 'envoi', libelle: 'Envoi à Net Paye', ...m(mois, f.envoi), automatique: false },
-    { cle: 'limite', libelle: 'Limite de réception chez Net Paye', date: jourCalendaire(mois, f.limiteNetPaye), heure: 24, automatique: false },
+    { cle: 'limite', libelle: 'Limite de réception chez Net Paye', date: jourDuMois(mois, f.limiteNetPaye), heure: 24, automatique: false },
     { cle: 'versement', libelle: 'Versement des salaires', date: jourDuMois(mois, f.versement), heure: 12, automatique: false },
   ]
 }
@@ -206,7 +207,7 @@ export function etapes(groupe: 'fixes' | 'vacataires', mois: string, cal: Calend
     cloture: { libelle: 'Clôture des missions', ...apres(v.cloture) },
     validation: apres(v.validation),
     envoi: apres(v.envoi),
-    limite: { date: jourCalendaire(suivant, cal.fixes.limiteNetPaye) },
+    limite: { date: jourDuMois(suivant, cal.fixes.limiteNetPaye) },
     versement: { date: jourDuMois(suivant, cal.fixes.versement) },
   }
   return base.map((e) => ({ ...e, ...(remplace[e.cle] ?? {}) }))

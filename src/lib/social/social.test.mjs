@@ -66,9 +66,11 @@ test('vacataires : le 1er tombe un dimanche (octobre) → glisse au lundi 2 nove
   assert.equal(v.envoi, '2026-11-02')
 })
 
-test('la limite Net Paye reste le 28, même un samedi (28/11/2026)', () => {
+test('la limite Net Paye avance au jour ouvré précédent si le 28 tombe un week-end (28/11/2026 → vendredi 27)', () => {
   const f = Object.fromEntries(cal.etapes('fixes', '2026-11', C).map((x) => [x.cle, x.date]))
-  assert.equal(f.limite, '2026-11-28')
+  assert.equal(f.limite, '2026-11-27')
+  const v = Object.fromEntries(cal.etapes('vacataires', '2026-10', C).map((x) => [x.cle, x.date]))
+  assert.equal(v.limite, '2026-11-27')
 })
 
 test('le mois à saisir suit la clôture', () => {
