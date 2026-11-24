@@ -49,29 +49,53 @@ test('un jour férié avance aussi : le 1er novembre 2026 (dimanche) et le 11', 
   assert.equal(cal.jourDuMois('2026-11', 11), '2026-11-10')
 })
 
-test('vacataires sur le même calendrier : novembre se clôt le 26, versé le 30', () => {
+test('vacataires : missions de novembre closes le 1er décembre à midi, envoi le 2', () => {
+  const v = Object.fromEntries(cal.etapes('vacataires', '2026-11', C).map((x) => [x.cle, `${x.date} ${x.heure}`]))
+  assert.equal(v.ouverture, '2026-11-25 8')
+  assert.equal(v.derniere_relance, '2026-11-26 12')
+  assert.equal(v.cloture, '2026-12-01 12')
+  assert.equal(v.validation, '2026-12-01 14')
+  assert.equal(v.envoi, '2026-12-02 9')
+  assert.equal(v.limite, '2026-12-28 24')
+  assert.equal(v.versement, '2026-12-30 12')
+})
+
+test('vacataires : le 1er tombe un dimanche (octobre) → glisse au lundi 2 novembre', () => {
+  const v = Object.fromEntries(cal.etapes('vacataires', '2026-10', C).map((x) => [x.cle, x.date]))
+  assert.equal(v.cloture, '2026-11-02')
+  assert.equal(v.envoi, '2026-11-02')
+})
+
+test('la limite Net Paye reste le 28, même un samedi (28/11/2026)', () => {
   const f = Object.fromEntries(cal.etapes('fixes', '2026-11', C).map((x) => [x.cle, x.date]))
-  const v = Object.fromEntries(cal.etapes('vacataires', '2026-11', C).map((x) => [x.cle, x.date]))
-  assert.deepEqual(v, f)
-  assert.equal(v.ouverture, '2026-11-25')
-  assert.equal(v.versement, '2026-11-30')
+  assert.equal(f.limite, '2026-11-28')
 })
 
 test('le mois à saisir suit la clôture', () => {
-  // 26 novembre 2026, 23 h à Paris (22 h UTC) : fixes encore sur novembre.
   assert.equal(cal.moisASaisir('fixes', C, new Date('2026-11-26T22:00:00Z')), '2026-11')
-  // 27 novembre, 0 h 30 : novembre est clos, on saisit décembre.
   assert.equal(cal.moisASaisir('fixes', C, new Date('2026-11-26T23:30:00Z')), '2026-12')
-  // Les vacataires suivent le même mois.
+  // Vacataires : novembre reste ouvert jusqu'au 1er décembre midi.
   assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-11-20T09:00:00Z')), '2026-11')
-  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-11-26T23:30:00Z')), '2026-12')
+  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-11-26T23:30:00Z')), '2026-11')
+  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-12-01T10:00:00Z')), '2026-11') // 11 h à Paris
+  assert.equal(cal.moisASaisir('vacataires', C, new Date('2026-12-01T11:30:00Z')), '2026-12') // 12 h 30
+  assert.equal(cal.saisieOuverte('vacataires', '2026-11', C, new Date('2026-11-30T20:00:00Z')), true)
+})
+
+test('demain 25/11/2026 8 h : la demande part, pour les fixes comme pour les vacataires', () => {
+  for (const g of ['fixes', 'vacataires']) {
+    const o = cal.etapes(g, '2026-11', C).find((x) => x.cle === 'ouverture')
+    assert.equal(o.date, '2026-11-25')
+    assert.equal(o.heure, 8)
+    assert.ok(cal.repere('2026-11-25', 8) >= cal.repere(o.date, o.heure))
+  }
 })
 
 test('les réglages partiels gardent le reste par défaut', () => {
-  const c = cal.completerCalendrier({ fixes: { versement: 29 }, vacataires: { versement: 3 } })
+  const c = cal.completerCalendrier({ fixes: { versement: 29 } })
   assert.equal(c.fixes.versement, 29)
   assert.equal(c.fixes.ouverture.jour, 25)
-  assert.equal(c.vacataires, undefined)
+  assert.equal(c.vacataires.cloture.jour, 1)
 })
 
 const SAL = { providerId: 'p', userId: null, nom: 'Sofia Klai', email: null, telephone: null, profil: 'alternant', matricule: '00063', entree: null, sortie: null }

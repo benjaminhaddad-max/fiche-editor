@@ -33,9 +33,18 @@ export interface ParametresSocial {
   codes: CodesSilae
   /** Les adresses de qui gère la paie (en plus des administrateurs). */
   equipe: string[]
-  /** Qui reçoit le fichier chez Net Paye. Vide : l'envoi ne part pas. */
+  /** Qui reçoit le fichier chez Net Paye : une ou plusieurs adresses séparées par une virgule. Vide : l'envoi ne part pas. */
   netpayeEmail: string
   netpayeNom: string
+}
+
+/** Les adresses de Net Paye : séparées par virgule, point-virgule ou espace ; « ＠ » pleine largeur corrigé. */
+export function adressesNetPaye(texte: string): string[] {
+  return texte
+    .replace(/＠/g, '@')
+    .split(/[\s,;]+/)
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean)
 }
 
 export async function lireParametres(): Promise<ParametresSocial> {

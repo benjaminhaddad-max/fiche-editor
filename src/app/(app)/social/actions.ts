@@ -15,7 +15,7 @@ import { ligneDuSalarie, tableauDuMois, type LigneSocial } from '@/lib/social/do
 import { lignesImport, lireCsv, lireXlsx } from '@/lib/social/fichier'
 import { datesIncoherentes, lireHeuresSup, SchemaFormulaire } from '@/lib/social/formulaire'
 import { importerSalaries, type ResultatImport } from '@/lib/social/import'
-import { CODES_DEFAUT, ecrireParametres, lireParametres, requireEquipeSocial } from '@/lib/social/parametres'
+import { adressesNetPaye, CODES_DEFAUT, ecrireParametres, lireParametres, requireEquipeSocial } from '@/lib/social/parametres'
 import { deposerPiece } from '@/lib/social/pieces'
 import { demanderElements } from '@/lib/social/relances'
 import { codesManquants, csvSilae, lignesSilae } from '@/lib/social/saisie'
@@ -330,8 +330,9 @@ export async function envoyerNetPaye(_p: Resultat, fd: FormData): Promise<Result
   }
 
   const fichier = `elements-variables-${groupe}-${mois}.csv`
+  for (const email of adressesNetPaye(params.netpayeEmail)) {
   await deliver({
-    to: { email: params.netpayeEmail, name: params.netpayeNom },
+    to: { email, name: params.netpayeNom },
     ...(await templates()).socialNetPaye({
       nom: params.netpayeNom,
       label: libelleMois(mois),
@@ -346,6 +347,7 @@ export async function envoyerNetPaye(_p: Resultat, fd: FormData): Promise<Result
     entityType: 'user',
     entityId: user.id,
   })
+  }
 
   // Les missions des vacataires sont fermées dans un lot de paie, comme le
   // faisait l'ancien « Envoi au social » : sinon elles repartiraient.
@@ -557,6 +559,11 @@ export async function enregistrerParametres(_p: Resultat, fd: FormData): Promise
         limiteNetPaye: jour.parse(g('f_limite')),
         versement: jour.parse(g('f_versement')),
       },
+      vacataires: {
+        cloture: moment('v_cloture'),
+        validation: moment('v_validation'),
+        envoi: moment('v_envoi'),
+      },
       email: g('email') === 'on',
       sms: g('sms') === 'on',
     })
@@ -565,8 +572,10 @@ export async function enregistrerParametres(_p: Resultat, fd: FormData): Promise
   }
   const codes = { ...CODES_DEFAUT }
   for (const v of VARIABLES) codes[v.cle] = String(g(`code_${v.cle}`) ?? '').trim().slice(0, 20)
-  const netpayeEmail = String(g('netpaye_email') ?? '').trim()
-  if (netpayeEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(netpayeEmail)) return { error: 'Adresse de Net Paye invalide.' }
+  // « ＠ » pleine largeur (copié d'un message) → « @ ».
+  const netpayeEmail = adressesNetPaye(String(g('netpaye_email') ?? '')).join(', ')
+  const adresses = adressesNetPaye(netpayeEmail)
+  if (adresses.some((a) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a))) return { error: 'Une adresse de Net Paye est invalide (séparez-les par une virgule).' }
   const equipe = String(g('equipe') ?? '')
     .split(/[\s,;]+/)
     .map((x) => x.trim().toLowerCase())

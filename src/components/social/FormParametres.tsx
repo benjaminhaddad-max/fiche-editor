@@ -45,15 +45,15 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
     <form action={action} className="flex flex-col gap-6">
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="flex flex-col gap-3 p-5">
-          <h2 className="font-semibold text-navy">Calendrier de la paie du mois</h2>
-          <p className="-mt-1 text-xs text-muted">Le même pour tout le monde : fixes, alternants et vacataires.</p>
+          <h2 className="font-semibold text-navy">Calendrier des fixes et alternants</h2>
+          <p className="-mt-1 text-xs text-muted">La demande et les relances valent aussi pour les vacataires (voir à droite pour la suite).</p>
           <ChampMoment id="f_ouverture" label="Demande des éléments" m={f.ouverture} aide="email et SMS" />
           <ChampMoment id="f_relance" label="Relance des non-répondants" m={f.relance} />
           <ChampMoment id="f_derniere" label="Dernière relance" m={f.derniereRelance} />
           <ChampMoment id="f_cloture" label="Clôture de la saisie" m={f.cloture} aide="24 h = minuit ; alerte à l’équipe paie" />
           <ChampMoment id="f_validation" label="Validation par l’équipe paie" m={f.validation} />
           <ChampMoment id="f_envoi" label="Envoi à Net Paye" m={f.envoi} aide="sur clic, après validation" />
-          <ChampJour id="f_limite" label="Limite de réception chez Net Paye" jour={f.limiteNetPaye} />
+          <ChampJour id="f_limite" label="Limite de réception chez Net Paye" jour={f.limiteNetPaye} aide="jour calendaire, même un week-end" />
           <ChampJour id="f_versement" label="Versement des salaires" jour={f.versement} aide="31 = dernier jour du mois" />
         </Card>
         <Card className="flex flex-col gap-3 p-5">
@@ -63,9 +63,15 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
             envoyez à Net Paye, et tout le monde est payé le 30 novembre. C’est la paie de novembre pour tous.
           </p>
           <p className="text-sm text-navy/80">
-            Vacataires : leurs missions validées du mois partent avec cette paie. Une mission validée après l’envoi part avec la
-            paie du mois suivant.
+            Vacataires : même demande et mêmes relances, mais leurs missions du mois restent ouvertes jusqu’au 1er du mois suivant
+            à midi. Vous validez le 1er l’après-midi, l’envoi à Net Paye est le 2, et ils sont payés avec la paie du mois suivant.
           </p>
+          <div className="flex flex-col gap-3 rounded-lg border border-line p-3">
+            <h3 className="text-sm font-semibold text-navy">Vacataires : dans le mois suivant les missions</h3>
+            <ChampMoment id="v_cloture" label="Clôture des missions" m={p.calendrier.vacataires.cloture} aide="un jour férié ou un week-end passe au jour ouvré suivant" />
+            <ChampMoment id="v_validation" label="Validation par l’équipe paie" m={p.calendrier.vacataires.validation} />
+            <ChampMoment id="v_envoi" label="Envoi à Net Paye" m={p.calendrier.vacataires.envoi} />
+          </div>
           <p className="text-xs text-muted">
             Une date qui tombe un week-end ou un jour férié est avancée au jour ouvré précédent.
           </p>
@@ -105,7 +111,7 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
       <Card className="grid gap-4 p-5 sm:grid-cols-2">
         <h2 className="font-semibold text-navy sm:col-span-2">Net Paye et équipe paie</h2>
         <Input id="netpaye_nom" name="netpaye_nom" label="Interlocuteur Net Paye" defaultValue={p.netpayeNom} />
-        <Input id="netpaye_email" name="netpaye_email" type="email" label="Adresse qui reçoit le fichier" defaultValue={p.netpayeEmail} hint="Vide : l’envoi est désactivé." />
+        <Input id="netpaye_email" name="netpaye_email" label="Adresses qui reçoivent le fichier" defaultValue={p.netpayeEmail} hint="Une ou plusieurs adresses séparées par une virgule. Vide : l’envoi est désactivé." />
         <div className="sm:col-span-2">
           <Input
             id="equipe"

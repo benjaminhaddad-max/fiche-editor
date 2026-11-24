@@ -4,7 +4,7 @@ import { activeBrandId, sousMarque } from '@/lib/brand/actif'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/service'
-import { etapes, maintenantParis, repere, type Etape } from '@/lib/social/calendrier'
+import { etapes, maintenantParis, moisPrecedentDe, repere, type Etape } from '@/lib/social/calendrier'
 import { tableauDuMois } from '@/lib/social/donnees'
 import { lireParametres } from '@/lib/social/parametres'
 import { demanderElements } from '@/lib/social/relances'
@@ -23,8 +23,9 @@ const libelleMois = (m: string) =>
  *
  * Les heures viennent des réglages (Espace Social → Paramètres) : demande
  * le 25 au matin, relance le soir, dernière relance le 26 à midi, clôture
- * le 26 à minuit — pour tout le monde, vacataires compris. À la clôture,
- * l'équipe paie reçoit l'état du mois.
+ * le 26 à minuit pour les fixes ; les vacataires ont la même demande mais
+ * leur clôture tombe le 1er du mois suivant à midi. À la clôture, l'équipe
+ * paie reçoit l'état du mois.
  *
  * L'envoi à Net Paye n'est pas joué ici : il part sur clic de Shirel,
  * après sa validation (décision par défaut du lot 1).
@@ -59,9 +60,12 @@ async function jouer(db: Db, date: string, maintenant: string): Promise<Record<s
   const fait: Record<string, unknown> = {}
   const mois = date.slice(0, 7)
 
-  // Un seul calendrier : fixes et vacataires sur le mois en cours.
+  // Fixes : le mois en cours. Vacataires : le mois en cours (demande, relances)
+  // et le précédent, dont la clôture, la validation et l'envoi tombent le 1er et le 2.
   const aJouer: [GroupeSocial, string, Etape][] = (['fixes', 'vacataires'] as GroupeSocial[]).flatMap((g) =>
-    etapes(g, mois, calendrier).map((e) => [g, mois, e] as [GroupeSocial, string, Etape])
+    (g === 'vacataires' ? [mois, moisPrecedentDe(mois)] : [mois]).flatMap((m) =>
+      etapes(g, m, calendrier).map((e) => [g, m, e] as [GroupeSocial, string, Etape])
+    )
   )
 
   for (const [groupe, period, e] of aJouer) {
