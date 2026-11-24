@@ -168,11 +168,26 @@ function bornesMois(period: string): { debut: string; fin: string } {
 }
 
 /**
+ * Le transport ne part PAS dans le fichier d'import : Nicolas et Odile (Net
+ * Paye) le saisissent à la main en attendant le retour de Silae sur le code
+ * (Shirel, 24/11/2026). Un récapitulatif joint le remplace
+ * (`csvRecapTransport`). Repasser à true quand le code Silae est connu.
+ */
+export const TRANSPORT_DANS_LE_FICHIER = false
+
+/**
  * Les lignes Silae d'une saisie validée (§7, phase 1 : Matricule / Code /
  * Valeur / Date début / Date fin). Le net des vacataires part en net :
  * c'est Silae qui reconstitue le brut. Aucun brut ne sort d'ici.
  */
-export function lignesSilae(sal: Salarie, x: Saisie, netMissions: number, codes: CodesSilae): LigneSilae[] {
+export function lignesSilae(
+  sal: Salarie,
+  x: Saisie,
+  netMissions: number,
+  codes: CodesSilae,
+  opts: { transport?: boolean } = {}
+): LigneSilae[] {
+  const avecTransport = opts.transport ?? TRANSPORT_DANS_LE_FICHIER
   const mois = bornesMois(x.period)
   const out: LigneSilae[] = []
   const pousser = (variable: VariableSilae, valeur: number, debut?: string | null, fin?: string | null) => {
@@ -193,7 +208,7 @@ export function lignesSilae(sal: Salarie, x: Saisie, netMissions: number, codes:
   pousser('arret_maladie', x.sick_leave_days, x.sick_leave_start, x.sick_leave_end)
   if (x.overtime_lines.length) for (const l of x.overtime_lines) pousser('heures_sup', l.heures, l.du, l.au)
   else pousser('heures_sup', x.overtime_hours)
-  if (x.transport) pousser('transport', priseEnChargeTransport(x.transport_amount))
+  if (x.transport && avecTransport) pousser('transport', priseEnChargeTransport(x.transport_amount))
   if (x.mutuelle === 'dispense') pousser('mutuelle_dispense', 1)
   if (x.mutuelle === 'changement') pousser('mutuelle_changement', 1)
   if (sal.profil === 'vacataire') pousser('net_vacataire', netMissions)
@@ -218,4 +233,28 @@ export function csvSilae(lignes: LigneSilae[]): string {
     [l.matricule, l.code, String(l.valeur).replace('.', ','), fr(l.debut), fr(l.fin)].map(champ).join(';')
   )
   return ['Matricule;Code;Valeur;Date début;Date fin', ...corps].join('\r\n') + '\r\n'
+}
+
+/**
+ * Récapitulatif transport joint à l'envoi Net Paye : salarié, abonnement,
+ * montant remboursé à 50 %. Une ligne par salarié ayant déclaré un transport.
+ */
+export function recapTransport(
+  retenues: { salarie: { matricule?: string | null; nom: string }; saisie: Saisie }[]
+): { matricule: string; nom: string; abonnement: number; rembourse: number }[] {
+  return retenues
+    .filter((l) => l.saisie.transport && (l.saisie.transport_amount ?? 0) > 0)
+    .map((l) => ({
+      matricule: l.salarie.matricule ?? '',
+      nom: l.salarie.nom,
+      abonnement: Math.round((l.saisie.transport_amount ?? 0) * 100) / 100,
+      rembourse: priseEnChargeTransport(l.saisie.transport_amount),
+    }))
+}
+
+export function csvRecapTransport(lignes: ReturnType<typeof recapTransport>): string {
+  const champ = (v: string) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+  const n = (v: number) => v.toFixed(2).replace('.', ',')
+  const corps = lignes.map((l) => [l.matricule, l.nom, n(l.abonnement), n(l.rembourse)].map(champ).join(';'))
+  return ['Matricule;Salarié;Abonnement (€);Remboursé à 50 % (€)', ...corps].join('\r\n') + '\r\n'
 }

@@ -922,6 +922,7 @@ export async function templates(brand?: BrandId) {
     lignes: number
     manquants: string[]
     pieces: string[]
+    transport?: { salaries: number; rembourse: number } | null
   }) => ({
     subject: `${m.company.name} — éléments variables de ${p.label} (${p.groupe})`,
     html: layout(m,
@@ -929,6 +930,7 @@ export async function templates(brand?: BrandId) {
       `<p style="margin:0 0 12px;">Bonjour ${p.nom},</p>
        <p style="margin:0 0 12px;">Vous trouverez en pièce jointe le fichier d’import Silae des éléments variables de ${p.label} — ${p.groupe.toLowerCase()} : ${p.salaries} salarié(s), ${p.lignes} ligne(s), au format Matricule / Code / Valeur / Date début / Date fin. Toutes les lignes ont été validées par l’équipe paie.</p>
        ${p.manquants.length ? `<p style="margin:0 0 12px;color:#9a3412;">Code Silae encore à nous indiquer, laissé vide dans le fichier : ${p.manquants.join(', ')}.</p>` : ''}
+       ${p.transport ? `<p style="margin:0 0 12px;"><strong>Transport à saisir à la main</strong> : il n’est pas dans le fichier d’import (code Silae en attente). Le récapitulatif joint donne, pour ${p.transport.salaries} salarié(s), l’abonnement et le montant remboursé à 50 % (${p.transport.rembourse.toFixed(2).replace('.', ',')} € au total), avec les justificatifs.</p>` : ''}
        ${p.pieces.length ? `<p style="margin:0 0 6px;">Justificatifs joints :</p><ul style="margin:0 0 12px;padding-left:18px;color:#3b4c63;">${p.pieces.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}
        <p style="margin:0;">Les montants des vacataires sont des nets : le brut est à reconstituer dans Silae.</p>`
     ),

@@ -120,7 +120,7 @@ test('export Silae : 50 % du transport, CP avec dates, codes manquants vides et 
     },
     '2026-11'
   )
-  const l = sa.lignesSilae(SAL, x, 0, CODES)
+  const l = sa.lignesSilae(SAL, x, 0, CODES, { transport: true })
   assert.deepEqual(l.map((y) => [y.variable, y.code, y.valeur]), [
     ['conges_payes', '300', 2],
     ['heures_sup', '', 3],
@@ -130,6 +130,14 @@ test('export Silae : 50 % du transport, CP avec dates, codes manquants vides et 
   assert.match(csv, /^Matricule;Code;Valeur;Date début;Date fin\r\n00063;300;2;12\/11\/2026;13\/11\/2026\r\n/)
   assert.match(csv, /00063;;45,4;01\/11\/2026;30\/11\/2026/)
   assert.deepEqual(sa.codesManquants(l).map((m) => m.variable), ['heures_sup', 'transport'])
+})
+
+test('transport : hors du fichier Silae par défaut, récapitulatif joint à la place', () => {
+  const x = sa.lireSaisie({ status: 'valide', submitted_at: 'x', transport: true, transport_amount: 90.8 }, '2026-11')
+  assert.equal(sa.lignesSilae(SAL, x, 0, CODES).length, 0)
+  const r = sa.recapTransport([{ salarie: SAL, saisie: x }])
+  assert.deepEqual(r.map((y) => [y.abonnement, y.rembourse]), [[90.8, 45.4]])
+  assert.match(sa.csvRecapTransport(r), /^Matricule;Salarié;Abonnement \(€\);Remboursé à 50 % \(€\)\r\n00063;.*;90,80;45,40\r\n$/)
 })
 
 test('vacataire : le net des missions part en net, jamais de brut', () => {

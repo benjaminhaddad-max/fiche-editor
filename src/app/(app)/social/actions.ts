@@ -18,7 +18,7 @@ import { importerSalaries, type ResultatImport } from '@/lib/social/import'
 import { adressesNetPaye, CODES_DEFAUT, ecrireParametres, lireParametres, requireEquipeSocial } from '@/lib/social/parametres'
 import { deposerPiece } from '@/lib/social/pieces'
 import { demanderElements } from '@/lib/social/relances'
-import { codesManquants, csvSilae, lignesSilae } from '@/lib/social/saisie'
+import { codesManquants, csvRecapTransport, csvSilae, lignesSilae, recapTransport } from '@/lib/social/saisie'
 import { EMPLOI_DU_PROFIL, GROUPE_LABEL, PROFILS, VARIABLES, type GroupeSocial, type ProfilSocial } from '@/lib/social/types'
 
 export interface Resultat {
@@ -330,6 +330,11 @@ export async function envoyerNetPaye(_p: Resultat, fd: FormData): Promise<Result
   }
 
   const fichier = `elements-variables-${groupe}-${mois}.csv`
+  // Le transport n'est plus dans le fichier : il part en récapitulatif.
+  const recap = recapTransport(retenues)
+  const pieceRecap = recap.length
+    ? [{ name: `recapitulatif-transport-${groupe}-${mois}.csv`, content: Buffer.from('\ufeff' + csvRecapTransport(recap), 'utf8').toString('base64') }]
+    : []
   for (const email of adressesNetPaye(params.netpayeEmail)) {
   await deliver({
     to: { email, name: params.netpayeNom },
@@ -341,8 +346,9 @@ export async function envoyerNetPaye(_p: Resultat, fd: FormData): Promise<Result
       lignes: lignes.length,
       manquants: manquants.map((m) => m.libelle),
       pieces: nomsPieces,
+      transport: recap.length ? { salaries: recap.length, rembourse: Math.round(recap.reduce((t, r) => t + r.rembourse, 0) * 100) / 100 } : null,
     }),
-    attachments: [{ name: fichier, content: Buffer.from('﻿' + csv, 'utf8').toString('base64') }, ...jointes],
+    attachments: [{ name: fichier, content: Buffer.from('\ufeff' + csv, 'utf8').toString('base64') }, ...pieceRecap, ...jointes],
     template: 'social_netpaye',
     entityType: 'user',
     entityId: user.id,
@@ -401,7 +407,7 @@ export async function envoyerNetPaye(_p: Resultat, fd: FormData): Promise<Result
   })
   rafraichir()
   return {
-    success: `Envoyé à ${params.netpayeNom} (${params.netpayeEmail}) : ${retenues.length} salarié(s), ${lignes.length} ligne(s), ${jointes.length} justificatif(s).`,
+    success: `Envoyé à ${params.netpayeNom} (${params.netpayeEmail}) : ${retenues.length} salarié(s), ${lignes.length} ligne(s), ${jointes.length} justificatif(s)${recap.length ? `, récapitulatif transport (${recap.length} salarié(s))` : ""}.`,
     ...(manquants.length ? { error: `Codes Silae manquants, laissés vides : ${manquants.map((m) => m.libelle).join(', ')}.` } : {}),
   }
 }
