@@ -194,7 +194,7 @@ export async function envoyerBordereaux(
   // ---- 2. Lignes à regrouper.
   const { data: lignes } = await db
     .from('inv_missions')
-    .select('id, provider_id, total_ht, provider:inv_providers(employment_type, tags, intervenant_type)')
+    .select('id, provider_id, total_ht, provider:inv_providers(employment_type, tags, intervenant_type, groupe:inv_echeancier_groupes(mois_sans_versement))')
     .eq('brand', ecole)
     .eq('status', 'approved')
     .is('invoice_id', null)
@@ -210,7 +210,7 @@ export async function envoyerBordereaux(
     id: string
     provider_id: string
     total_ht: number
-    provider: { employment_type: Employment; tags: string[] | null; intervenant_type: string | null } | null
+    provider: { employment_type: Employment; tags: string[] | null; intervenant_type: string | null; groupe: { mois_sans_versement: number[] } | null } | null
   }[]) {
     if (!dansLesGroupes(l.provider?.intervenant_type, opts.groupes)) continue
     if (!versementCeMois(cycle.month, l.provider, ecole)) {

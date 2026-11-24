@@ -19,6 +19,7 @@ import {
   UserCircle,
   Users,
   Wallet,
+  CalendarDays,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/ui/Logo'
@@ -255,6 +256,12 @@ export function AppShell({
               <RailLink
                 item={{ href: '/admin/categories', label: 'Catégories', icon: Tags }}
                 active={pathname === '/admin/categories'}
+              />
+            )}
+            {user.role === 'admin' && (
+              <RailLink
+                item={{ href: '/admin/echeanciers', label: 'Échéanciers', icon: CalendarDays }}
+                active={pathname === '/admin/echeanciers'}
               />
             )}
             <RailLink item={{ href: '/compte', label: 'Mon compte', icon: KeyRound }} active={pathname === '/compte'} />

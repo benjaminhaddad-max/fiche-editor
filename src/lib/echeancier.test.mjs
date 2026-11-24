@@ -49,3 +49,16 @@ test('le type d’intervenant de la fiche passe avant les étiquettes', () => {
   assert.equal(versementCeMois('2026-11', { intervenant_type: 'professeur' }, 'medibox'), true)
   assert.equal(moisDeVersement('2026-11', { intervenant_type: 'tuteur' }, 'medibox'), '2026-12')
 })
+
+test('un groupe d’échéancier prime sur la règle par défaut', () => {
+  const g = { groupe: { mois_sans_versement: [10, 11] } }
+  assert.equal(versementCeMois('2026-10', g, 'medibox'), false)
+  assert.equal(versementCeMois('2026-11', g, 'diploma'), false)
+  assert.equal(versementCeMois('2026-12', g, 'medibox'), true)
+  assert.equal(moisDeVersement('2026-10', g, 'medibox'), '2026-12')
+  // groupe sans mois : payé tous les mois, même un tuteur Medibox
+  const libre = { intervenant_type: 'tuteur', groupe: { mois_sans_versement: [] } }
+  assert.equal(versementCeMois('2026-11', libre, 'medibox'), true)
+  // pas de groupe : règle par défaut inchangée
+  assert.equal(versementCeMois('2026-11', { intervenant_type: 'tuteur', groupe: null }, 'medibox'), false)
+})

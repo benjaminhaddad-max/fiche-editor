@@ -767,3 +767,77 @@ export async function changerRole(fd: FormData): Promise<void> {
   })
   revalidatePath('/admin/equipe')
 }
+
+/**
+ * Groupe d'échéancier : un nom, les mois sans versement, et ses membres.
+ * Un prestataire n'est que dans un groupe : le cocher ici le sort de son
+ * ancien groupe. Hors groupe, il suit l'échéancier par défaut.
+ */
+export async function enregistrerGroupeEcheancier(fd: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const id = String(fd.get('id') ?? '')
+  const name = String(fd.get('name') ?? '').trim().slice(0, 80)
+  if (!name) return
+  const mois = [...new Set(fd.getAll('mois').map(Number))].filter((m) => Number.isInteger(m) && m >= 1 && m <= 12).sort((a, b) => a - b)
+  const membres = [...new Set(fd.getAll('provider_id').map(String).filter(Boolean))]
+
+  const db = createServiceClient()
+  const ecole = await activeBrandId()
+  let groupeId = id
+  if (id) {
+    const { data } = await db
+      .from('inv_echeancier_groupes')
+      .update({ name, mois_sans_versement: mois })
+      .eq('id', id)
+      .eq('brand', ecole)
+      .select('id')
+      .maybeSingle()
+    if (!data) return
+  } else {
+    const { data } = await db
+      .from('inv_echeancier_groupes')
+      .insert({ name, mois_sans_versement: mois, brand: ecole })
+      .select('id')
+      .single()
+    if (!data) return
+    groupeId = data.id
+  }
+  // Sortis du groupe : ceux qui y étaient et ne sont plus cochés.
+  const { data: avant } = await db
+    .from('inv_providers')
+    .select('id')
+    .eq('brand', ecole)
+    .eq('echeancier_groupe_id', groupeId)
+  const sortis = ((avant ?? []) as { id: string }[]).map((p) => p.id).filter((p) => !membres.includes(p))
+  if (sortis.length) await db.from('inv_providers').update({ echeancier_groupe_id: null }).in('id', sortis).eq('brand', ecole)
+  if (membres.length) await db.from('inv_providers').update({ echeancier_groupe_id: groupeId }).in('id', membres).eq('brand', ecole)
+
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: groupeId,
+    action: id ? 'groupe_echeancier_modifie' : 'groupe_echeancier_cree',
+    payload: { name, mois_sans_versement: mois, membres: membres.length },
+  })
+  revalidatePath('/admin/echeanciers')
+  revalidatePath('/validation/bordereaux')
+}
+
+/** Supprime le groupe : ses membres retrouvent l'échéancier par défaut. */
+export async function supprimerGroupeEcheancier(fd: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const id = String(fd.get('id') ?? '')
+  if (!id) return
+  const db = createServiceClient()
+  const ecole = await activeBrandId()
+  await db.from('inv_echeancier_groupes').delete().eq('id', id).eq('brand', ecole)
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: id,
+    action: 'groupe_echeancier_supprime',
+    payload: {},
+  })
+  revalidatePath('/admin/echeanciers')
+  revalidatePath('/validation/bordereaux')
+}

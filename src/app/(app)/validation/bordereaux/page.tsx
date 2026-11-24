@@ -30,7 +30,7 @@ interface Ligne {
   total_ht: number
   status: string
   statement_id: string | null
-  provider: { legal_name: string; employment_type: Employment; tags: string[] | null; intervenant_type: string | null } | null
+  provider: { legal_name: string; employment_type: Employment; tags: string[] | null; intervenant_type: string | null; groupe: { mois_sans_versement: number[] } | null } | null
   category: { name: string } | null
   manager: { full_name: string } | null
 }
@@ -56,7 +56,7 @@ export default async function BordereauxPage({
     .from('inv_missions')
     .select(
       `id, provider_id, manager_id, detail, start_date, total_ht, status, statement_id,
-       provider:inv_providers(legal_name, employment_type, tags, intervenant_type),
+       provider:inv_providers(legal_name, employment_type, tags, intervenant_type, groupe:inv_echeancier_groupes(mois_sans_versement)),
        category:inv_categories(name),
        manager:inv_users!inv_missions_manager_id_fkey(full_name)`
     )
@@ -97,6 +97,8 @@ export default async function BordereauxPage({
       auteur: boolean
       /** Tuteur ou coach sans versement ce mois-ci : payé avec le mois suivant. */
       reporte: boolean
+      /** Bordereau qui reprendra ses lignes quand il n'y a pas de versement ce mois-ci. */
+      versement: ReturnType<typeof cycleForMonth> | null
       sienne: number
       enAttente: number
       lignes: LigneDetail[]
@@ -109,6 +111,9 @@ export default async function BordereauxPage({
       type: estIntervenant(l.provider?.intervenant_type) ? l.provider.intervenant_type : null,
       auteur: estAuteur(l.provider?.employment_type),
       reporte: !versementCeMois(cycle.month, l.provider, ecole),
+      versement: versementCeMois(cycle.month, l.provider, ecole)
+        ? null
+        : cycleForMonth(moisDeVersement(cycle.month, l.provider, ecole)),
       total: 0,
       sienne: 0,
       enAttente: 0,
@@ -141,7 +146,6 @@ export default async function BordereauxPage({
   }).length
   const independants = visibles.filter(([, v]) => !v.salarie && !v.reporte)
   const reportes = visibles.filter(([, v]) => v.reporte)
-  const versementReporte = cycleForMonth(moisDeVersement(cycle.month, { intervenant_type: 'tuteur' }, ecole))
   const enAttente = visibles.reduce((n, [, v]) => n + v.enAttente, 0)
 
   // Les tuiles gardent le mois entier ; seule la liste suit la recherche.
@@ -307,10 +311,11 @@ export default async function BordereauxPage({
            versement en novembre. Leurs lignes restent validées, sans
            bordereau ; celui du mois suivant les reprend toutes. */
         <p className="mb-4 rounded-lg border border-line bg-cream-muted px-4 py-2.5 text-xs text-navy/80">
-          Tuteurs et coachs : pas de versement pour {cycle.label}. Leurs prestations validées
-          ({reportes.length} personne{reportes.length > 1 ? 's' : ''}) partiront avec le bordereau de{' '}
-          {versementReporte.label}, payé le {formatDateLong(versementReporte.paymentDate)}. Les
-          professeurs restent payés ce mois-ci.
+          Pas de versement pour {cycle.label} pour {reportes.length} personne{reportes.length > 1 ? 's' : ''}
+          (échéancier de leur groupe, ou tuteurs et coachs Medibox) : leurs prestations validées
+          partent avec un bordereau suivant{' '}
+          ({[...new Set(reportes.map(([, v]) => v.versement?.label))].join(', ')}). Les autres restent
+          payés ce mois-ci.
         </p>
       )}
 
@@ -365,7 +370,7 @@ export default async function BordereauxPage({
                   return (
                     <LigneBordereau
                       key={id}
-                      nom={`${v.nom}${v.type ? ` · ${INTERVENANT_LABEL[v.type]}` : ''}${v.reporte ? ` — payé en ${versementReporte.label}` : ''}`}
+                      nom={`${v.nom}${v.type ? ` · ${INTERVENANT_LABEL[v.type]}` : ''}${v.reporte ? ` — payé en ${v.versement?.label ?? ''}` : ''}`}
                       salarie={v.salarie}
                       enAttente={v.enAttente}
                       total={st?.total_ht ?? v.total}

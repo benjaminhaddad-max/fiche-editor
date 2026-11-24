@@ -41,7 +41,12 @@ export type QuiEcheancier =
   | readonly string[]
   | null
   | undefined
-  | { intervenant_type?: string | null; tags?: readonly string[] | null }
+  | {
+      intervenant_type?: string | null
+      tags?: readonly string[] | null
+      /** Groupe d'échéancier de la fiche : s'il y en a un, il remplace la règle par défaut. */
+      groupe?: { mois_sans_versement: readonly number[] } | null
+    }
 
 /**
  * Tuteur ou coach ? Le type d'intervenant de la fiche fait foi (champ posé le
@@ -75,6 +80,12 @@ export function versementCeMois(
   qui: QuiEcheancier,
   brand: string | null | undefined
 ): boolean {
+  // Un groupe d'échéancier prime : ses mois sans versement valent pour tous
+  // ses membres, quelle que soit l'école ou le type d'intervenant.
+  if (qui && !Array.isArray(qui)) {
+    const groupe = (qui as { groupe?: { mois_sans_versement: readonly number[] } | null }).groupe
+    if (groupe) return !groupe.mois_sans_versement.includes(Number(cycleMonth.slice(5, 7)))
+  }
   if (!brand || !ECOLES_ECHEANCIER.includes(brand)) return true
   if (profilEcheancier(qui) !== 'tuteur_coach') return true
   const mois = Number(cycleMonth.slice(5, 7))
