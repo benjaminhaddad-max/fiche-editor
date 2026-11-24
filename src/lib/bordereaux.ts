@@ -1,6 +1,7 @@
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
-import type { BillingCycle } from '@/lib/cycle'
+import { INVOICE_DAYS, type BillingCycle } from '@/lib/cycle'
+import { addDays } from '@/lib/format'
 import { round2 } from '@/lib/format'
 import { createServiceClient } from '@/lib/supabase/service'
 import { isSalaried, type Employment } from '@/lib/types'
@@ -349,4 +350,34 @@ export async function envoyerBordereaux(
   }
 
   return { bordereaux, salaries, promues: promues?.length ?? 0, montant: round2(montant), reportes: reportes.size }
+}
+
+/**
+ * Rattrapage des prestations validées après l'envoi du bordereau.
+ *
+ * Une ligne validée le 6 pour une prestation du 1er du mois précédent ne
+ * trouvait aucun bordereau : l'envoi du 1er était passé, et la page
+ * Facturation n'ouvre la facture que d'un bordereau (Chani Bursztyn, octobre
+ * 2026 : « Aucune facture », impossible de déposer ni de rattacher la sienne).
+ * Chaque jour qui suit l'envoi, s'il reste de telles lignes, on les rattache au
+ * bordereau du mois concerné, avec deux jours pour facturer à partir d'aujourd'hui.
+ * Les bordereaux déjà facturés ne sont pas rouverts : leurs lignes en retard
+ * rejoignent le bordereau suivant.
+ *
+ * Retourne null quand il n'y avait rien à rattraper.
+ */
+export async function rattraperBordereaux(cycle: BillingCycle, today: string): Promise<EnvoiBordereaux | null> {
+  const db = createServiceClient()
+  const ecole = await activeBrandId()
+  const { count } = await db
+    .from('inv_missions')
+    .select('id', { count: 'exact', head: true })
+    .eq('brand', ecole)
+    .in('status', ['approved', 'manager_approved'])
+    .is('invoice_id', null)
+    .is('statement_id', null)
+    .is('payroll_batch_id', null)
+    .lte('start_date', cycle.periodEnd)
+  if (!count) return null
+  return envoyerBordereaux(cycle, null, { deadline: addDays(today, INVOICE_DAYS - 1) })
 }

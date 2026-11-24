@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { envoyerBordereaux } from '@/lib/bordereaux'
+import { envoyerBordereaux, rattraperBordereaux } from '@/lib/bordereaux'
 import { ouvrirForfaitsMensuels } from '@/lib/contracts/mensuel'
 import { pousserEnAttente, rafraichirPaiements } from '@/lib/invoice/pennylane'
 import { facturesBloquees } from '@/lib/invoice/bloquees'
@@ -116,6 +116,12 @@ async function cycleDUneMarque(
   }
   if (today === precedent.statementDate) {
     fait.bordereaux = await uneFois(db, precedent.month, 'bordereaux', () => envoyerBordereaux(precedent))
+  }
+  // Les prestations validées après l'envoi du 1er rejoignent le bordereau du
+  // mois qu'elles concernent, sans attendre le mois suivant.
+  if (today > precedent.statementDate) {
+    const rattrapage = await rattraperBordereaux(precedent, today)
+    if (rattrapage) fait.rattrapage = rattrapage
   }
   // Trois jours avant la clôture : chacun reçoit sa date. Les prestataires
   // celle des déclarations, les managers celle où les factures doivent être
