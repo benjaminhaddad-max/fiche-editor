@@ -209,6 +209,8 @@ const CategorySchema = z.object({
   is_active: z.coerce.boolean<boolean>(),
   /** Enseignement déclaré séance par séance plutôt qu'en total d'heures. */
   requires_session: z.coerce.boolean<boolean>(),
+  /** Consigne montrée au prestataire à la déclaration ; vide = aucune. */
+  instruction: z.string().max(1500).optional().transform((v) => (v ?? '').trim() || null),
   /** Vide = pas de prix imposé. */
   unit_price_ht: z
     .union([z.coerce.number<number>().min(0).max(100000), z.literal('')])

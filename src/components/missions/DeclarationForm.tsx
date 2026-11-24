@@ -24,6 +24,8 @@ export interface DeclCategory {
   requiresSession?: boolean
   /** Prix imposé par la catégorie : seule la quantité se saisit. */
   prixUnitaire?: number | null
+  /** Consigne de l'administration, affichée sous le choix de la catégorie. */
+  consigne?: string | null
 }
 
 interface Ligne {
@@ -459,6 +461,11 @@ export function DeclarationForm(props: Props) {
                           />
                           C’est un bonus
                         </label>
+                      )}
+                      {categories.find((c) => c.id === l.category_id)?.consigne && (
+                        <p className="mt-1.5 whitespace-pre-line rounded-lg bg-sky-50 px-2 py-1.5 text-xs text-sky-900">
+                          {categories.find((c) => c.id === l.category_id)?.consigne}
+                        </p>
                       )}
                       {couvertePar(l.category_id) && (
                         <p className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-900">

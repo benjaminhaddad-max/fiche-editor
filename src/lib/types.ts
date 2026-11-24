@@ -231,6 +231,8 @@ export interface Category {
   default_manager_id: string | null
   /** Prix unitaire imposé (facultatif) : le prestataire ne saisit que la quantité. */
   unit_price_ht: number | null
+  /** Consigne affichée au prestataire quand il choisit cette catégorie. */
+  instruction: string | null
 }
 
 export interface Mission {

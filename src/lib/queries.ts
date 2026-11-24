@@ -58,7 +58,7 @@ export async function getCategoriesWithPole(opts: { forProvider?: boolean } = {}
   const supabase = await createServerSupabase()
   let q = supabase
     .from('inv_categories')
-    .select('id, name, provider_label, pole, requires_session, default_manager_id, pennylane_category_id, unit_price_ht')
+    .select('id, name, provider_label, pole, requires_session, default_manager_id, pennylane_category_id, unit_price_ht, instruction')
     .in('brand', (await activeBrandScope()))
     .eq('is_active', true)
     .order('sort_order')
@@ -70,6 +70,7 @@ export async function getCategoriesWithPole(opts: { forProvider?: boolean } = {}
     pole: c.pole as import('@/lib/types').Pole,
     requiresSession: c.requires_session === true,
     prixUnitaire: c.unit_price_ht == null ? null : Number(c.unit_price_ht),
+    consigne: ((c.instruction as string | null) ?? '').trim() || null,
   }))
 }
 

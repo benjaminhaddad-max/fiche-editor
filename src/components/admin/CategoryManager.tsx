@@ -2,7 +2,7 @@
 
 import { Fragment, useActionState, useState } from 'react'
 import { Check, Pencil, Plus, X } from 'lucide-react'
-import { Input, Select } from '@/components/ui/Field'
+import { Input, Select, Textarea } from '@/components/ui/Field'
 import { POLE_LABEL } from '@/lib/labels'
 import { POLES } from '@/lib/types'
 import { Card } from '@/components/ui/Page'
@@ -114,6 +114,16 @@ function CategoryForm({
         hint="Rempli : le prestataire saisit seulement la quantité et le total se calcule seul. Pour un non-assujetti à la TVA (la plupart des coachs), HT = TTC = montant versé. Vide : il saisit son prix comme avant."
         defaultValue={category?.unit_price_ht ?? ''}
         error={e.unit_price_ht}
+      />
+      <Textarea
+        id={`ins-${category?.id ?? 'new'}`}
+        name="instruction"
+        rows={3}
+        maxLength={1500}
+        label="Consigne pour le prestataire — facultatif"
+        hint="Ce texte s’affiche sous la catégorie quand le prestataire la choisit dans sa déclaration (ex. quoi saisir, quelle quantité compter). Vide : rien n’est affiché."
+        defaultValue={category?.instruction ?? ''}
+        error={e.instruction}
       />
       <Input
         id={`ord-${category?.id ?? 'new'}`}

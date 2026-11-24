@@ -52,7 +52,8 @@ export async function loadInvoiceForRender(
 async function auteurDe(
   invoice: Invoice,
   lignesFacture: InvoiceLine[] = [],
-  apercu?: ModeApercu
+  apercu?: ModeApercu,
+  surcharge?: Record<string, number>
 ): Promise<AuteurPdf | undefined> {
   const supabase = createServiceClient()
   const { data: fiche } = await supabase
@@ -69,6 +70,9 @@ async function auteurDe(
     .select('id, total_ht, pay_basis')
     .eq('invoice_id', invoice.id)
   const prestations = (lignes ?? []) as { id: string; total_ht: number; pay_basis: string | null }[]
+  // Montants corrigés pour un aperçu (renvoi d'une note dont le net versé
+  // diffère de la base) : clé = id de la prestation.
+  if (surcharge) for (const p of prestations) if (p.id in surcharge) p.total_ht = surcharge[p.id]
   // Les lignes ajoutées à la main par l'administration (régularisation,
   // correction d'un oubli) n'ont pas de prestation : elles sont en brut,
   // comme tout droit d'auteur, et entrent dans le précompte.
@@ -186,13 +190,21 @@ export type ModeApercu = 'non_retenu' | 'net_verse'
 export async function renderInvoicePdfApercu(
   invoiceId: string,
   numero?: string,
-  apercu?: ModeApercu
+  apercu?: ModeApercu,
+  surcharge?: Record<string, number>
 ): Promise<Buffer> {
   const loaded = await loadInvoiceForRender(invoiceId)
   if (!loaded) throw new Error('Facture introuvable.')
   const invoice = numero ? { ...loaded.invoice, number: numero } : loaded.invoice
-  const auteur = await auteurDe(invoice, loaded.lines, apercu)
-  return renderInvoicePdf(invoice, loaded.lines, auteur)
+  const lines = surcharge
+    ? loaded.lines.map((l) =>
+        l.mission_id && l.mission_id in surcharge
+          ? { ...l, total_ht: surcharge[l.mission_id], unit_amount_ht: surcharge[l.mission_id] / Number(l.quantity || 1) }
+          : l
+      )
+    : loaded.lines
+  const auteur = await auteurDe(invoice, lines, apercu, surcharge)
+  return renderInvoicePdf(invoice, lines, auteur)
 }
 
 /** Genere le PDF et le range dans le bucket. Renvoie le buffer. */
