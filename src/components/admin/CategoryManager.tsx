@@ -105,6 +105,17 @@ function CategoryForm({
         ))}
       </Select>
       <Input
+        id={`pu-${category?.id ?? 'new'}`}
+        name="unit_price_ht"
+        type="number"
+        step="0.01"
+        min={0}
+        label="Prix unitaire HT (€) — facultatif"
+        hint="Rempli : le prestataire saisit seulement la quantité et le total se calcule seul. Pour un non-assujetti à la TVA (la plupart des coachs), HT = TTC = montant versé. Vide : il saisit son prix comme avant."
+        defaultValue={category?.unit_price_ht ?? ''}
+        error={e.unit_price_ht}
+      />
+      <Input
         id={`ord-${category?.id ?? 'new'}`}
         name="sort_order"
         type="number"

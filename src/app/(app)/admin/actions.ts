@@ -209,6 +209,10 @@ const CategorySchema = z.object({
   is_active: z.coerce.boolean<boolean>(),
   /** Enseignement déclaré séance par séance plutôt qu'en total d'heures. */
   requires_session: z.coerce.boolean<boolean>(),
+  /** Vide = pas de prix imposé. */
+  unit_price_ht: z
+    .union([z.coerce.number<number>().min(0).max(100000), z.literal('')])
+    .transform((v) => (v === '' ? null : v)),
 })
 
 export async function saveCategory(

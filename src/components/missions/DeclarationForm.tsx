@@ -22,6 +22,8 @@ export interface DeclCategory {
   pole: Pole
   /** Enseignement dont la déclaration se fait séance par séance. */
   requiresSession?: boolean
+  /** Prix imposé par la catégorie : seule la quantité se saisit. */
+  prixUnitaire?: number | null
 }
 
 interface Ligne {
@@ -178,6 +180,9 @@ export function DeclarationForm(props: Props) {
   const tarifPour = (catId: string): PricingType =>
     categories.find((c) => c.id === catId)?.requiresSession ? 'forfait_horaire' : 'forfait_mission'
 
+  const prixImpose = (catId: string): number | null =>
+    categories.find((c) => c.id === catId)?.prixUnitaire ?? null
+
   const nouvelle = (): Ligne => ({
     cle: ++compteur,
     category_id: categorieParDefaut,
@@ -191,7 +196,7 @@ export function DeclarationForm(props: Props) {
     kind: 'prestation',
     pricing_type: tarifPour(categorieParDefaut),
     quantity: '1',
-    unit_amount_ht: '',
+    unit_amount_ht: String(prixImpose(categorieParDefaut) ?? ''),
     start_time: '',
     end_time: '',
     groupe: '',
@@ -225,7 +230,7 @@ export function DeclarationForm(props: Props) {
         formation: i.formation,
         pricing_type: i.pricing_type,
         quantity: i.quantity,
-        unit_amount_ht: i.unit_amount_ht,
+        unit_amount_ht: prixImpose(i.category_id || categorieParDefaut)?.toString() ?? i.unit_amount_ht,
       }))
     )
   const [importState, importFormAction] = useActionState<ImportResult, FormData>(
@@ -419,6 +424,9 @@ export function DeclarationForm(props: Props) {
                           maj(l.cle, {
                             category_id: e.target.value,
                             pricing_type: cat?.requiresSession ? 'forfait_horaire' : l.pricing_type,
+                            ...(l.kind !== 'bonus' && cat?.prixUnitaire != null
+                              ? { unit_amount_ht: String(cat.prixUnitaire) }
+                              : {}),
                           })
                         }}
                         aria-label="Type de prestation"
@@ -690,10 +698,21 @@ export function DeclarationForm(props: Props) {
                         className="field w-full"
                         value={l.unit_amount_ht}
                         placeholder="0,00"
+                        readOnly={l.kind !== 'bonus' && prixImpose(l.category_id) != null}
+                        title={
+                          l.kind !== 'bonus' && prixImpose(l.category_id) != null
+                            ? 'Prix fixé pour cette catégorie : saisissez seulement la quantité.'
+                            : undefined
+                        }
                         onChange={(e) => maj(l.cle, { unit_amount_ht: e.target.value })}
                         aria-label={sansTva ? 'Prix unitaire' : 'Prix unitaire HT'}
                       />
-                      {tarif && l.kind !== 'bonus' && (
+                      {l.kind !== 'bonus' && prixImpose(l.category_id) != null && (
+                        <p className="mt-1 text-xs text-muted">
+                          Prix fixé pour cette catégorie : saisissez seulement la quantité.
+                        </p>
+                      )}
+                      {tarif && l.kind !== 'bonus' && prixImpose(l.category_id) == null && (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {tarif.paliers.map((pal) => (
                             <button

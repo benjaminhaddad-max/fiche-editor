@@ -229,6 +229,8 @@ export interface Category {
   pole: Pole
   /** Qui vérifie les prestations de cette catégorie. */
   default_manager_id: string | null
+  /** Prix unitaire imposé (facultatif) : le prestataire ne saisit que la quantité. */
+  unit_price_ht: number | null
 }
 
 export interface Mission {

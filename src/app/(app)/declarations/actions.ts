@@ -171,7 +171,7 @@ export async function declarer(
   // refusée ici plutôt que découverte le jour de l'audit.
   const { data: cats } = await db
     .from("inv_categories")
-    .select("id, pole, requires_session")
+    .select("id, pole, requires_session, unit_price_ht")
     .in("brand", await activeBrandScope());
   const exigeSeance = new Set(
     (cats ?? []).filter((c) => c.requires_session).map((c) => c.id as string),
@@ -181,6 +181,16 @@ export async function declarer(
   const poleDe = new Map(
     (cats ?? []).map((c) => [c.id as string, c.pole as Pole]),
   );
+
+  // Prix unitaire imposé par la catégorie : c'est lui qui compte, quoi que le
+  // formulaire ait envoyé. Les bonus (montant libre) n'en dépendent pas.
+  const prixDe = new Map(
+    (cats ?? [])
+      .filter((c) => c.unit_price_ht != null)
+      .map((c) => [c.id as string, Number(c.unit_price_ht)]),
+  );
+  const unitaire = (l: { kind: string; category_id: string; unit_amount_ht: number }) =>
+    l.kind === "bonus" ? l.unit_amount_ht : (prixDe.get(l.category_id) ?? l.unit_amount_ht);
 
   // ---- Lignes
   const lignes: z.infer<typeof Ligne>[] = [];
@@ -292,7 +302,7 @@ export async function declarer(
       unit_amount_ht:
         l.kind === "bonus"
           ? round2(l.quantity * l.unit_amount_ht)
-          : l.unit_amount_ht,
+          : unitaire(l),
       start_time: l.start_time || null,
       end_time: l.end_time || null,
       groupe: l.groupe || null,
@@ -300,7 +310,7 @@ export async function declarer(
       modality: l.modality || null,
       location: l.location || null,
       abatement_rate: abattement,
-      total_ht: montantVerse(l.quantity * l.unit_amount_ht, abattement),
+      total_ht: montantVerse(l.quantity * unitaire(l), abattement),
       status,
       origin: user.role === "prestataire" ? "provider" : "manager",
       declaration_id: declarationId,
