@@ -114,6 +114,22 @@ export function MediboxInvoiceDocument({
   // fixé sont remontées au brut) ; pour une facture, c'est le sous-total.
   const brut = auteur ? auteur.brutTotal : Number(invoice.subtotal_ht)
   const libelles = auteur ? libellesPrecompte(auteur.modele) : []
+  // Le brut remonté se répartit entre les lignes à net convenu, au prorata de
+  // leur net ; la dernière prend le reliquat pour que la somme tombe juste.
+  const brutAffiche = new Map<string, number>()
+  if (auteur) {
+    const nets = lines.filter((l) => l.mission_id && auteur.bases[l.mission_id] === 'net')
+    const netTotal = nets.reduce((t, l) => t + Number(l.total_ht), 0)
+    let reste = auteur.brutDeduit
+    nets.forEach((l, i) => {
+      const part =
+        i === nets.length - 1 || netTotal === 0
+          ? reste
+          : Math.round(((Number(l.total_ht) / netTotal) * auteur.brutDeduit) * 100) / 100
+      brutAffiche.set(l.id, part)
+      reste = Math.round((reste - part) * 100) / 100
+    })
+  }
   // Le précompte se déclare au trimestre du versement ; tant que la note
   // n'est pas payée, celui de sa date.
   const trimestre = trimestreDe(invoice.paid_at ?? invoice.issue_date)
@@ -204,17 +220,25 @@ export function MediboxInvoiceDocument({
           <Text style={[s.teteTexte, s.cMontant]}>{auteur ? 'Montant' : 'Montant total'}</Text>
         </View>
         {lines.map((line) => {
+          // Une ligne à net convenu montre le BRUT dont elle est issue, pas le
+          // net : sinon les montants des lignes ne collent pas au « Montant
+          // brut » de la certification (Rania Aouadi, octobre 2026).
+          const brutLigne = brutAffiche.get(line.id)
+          const montantLigne = brutLigne ?? Number(line.total_ht)
+          const unitLigne = brutLigne !== undefined && Number(line.quantity) > 0
+            ? Math.round((brutLigne / Number(line.quantity)) * 100) / 100
+            : Number(line.unit_amount_ht)
           return (
             <View key={line.id} style={s.rang} wrap={false}>
               <Text style={s.cActivite}>{line.category_name}</Text>
               <Text style={s.cDesc}>
                 {line.description}
                 {line.period_label ? ` (${line.period_label})` : ''}
-                {auteur && line.mission_id && auteur.bases[line.mission_id] === 'net' ? ' (net convenu)' : ''}
+                {brutLigne !== undefined ? ` (net convenu : ${money(Number(line.total_ht))})` : ''}
               </Text>
-              <Text style={s.cUnit}>{money(line.unit_amount_ht)}</Text>
+              <Text style={s.cUnit}>{money(unitLigne)}</Text>
               <Text style={s.cQte}>{Number(line.quantity)}</Text>
-              <Text style={s.cMontant}>{money(line.total_ht)}</Text>
+              <Text style={s.cMontant}>{money(montantLigne)}</Text>
             </View>
           )
         })}
