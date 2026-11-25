@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { agregat, chevauchement, lirePeriodes, REGLE_DEFAUT, type PeriodeConge, type RegleJours } from './jours'
 import { VALIDEURS_HEURES_SUP, type LigneHeuresSup } from './types'
 
 /**
@@ -8,25 +9,8 @@ import { VALIDEURS_HEURES_SUP, type LigneHeuresSup } from './types'
  * d'heures supplémentaires.
  */
 
-const jours = z.coerce.number<number>().min(0).max(31)
-const dateFac = z
-  .string()
-  .trim()
-  .regex(/^(\d{4}-\d{2}-\d{2})?$/)
-  .optional()
-  .transform((v) => v || null)
-
 export const SchemaFormulaire = z.object({
   period: z.string().regex(/^\d{4}-\d{2}$/),
-  paid_leave_days: jours,
-  paid_leave_start: dateFac,
-  paid_leave_end: dateFac,
-  unpaid_leave_days: jours,
-  unpaid_leave_start: dateFac,
-  unpaid_leave_end: dateFac,
-  sick_leave_days: jours,
-  sick_leave_start: dateFac,
-  sick_leave_end: dateFac,
   transport: z.enum(['oui', 'non', 'annuel']),
   transport_amount: z.union([z.coerce.number<number>().min(0).max(1000), z.literal('')]).optional(),
   transport_renewed: z.string().optional(),
@@ -74,13 +58,51 @@ export function lireHeuresSup(brut: string | undefined): { lignes: LigneHeuresSu
   return { lignes }
 }
 
-/** Contrôle de cohérence des dates : une fin avant le début est une faute de frappe. */
-export function datesIncoherentes(v: z.infer<typeof SchemaFormulaire>): string | null {
-  const paires: [string | null, string | null, string][] = [
-    [v.paid_leave_start, v.paid_leave_end, 'Congés payés'],
-    [v.unpaid_leave_start, v.unpaid_leave_end, 'Congé sans solde'],
-    [v.sick_leave_start, v.sick_leave_end, 'Arrêt de travail'],
-  ]
-  for (const [d, f, quoi] of paires) if (d && f && f < d) return `${quoi} : la date de fin précède la date de début.`
-  return null
+const TYPES_CONGE = [
+  ['paid_leave', 'Congés payés'],
+  ['unpaid_leave', 'Congé sans solde'],
+  ['sick_leave', 'Arrêt de travail'],
+] as const
+
+export interface Conges {
+  paid_leave_periods: PeriodeConge[]
+  paid_leave_days: number
+  paid_leave_start: string | null
+  paid_leave_end: string | null
+  unpaid_leave_periods: PeriodeConge[]
+  unpaid_leave_days: number
+  unpaid_leave_start: string | null
+  unpaid_leave_end: string | null
+  sick_leave_periods: PeriodeConge[]
+  sick_leave_days: number
+  sick_leave_start: string | null
+  sick_leave_end: string | null
+}
+
+/**
+ * Les périodes de congé et d'arrêt du formulaire. Seules les dates comptent :
+ * les jours sont recalculés ici, jamais crus sur parole.
+ */
+export function lireConges(fd: FormData, regle: RegleJours = REGLE_DEFAUT): { conges: Conges } | { erreur: string } {
+  const out: Record<string, unknown> = {}
+  for (const [nom, quoi] of TYPES_CONGE) {
+    const brut = fd.get(`${nom}_periodes`)
+    let tableau: unknown = []
+    try {
+      tableau = brut ? JSON.parse(String(brut)) : []
+    } catch {
+      return { erreur: `${quoi} : périodes illisibles.` }
+    }
+    if (Array.isArray(tableau) && tableau.some((p) => String(p?.au ?? '') < String(p?.du ?? ''))) {
+      return { erreur: `${quoi} : la date de fin précède la date de début.` }
+    }
+    const ps = lirePeriodes(tableau, regle)
+    if (chevauchement(ps)) return { erreur: `${quoi} : deux périodes se chevauchent.` }
+    const ag = agregat(ps)
+    out[`${nom}_periods`] = ps
+    out[`${nom}_days`] = ag.jours
+    out[`${nom}_start`] = ag.debut
+    out[`${nom}_end`] = ag.fin
+  }
+  return { conges: out as unknown as Conges }
 }

@@ -10,13 +10,26 @@ import { formatDate, money } from '@/lib/format'
 import { estAcquise } from '@/lib/paie'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ligneDuSalarie } from '@/lib/social/donnees'
-import { requireEquipeSocial } from '@/lib/social/parametres'
+import { formatHeures, type PeriodeConge } from '@/lib/social/jours'
+import { lireParametres, requireEquipeSocial } from '@/lib/social/parametres'
 import { MUTUELLE_LABEL, priseEnChargeTransport, PROFIL_LABEL, STATUT_LABEL, STATUT_STYLE } from '@/lib/social/types'
 
 const libelleMois = (m: string) =>
   new Date(`${m}-15T12:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 const periode = (d: string | null, f: string | null) => (d ? (f && f !== d ? `du ${formatDate(d)} au ${formatDate(f)}` : `le ${formatDate(d)}`) : '')
+const periodesTexte = (ps: PeriodeConge[]) =>
+  ps.length ? (
+    <>
+      {ps.map((p, i) => (
+        <p key={i}>
+          {p.jours} j {periode(p.du, p.au)}
+        </p>
+      ))}
+    </>
+  ) : (
+    '—'
+  )
 
 function Ligne({ titre, children }: { titre: string; children: React.ReactNode }) {
   return (
@@ -62,6 +75,7 @@ export default async function FicheSocialPage({
   searchParams: Promise<{ mois?: string; corriger?: string }>
 }) {
   const user = await requireEquipeSocial()
+  const calendrierSocial = (await lireParametres()).calendrier
   const { providerId } = await params
   const sp = await searchParams
   const mois = sp.mois && /^\d{4}-\d{2}$/.test(sp.mois) ? sp.mois : new Date().toISOString().slice(0, 7)
@@ -103,7 +117,7 @@ export default async function FicheSocialPage({
               <p className="mb-4 text-sm text-muted">
                 Correction faite par vous à la place du salarié : chaque champ changé est tracé au journal, et la saisie repasse « à valider ».
               </p>
-              <ElementsForm period={mois} existant={s} precedent={null} vacataire={l.salarie.profil === 'vacataire'} correction={{ providerId }} />
+              <ElementsForm period={mois} existant={s} precedent={null} vacataire={l.salarie.profil === 'vacataire'} correction={{ providerId }} regle={calendrierSocial.joursConge} />
             </Card>
           ) : (
             <Card className="p-5">
@@ -127,18 +141,18 @@ export default async function FicheSocialPage({
                         ? 'Abonnement annuel, déjà transmis'
                         : 'Pas d’abonnement'}
                   </Ligne>
-                  <Ligne titre="Congés payés">{s.paid_leave_days ? `${s.paid_leave_days} j ${periode(s.paid_leave_start, s.paid_leave_end)}` : '—'}</Ligne>
-                  <Ligne titre="Congé sans solde">{s.unpaid_leave_days ? `${s.unpaid_leave_days} j ${periode(s.unpaid_leave_start, s.unpaid_leave_end)}` : '—'}</Ligne>
-                  <Ligne titre="Arrêt de travail">{s.sick_leave_days ? `${s.sick_leave_days} j ${periode(s.sick_leave_start, s.sick_leave_end)}` : '—'}</Ligne>
+                  <Ligne titre="Congés payés">{periodesTexte(s.paid_leave_periods)}</Ligne>
+                  <Ligne titre="Congé sans solde">{periodesTexte(s.unpaid_leave_periods)}</Ligne>
+                  <Ligne titre="Arrêt de travail">{periodesTexte(s.sick_leave_periods)}</Ligne>
                   <Ligne titre="Heures supplémentaires">
                     {s.overtime_lines.length
                       ? s.overtime_lines.map((h, i) => (
                           <p key={i}>
-                            {h.heures} h {periode(h.du, h.au)} {h.motif && `— ${h.motif}`} · validées par <strong>{h.validees_par}</strong>
+                            {formatHeures(h.heures)} {periode(h.du, h.au)} {h.motif && `— ${h.motif}`} · validées par <strong>{h.validees_par}</strong>
                           </p>
                         ))
                       : s.overtime_hours
-                        ? `${s.overtime_hours} h (sans détail)`
+                        ? `${formatHeures(s.overtime_hours)} (sans détail)`
                         : '—'}
                   </Ligne>
                   <Ligne titre="Mutuelle">

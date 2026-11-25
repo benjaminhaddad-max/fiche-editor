@@ -1,5 +1,6 @@
 'use client'
 
+import { formatHeures } from '@/lib/social/jours'
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Bell, CheckCheck, FileText, Send } from 'lucide-react'
@@ -163,11 +164,11 @@ export function TableauSocial({ mois, groupe, lignes }: { mois: string; groupe: 
                       {r && s.overtime_lines.length
                         ? s.overtime_lines.map((h, i) => (
                             <p key={i}>
-                              {h.heures} h · validées par <strong>{h.validees_par}</strong>
+                              {formatHeures(h.heures)} · validées par <strong>{h.validees_par}</strong>
                             </p>
                           ))
                         : r && s.overtime_hours
-                          ? `${s.overtime_hours} h`
+                          ? formatHeures(s.overtime_hours)
                           : '—'}
                     </td>
                     <td className="px-3 py-3 text-navy/80">{r ? MUTUELLE_LABEL[s.mutuelle] : '—'}</td>

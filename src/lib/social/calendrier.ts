@@ -64,6 +64,8 @@ export interface CalendrierSocial {
   /** Canaux des demandes et relances. */
   email: boolean
   sms: boolean
+  /** Décompte des jours de congé : ouvrés (lun→ven) ou ouvrables (lun→sam), fériés exclus. */
+  joursConge: 'ouvres' | 'ouvrables'
 }
 
 export const CALENDRIER_DEFAUT: CalendrierSocial = {
@@ -84,6 +86,7 @@ export const CALENDRIER_DEFAUT: CalendrierSocial = {
   },
   email: true,
   sms: true,
+  joursConge: 'ouvres',
 }
 
 /** Fusionne des réglages partiels sur les valeurs proposées. */
@@ -94,6 +97,7 @@ export function completerCalendrier(partiel: unknown): CalendrierSocial {
     vacataires: { ...CALENDRIER_DEFAUT.vacataires, ...(p.vacataires ?? {}) },
     email: p.email ?? CALENDRIER_DEFAUT.email,
     sms: p.sms ?? CALENDRIER_DEFAUT.sms,
+    joursConge: p.joursConge === 'ouvrables' ? 'ouvrables' : 'ouvres',
   }
 }
 

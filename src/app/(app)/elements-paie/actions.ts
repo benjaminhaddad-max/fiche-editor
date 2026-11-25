@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { logAudit } from '@/lib/audit'
 import { createServiceClient } from '@/lib/supabase/service'
 import { moisASaisir } from '@/lib/social/calendrier'
-import { datesIncoherentes, lireHeuresSup, SchemaFormulaire } from '@/lib/social/formulaire'
+import { lireConges, lireHeuresSup, SchemaFormulaire } from '@/lib/social/formulaire'
 import { lireParametres } from '@/lib/social/parametres'
 import { deposerPiece } from '@/lib/social/pieces'
 import { requireSalarie } from '@/lib/social/salarie'
@@ -56,8 +56,17 @@ export async function rienASignaler(_prev: ElementsResult, fd: FormData): Promis
         overtime_hours: 0,
         overtime_lines: [],
         paid_leave_days: 0,
+        paid_leave_periods: [],
+        paid_leave_start: null,
+        paid_leave_end: null,
         unpaid_leave_days: 0,
+        unpaid_leave_periods: [],
+        unpaid_leave_start: null,
+        unpaid_leave_end: null,
         sick_leave_days: 0,
+        sick_leave_periods: [],
+        sick_leave_start: null,
+        sick_leave_end: null,
         transport: false,
         transport_annuel: false,
         transport_amount: null,
@@ -90,8 +99,9 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
   if (!(await moisOuvert(salarie.providerId, v.period, salarie.profil))) {
     return { error: 'Ce mois est clos : écrivez à l’équipe paie pour toute correction.' }
   }
-  const incoherent = datesIncoherentes(v)
-  if (incoherent) return { error: incoherent }
+  const cg = lireConges(fd, (await lireParametres()).calendrier.joursConge)
+  if ('erreur' in cg) return { error: cg.erreur }
+  const conges = cg.conges
   const hs = lireHeuresSup(v.heures_sup)
   if ('erreur' in hs) return { error: hs.erreur }
 
@@ -121,7 +131,7 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
   }
 
   // L'arrêt de travail aussi : pas de jours d'arrêt sans le document.
-  if (v.sick_leave_days > 0 && !arretDoc.id && !avant?.sick_leave_document) {
+  if (conges.sick_leave_days > 0 && !arretDoc.id && !avant?.sick_leave_document) {
     return { error: 'Arrêt de travail : l’arrêt est obligatoire (PDF ou photo).' }
   }
 
@@ -133,15 +143,7 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
       nothing_to_report: false,
       overtime_hours: heures,
       overtime_lines: hs.lignes,
-      paid_leave_days: v.paid_leave_days,
-      paid_leave_start: v.paid_leave_start,
-      paid_leave_end: v.paid_leave_end,
-      unpaid_leave_days: v.unpaid_leave_days,
-      unpaid_leave_start: v.unpaid_leave_start,
-      unpaid_leave_end: v.unpaid_leave_end,
-      sick_leave_days: v.sick_leave_days,
-      sick_leave_start: v.sick_leave_start,
-      sick_leave_end: v.sick_leave_end,
+      ...conges,
       ...(arretDoc.id ? { sick_leave_document: arretDoc.id } : {}),
       transport,
       transport_annuel: v.transport === 'annuel',
@@ -168,9 +170,10 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
     payload: {
       periode: v.period,
       heures_sup: heures,
-      conges_payes: v.paid_leave_days,
-      sans_solde: v.unpaid_leave_days,
-      arret: v.sick_leave_days,
+      conges_payes: conges.paid_leave_days,
+      sans_solde: conges.unpaid_leave_days,
+      arret: conges.sick_leave_days,
+      periodes: { cp: conges.paid_leave_periods, sans_solde: conges.unpaid_leave_periods, arret: conges.sick_leave_periods },
       transport: transport ? montant : null,
       mutuelle: v.mutuelle,
     },

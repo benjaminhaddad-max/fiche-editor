@@ -8,6 +8,7 @@ import { Input, Select, Textarea } from '@/components/ui/Field'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { money } from '@/lib/format'
 import type { Saisie } from '@/lib/social/saisie'
+import { joursDeConge, REGLE_DEFAUT, type PeriodeConge, type RegleJours } from '@/lib/social/jours'
 import { priseEnChargeTransport, VALIDEURS_HEURES_SUP, type LigneHeuresSup } from '@/lib/social/types'
 
 const fichier =
@@ -20,6 +21,90 @@ function Section({ titre, aide, children }: { titre: string; aide?: string; chil
       {aide && <p className="-mt-1 mb-3 text-xs text-muted">{aide}</p>}
       {children}
     </fieldset>
+  )
+}
+
+
+type LignePeriode = { du: string; au: string }
+
+/** Plusieurs périodes : une ligne par période, les jours sont calculés à partir des dates. */
+function Periodes({
+  nom,
+  lignes,
+  setLignes,
+  regle,
+}: {
+  nom: string
+  lignes: LignePeriode[]
+  setLignes: (f: (t: LignePeriode[]) => LignePeriode[]) => void
+  regle: RegleJours
+}) {
+  const maj = (i: number, champ: keyof LignePeriode, val: string) =>
+    setLignes((t) => t.map((l, k) => (k === i ? { ...l, [champ]: val, ...(champ === 'du' && !l.au ? { au: val } : {}) } : l)))
+  const jours = lignes.map((l) => joursDeConge(l.du, l.au, regle))
+  const total = jours.reduce((a, b) => a + b, 0)
+  return (
+    <div className="flex flex-col gap-3">
+      <input type="hidden" name={`${nom}_periodes`} value={JSON.stringify(lignes.filter((l) => l.du && l.au).map((l) => ({ du: l.du, au: l.au })))} />
+      {lignes.map((l, i) => (
+        <div key={i} className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_8rem_auto]">
+          <Input id={`${nom}-du-${i}`} type="date" label="Du" value={l.du} onChange={(e) => maj(i, 'du', e.target.value)} required />
+          <Input id={`${nom}-au-${i}`} type="date" label="Au" value={l.au} min={l.du || undefined} onChange={(e) => maj(i, 'au', e.target.value)} required />
+          <div>
+            <span className="field-label">Jours {regle === 'ouvrables' ? 'ouvrables' : 'ouvrés'}</span>
+            <p className="rounded-lg bg-cream-muted/60 px-3 py-2 text-sm font-medium text-navy">{jours[i]}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLignes((t) => t.filter((_, k) => k !== i))}
+            aria-label="Retirer la période"
+            className="mb-1 cursor-pointer rounded-lg p-2 text-navy/50 hover:bg-white hover:text-red-700"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setLignes((t) => [...t, { du: '', au: '' }])}
+          className="inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-line px-3 py-1.5 text-sm text-navy/80 hover:bg-cream-muted"
+        >
+          <Plus size={14} />
+          Ajouter une période
+        </button>
+        {lignes.length > 0 && (
+          <span className="text-xs text-muted">
+            Total : {total} jour{total > 1 ? 's' : ''} {regle === 'ouvrables' ? 'ouvrables' : 'ouvrés'}, jours fériés exclus.
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const enLignes = (ps: PeriodeConge[] | undefined): LignePeriode[] => (ps ?? []).map((p) => ({ du: p.du, au: p.au }))
+
+/** Une durée saisie en heures et minutes, stockée en heures décimales. */
+function DureeHM({ id, heures, onChange }: { id: string; heures: string; onChange: (decimal: string) => void }) {
+  const total = Math.round((Number(heures) || 0) * 60)
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  const maj = (nh: number, nm: number) => {
+    const mm = Math.min(59, Math.max(0, nm || 0))
+    const hh = Math.max(0, nh || 0)
+    onChange(hh || mm ? String(Math.round((hh + mm / 60) * 10000) / 10000) : '')
+  }
+  return (
+    <div>
+      <span className="field-label">Durée</span>
+      <div className="flex items-center gap-1.5">
+        <input id={id} type="number" min="0" max="200" step="1" aria-label="Heures" value={heures === '' ? '' : h} onChange={(e) => maj(Number(e.target.value), m)} className="field w-16" />
+        <span className="text-sm text-navy/70">h</span>
+        <input type="number" min="0" max="59" step="1" aria-label="Minutes" value={heures === '' ? '' : m} onChange={(e) => maj(h, Number(e.target.value))} className="field w-16" />
+        <span className="text-sm text-navy/70">min</span>
+      </div>
+    </div>
   )
 }
 
@@ -36,7 +121,10 @@ export function ElementsForm({
   precedent,
   vacataire,
   correction,
+  regle = REGLE_DEFAUT,
 }: {
+  /** Décompte des jours : ouvrés (défaut) ou ouvrables, réglé dans l'admin. */
+  regle?: RegleJours
   /** Shirel corrige à la place du salarié : autre action, trace au journal. */
   correction?: { providerId: string }
   period: string
@@ -59,6 +147,9 @@ export function ElementsForm({
       validees_par: l.validees_par ?? '',
     }))
   )
+  const [cp, setCp] = useState<LignePeriode[]>(enLignes(existant?.paid_leave_periods))
+  const [ss, setSs] = useState<LignePeriode[]>(enLignes(existant?.unpaid_leave_periods))
+  const [ar, setAr] = useState<LignePeriode[]>(enLignes(existant?.sick_leave_periods))
   const reconduire = Boolean(precedent?.transport && !existant?.submitted_at)
   const majHs = (i: number, champ: keyof LigneHS, val: string) =>
     setHs((t) => t.map((l, k) => (k === i ? { ...l, [champ]: val } : l)))
@@ -141,40 +232,28 @@ export function ElementsForm({
         </Section>
 
         <Section titre="Congés payés">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input id="paid_leave_start" name="paid_leave_start" type="date" label="Du" defaultValue={existant?.paid_leave_start ?? ''} />
-            <Input id="paid_leave_end" name="paid_leave_end" type="date" label="Au" defaultValue={existant?.paid_leave_end ?? ''} />
-            <Input id="paid_leave_days" name="paid_leave_days" type="number" step="0.5" min="0" label="Nombre de jours" defaultValue={existant?.paid_leave_days ?? 0} required />
-          </div>
+          <Periodes nom="paid_leave" lignes={cp} setLignes={setCp} regle={regle} />
           <p className="field-hint mt-2">Des congés prévus après la clôture se déclarent dès maintenant ; un écart se régularise le mois suivant.</p>
         </Section>
 
         <Section titre="Congé sans solde">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input id="unpaid_leave_start" name="unpaid_leave_start" type="date" label="Du" defaultValue={existant?.unpaid_leave_start ?? ''} />
-            <Input id="unpaid_leave_end" name="unpaid_leave_end" type="date" label="Au" defaultValue={existant?.unpaid_leave_end ?? ''} />
-            <Input id="unpaid_leave_days" name="unpaid_leave_days" type="number" step="0.5" min="0" label="Nombre de jours" defaultValue={existant?.unpaid_leave_days ?? 0} required />
-          </div>
+          <Periodes nom="unpaid_leave" lignes={ss} setLignes={setSs} regle={regle} />
         </Section>
 
         <Section titre="Arrêt de travail" aide="Un arrêt qui commence après la clôture se déclare le mois suivant.">
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Input id="sick_leave_start" name="sick_leave_start" type="date" label="Du" defaultValue={existant?.sick_leave_start ?? ''} />
-            <Input id="sick_leave_end" name="sick_leave_end" type="date" label="Au" defaultValue={existant?.sick_leave_end ?? ''} />
-            <Input id="sick_leave_days" name="sick_leave_days" type="number" step="0.5" min="0" label="Nombre de jours" defaultValue={existant?.sick_leave_days ?? 0} required />
-            <div>
-              <span className="field-label">Arrêt (volet employeur)</span>
-              <input type="file" name="arret" accept="application/pdf,image/*" className={fichier} />
-              <p className="field-hint">{existant?.sick_leave_document ? 'Déjà déposé ; un nouveau fichier le remplace.' : 'Obligatoire dès qu’il y a des jours d’arrêt. PDF ou photo.'}</p>
-            </div>
+          <Periodes nom="sick_leave" lignes={ar} setLignes={setAr} regle={regle} />
+          <div className="mt-3">
+            <span className="field-label">Arrêt (volet employeur)</span>
+            <input type="file" name="arret" accept="application/pdf,image/*" className={fichier} />
+            <p className="field-hint">{existant?.sick_leave_document ? 'Déjà déposé ; un nouveau fichier le remplace.' : 'Obligatoire dès qu’il y a un arrêt. PDF ou photo.'}</p>
           </div>
         </Section>
 
         <Section titre="Heures supplémentaires" aide="Chaque ligne doit dire qui les a validées : sans manager, elle ne peut pas être enregistrée.">
           <div className="flex flex-col gap-3">
             {hs.map((l, i) => (
-              <div key={i} className="grid items-end gap-3 rounded-lg bg-cream-muted/60 p-3 sm:grid-cols-[6rem_9rem_9rem_1fr_12rem_auto]">
-                <Input id={`hs-h-${i}`} type="number" step="0.25" min="0" label="Heures" value={l.heures} onChange={(e) => majHs(i, 'heures', e.target.value)} required />
+              <div key={i} className="grid items-end gap-3 rounded-lg bg-cream-muted/60 p-3 sm:grid-cols-[11rem_9rem_9rem_1fr_12rem_auto]">
+                <DureeHM id={`hs-h-${i}`} heures={l.heures} onChange={(v) => majHs(i, 'heures', v)} />
                 <Input id={`hs-du-${i}`} type="date" label="Le / du" value={l.du} onChange={(e) => majHs(i, 'du', e.target.value)} />
                 <Input id={`hs-au-${i}`} type="date" label="Au" value={l.au} onChange={(e) => majHs(i, 'au', e.target.value)} />
                 <Input id={`hs-m-${i}`} label="Motif" value={l.motif} onChange={(e) => majHs(i, 'motif', e.target.value)} placeholder="Ex : journée portes ouvertes" />

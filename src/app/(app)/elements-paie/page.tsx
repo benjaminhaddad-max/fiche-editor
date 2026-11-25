@@ -113,6 +113,7 @@ export default async function ElementsPaiePage({ searchParams }: { searchParams:
             existant={saisie}
             precedent={avant ? { transport: Boolean(avant.transport), transport_amount: avant.transport_amount === null ? null : Number(avant.transport_amount) } : null}
             vacataire={salarie.profil === 'vacataire'}
+            regle={calendrier.joursConge}
           />
         ) : (
           <p className="flex items-center gap-2 text-sm text-navy/80">

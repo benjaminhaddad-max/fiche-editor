@@ -5,6 +5,7 @@
  */
 
 import type { CodesSilae } from './parametres'
+import { periodesDeLigne, type PeriodeConge } from './jours'
 import {
   priseEnChargeTransport,
   VARIABLES,
@@ -36,13 +37,16 @@ export interface Saisie {
   nothing_to_report: boolean
   overtime_hours: number
   overtime_lines: LigneHeuresSup[]
+  paid_leave_periods: PeriodeConge[]
   paid_leave_days: number
   paid_leave_start: string | null
   paid_leave_end: string | null
+  unpaid_leave_periods: PeriodeConge[]
   unpaid_leave_days: number
   unpaid_leave_start: string | null
   unpaid_leave_end: string | null
   leave_detail: string | null
+  sick_leave_periods: PeriodeConge[]
   sick_leave_days: number
   sick_leave_start: string | null
   sick_leave_end: string | null
@@ -83,13 +87,16 @@ export function lireSaisie(row: Record<string, unknown> | null | undefined, peri
     nothing_to_report: Boolean(r.nothing_to_report),
     overtime_hours: n(r.overtime_hours),
     overtime_lines: lignes.map((l) => ({ ...l, heures: n(l.heures) })),
+    paid_leave_periods: periodesDeLigne(r.paid_leave_periods, n(r.paid_leave_days), s(r.paid_leave_start), s(r.paid_leave_end)),
     paid_leave_days: n(r.paid_leave_days),
     paid_leave_start: s(r.paid_leave_start),
     paid_leave_end: s(r.paid_leave_end),
+    unpaid_leave_periods: periodesDeLigne(r.unpaid_leave_periods, n(r.unpaid_leave_days), s(r.unpaid_leave_start), s(r.unpaid_leave_end)),
     unpaid_leave_days: n(r.unpaid_leave_days),
     unpaid_leave_start: s(r.unpaid_leave_start),
     unpaid_leave_end: s(r.unpaid_leave_end),
     leave_detail: s(r.leave_detail),
+    sick_leave_periods: periodesDeLigne(r.sick_leave_periods, n(r.sick_leave_days), s(r.sick_leave_start), s(r.sick_leave_end)),
     sick_leave_days: n(r.sick_leave_days),
     sick_leave_start: s(r.sick_leave_start),
     sick_leave_end: s(r.sick_leave_end),
@@ -206,9 +213,10 @@ export function lignesSilae(
     })
   }
   if (x.nothing_to_report && sal.profil !== 'vacataire') return out
-  pousser('conges_payes', x.paid_leave_days, x.paid_leave_start, x.paid_leave_end)
-  pousser('sans_solde', x.unpaid_leave_days, x.unpaid_leave_start, x.unpaid_leave_end)
-  pousser('arret_maladie', x.sick_leave_days, x.sick_leave_start, x.sick_leave_end)
+  // Une ligne par période (jours et dates propres à chacune).
+  for (const p of x.paid_leave_periods) pousser('conges_payes', p.jours, p.du, p.au)
+  for (const p of x.unpaid_leave_periods) pousser('sans_solde', p.jours, p.du, p.au)
+  for (const p of x.sick_leave_periods) pousser('arret_maladie', p.jours, p.du, p.au)
   if (x.overtime_lines.length) for (const l of x.overtime_lines) pousser('heures_sup', l.heures, l.du, l.au)
   else pousser('heures_sup', x.overtime_hours)
   if (x.transport && avecTransport) pousser('transport', priseEnChargeTransport(x.transport_amount))

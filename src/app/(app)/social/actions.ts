@@ -13,7 +13,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { completerCalendrier } from '@/lib/social/calendrier'
 import { ligneDuSalarie, tableauDuMois, type LigneSocial } from '@/lib/social/donnees'
 import { lignesImport, lireCsv, lireXlsx } from '@/lib/social/fichier'
-import { datesIncoherentes, lireHeuresSup, SchemaFormulaire } from '@/lib/social/formulaire'
+import { lireConges, lireHeuresSup, SchemaFormulaire } from '@/lib/social/formulaire'
 import { importerSalaries, type ResultatImport } from '@/lib/social/import'
 import { adressesNetPaye, CODES_DEFAUT, ecrireParametres, lireParametres, requireEquipeSocial } from '@/lib/social/parametres'
 import { deposerPiece } from '@/lib/social/pieces'
@@ -152,9 +152,9 @@ export async function renvoyerSaisie(_p: Resultat, fd: FormData): Promise<Result
 }
 
 const CHAMPS_TRACES = [
-  'paid_leave_days', 'paid_leave_start', 'paid_leave_end',
-  'unpaid_leave_days', 'unpaid_leave_start', 'unpaid_leave_end',
-  'sick_leave_days', 'sick_leave_start', 'sick_leave_end',
+  'paid_leave_periods', 'paid_leave_days',
+  'unpaid_leave_periods', 'unpaid_leave_days',
+  'sick_leave_periods', 'sick_leave_days',
   'transport', 'transport_annuel', 'transport_amount', 'mutuelle', 'mutuelle_detail', 'comment', 'overtime_hours', 'overtime_lines',
 ] as const
 
@@ -169,8 +169,9 @@ export async function corrigerSaisie(_p: Resultat, fd: FormData): Promise<Result
   const parsed = SchemaFormulaire.safeParse(Object.fromEntries(fd))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
   const v = parsed.data
-  const incoherent = datesIncoherentes(v)
-  if (incoherent) return { error: incoherent }
+  const cg = lireConges(fd, (await lireParametres()).calendrier.joursConge)
+  if ('erreur' in cg) return { error: cg.erreur }
+  const conges = cg.conges
   const hs = lireHeuresSup(v.heures_sup)
   if ('erreur' in hs) return { error: hs.erreur }
   const l = await ligneDuSalarie(providerId, v.period)
@@ -190,15 +191,7 @@ export async function corrigerSaisie(_p: Resultat, fd: FormData): Promise<Result
 
   const transport = v.transport === 'oui'
   const nouveau = {
-    paid_leave_days: v.paid_leave_days,
-    paid_leave_start: v.paid_leave_start,
-    paid_leave_end: v.paid_leave_end,
-    unpaid_leave_days: v.unpaid_leave_days,
-    unpaid_leave_start: v.unpaid_leave_start,
-    unpaid_leave_end: v.unpaid_leave_end,
-    sick_leave_days: v.sick_leave_days,
-    sick_leave_start: v.sick_leave_start,
-    sick_leave_end: v.sick_leave_end,
+    ...conges,
     transport,
     transport_annuel: v.transport === 'annuel',
     transport_amount: transport && v.transport_amount !== '' && v.transport_amount !== undefined ? Number(v.transport_amount) : null,
@@ -573,6 +566,7 @@ export async function enregistrerParametres(_p: Resultat, fd: FormData): Promise
       },
       email: g('email') === 'on',
       sms: g('sms') === 'on',
+      joursConge: g('jours_conge') === 'ouvrables' ? 'ouvrables' : 'ouvres',
     })
   } catch {
     return { error: 'Un jour (1 à 31) ou une heure (0 à 24) est invalide.' }

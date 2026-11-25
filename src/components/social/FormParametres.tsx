@@ -90,6 +90,24 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
       </div>
 
       <Card className="p-5">
+        <h3 className="text-sm font-semibold text-navy">Décompte des jours de congé et d’arrêt</h3>
+        <p className="mb-2 text-xs text-muted">
+          Le salarié ne saisit que les dates : le nombre de jours est calculé selon cette règle, jours fériés exclus.
+        </p>
+        <div className="flex flex-wrap gap-5 text-sm text-navy">
+          <label className="flex items-center gap-2">
+            <input type="radio" name="jours_conge" value="ouvres" defaultChecked={p.calendrier.joursConge !== 'ouvrables'} className="h-4 w-4 accent-navy" />
+            Jours ouvrés (lundi → vendredi)
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" name="jours_conge" value="ouvrables" defaultChecked={p.calendrier.joursConge === 'ouvrables'} className="h-4 w-4 accent-navy" />
+            Jours ouvrables (lundi → samedi)
+          </label>
+        </div>
+        <p className="mt-2 text-xs text-muted">Exemple : du vendredi 27 au lundi 30 novembre → 2 jours ouvrés, 3 jours ouvrables.</p>
+      </Card>
+
+      <Card className="p-5">
         <h2 className="font-semibold text-navy">Correspondance variable → code Silae</h2>
         <p className="mb-4 mt-1 text-xs text-muted">
           Un code vide reste vide dans le fichier, et l’envoi le signale. Codes d’absence déjà transmis par Net Paye : congés payés 300,

@@ -17,12 +17,14 @@ function charger(chemin, remplacements = {}) {
 urls.cycle = charger('../cycle.ts')
 urls.types = charger('./types.ts')
 urls.calendrier = charger('./calendrier.ts', { '@/lib/cycle': urls.cycle })
-urls.saisie = charger('./saisie.ts', { './types': urls.types })
+urls.jours = charger('./jours.ts', { '@/lib/cycle': urls.cycle })
+urls.saisie = charger('./saisie.ts', { './types': urls.types, './jours': urls.jours })
 urls.fichier = charger('./fichier.ts')
 
 const cal = await import(urls.calendrier)
 const sa = await import(urls.saisie)
 const fi = await import(urls.fichier)
+const jo = await import(urls.jours)
 const C = cal.CALENDRIER_DEFAUT
 
 test('fixes de novembre 2026 : le 25 est un mercredi, rien ne bouge', () => {
@@ -177,4 +179,30 @@ test('import : un matricule numérique retrouve ses zéros, les colonnes faculta
     [63, 'KLAI', 'Sofia', 'S@X.FR', 'Apprentissage', '01/09/2026', null],
   ])
   assert.deepEqual(lignes[0], { matricule: '00063', nom: 'KLAI Sofia', email: 's@x.fr', profil: 'alternant', entree: '2026-09-01', sortie: null })
+})
+
+test('jours de congé : ouvrés ou ouvrables, fériés exclus', () => {
+  // vendredi 27 → lundi 30 novembre 2026
+  assert.equal(jo.joursDeConge('2026-11-27', '2026-11-30', 'ouvres'), 2)
+  assert.equal(jo.joursDeConge('2026-11-27', '2026-11-30', 'ouvrables'), 3)
+  // 11 novembre 2026 (mercredi) férié
+  assert.equal(jo.joursDeConge('2026-11-10', '2026-11-12', 'ouvres'), 2)
+  assert.equal(jo.joursDeConge('2026-11-12', '2026-11-10', 'ouvres'), 0)
+  assert.equal(jo.joursDeConge('2026-12-25', '2026-12-25'), 0)
+})
+
+test('périodes : recalcul, repli sur l’ancienne saisie, agrégat', () => {
+  const ps = jo.lirePeriodes([{ du: '2026-11-02', au: '2026-11-03', jours: 99 }, { du: '2026-11-27', au: '2026-11-30' }])
+  assert.deepEqual(ps.map((p) => p.jours), [2, 2])
+  assert.deepEqual(jo.agregat(ps), { jours: 4, debut: '2026-11-02', fin: '2026-11-30' })
+  assert.equal(jo.chevauchement(ps), false)
+  assert.equal(jo.chevauchement([{ du: '2026-11-02', au: '2026-11-05', jours: 4 }, { du: '2026-11-05', au: '2026-11-06', jours: 2 }]), true)
+  assert.deepEqual(jo.periodesDeLigne([], 3, '2026-11-02', '2026-11-04'), [{ du: '2026-11-02', au: '2026-11-04', jours: 3 }])
+  assert.deepEqual(jo.periodesDeLigne([], 0, null, null), [])
+})
+
+test('durée en heures et minutes', () => {
+  assert.equal(jo.formatHeures(0.5), '30 min')
+  assert.equal(jo.formatHeures(1.5), '1 h 30')
+  assert.equal(jo.formatHeures(2), '2 h')
 })
