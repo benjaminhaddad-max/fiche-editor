@@ -5,6 +5,7 @@
  */
 
 import type { CodesSilae } from './parametres'
+import type { EtatDispense } from './dispense'
 import { periodesDeLigne, type PeriodeConge } from './jours'
 import {
   priseEnChargeTransport,
@@ -28,6 +29,10 @@ export interface Salarie {
   sortie: string | null
   /** Profil ou email devinés à l'import, pas encore relus. */
   aVerifier?: boolean
+  /** Exclu volontairement de toute demande et relance (voir migration 66). */
+  sansRelance?: boolean
+  /** Compte partagé voulu : qui remplit pour lui (voir exceptions.ts). */
+  declarant?: string | null
 }
 
 export interface Saisie {
@@ -139,7 +144,7 @@ export const HEURES_SUP_MAX = 20
  * Les contrôles signalés avant validation (§6). Une saisie sans anomalie
  * peut partir dans la validation en masse ; les autres se regardent une par une.
  */
-export function controler(sal: Salarie, x: Saisie, netMissions: number): Anomalie[] {
+export function controler(sal: Salarie, x: Saisie, netMissions: number, dispense: EtatDispense = 'aucune'): Anomalie[] {
   const out: Anomalie[] = []
   if (!sal.matricule) out.push({ code: 'matricule', texte: 'Salarié sans matricule Silae' })
   if (!aRepondu(x)) return out
@@ -149,7 +154,11 @@ export function controler(sal: Salarie, x: Saisie, netMissions: number): Anomali
   if (x.transport && (x.transport_amount ?? 0) > TRANSPORT_MAX)
     out.push({ code: 'transport_anormal', texte: `Montant de transport anormal (plus de ${TRANSPORT_MAX} €)` })
   if (x.sick_leave_days > 0 && !x.sick_leave_document) out.push({ code: 'justif_arret', texte: 'Arrêt de travail sans justificatif' })
-  if (x.mutuelle === 'dispense' && !x.mutuelle_document)
+  // La dispense se signe une fois (dispense.ts) : signée et pas échue, plus
+  // d'alerte, ni ce mois-ci ni les suivants. Échue, elle est à refaire.
+  if (x.mutuelle === 'dispense' && dispense === 'expiree')
+    out.push({ code: 'justif_mutuelle', texte: 'Dispense de mutuelle échue : à faire signer de nouveau' })
+  else if (x.mutuelle === 'dispense' && dispense === 'aucune' && !x.mutuelle_document)
     out.push({ code: 'justif_mutuelle', texte: 'Dispense de mutuelle sans justificatif' })
   if (x.overtime_hours > HEURES_SUP_MAX)
     out.push({ code: 'heures_sup', texte: `Volume d’heures sup. inhabituel (${x.overtime_hours} h)` })

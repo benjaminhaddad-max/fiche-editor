@@ -22,6 +22,16 @@ export async function deliver(params: {
   entityId?: string
   providerId?: string | null
 }): Promise<void> {
+  // Dernier garde-fou : une fiche exclue des envois (migration 66) ne reçoit
+  // aucun email, quel que soit le chemin qui l'appelle.
+  if (params.providerId) {
+    const { data } = await createServiceClient()
+      .from('inv_providers')
+      .select('social_sans_relance')
+      .eq('id', params.providerId)
+      .maybeSingle()
+    if (data?.social_sans_relance) return
+  }
   const result = await sendEmail({
     to: params.to,
     subject: params.subject,
@@ -67,6 +77,16 @@ export async function sendInvitation(
     .select('id, email, full_name, is_active, role')
     .eq('id', userId)
     .maybeSingle()
+
+  // Fiche exclue des envois (migration 66) : pas d'invitation non plus.
+  const { data: exclu } = await supabase
+    .from('inv_providers')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('social_sans_relance', true)
+    .limit(1)
+    .maybeSingle()
+  if (exclu) return false
 
   if (!user?.is_active) return false
 

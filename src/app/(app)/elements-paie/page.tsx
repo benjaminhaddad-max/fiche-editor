@@ -2,10 +2,13 @@ import Link from 'next/link'
 import { CheckCircle2, Lock, MessageSquareWarning } from 'lucide-react'
 import { ElementsForm } from '@/components/paie/ElementsForm'
 import { Card, PageHeader } from '@/components/ui/Page'
+import { activeBrand } from '@/lib/brand/actif'
 import { formatDate, formatDateLong, money } from '@/lib/format'
 import { estAcquise, lignesPaie } from '@/lib/paie'
 import { createServiceClient } from '@/lib/supabase/service'
-import { etapes, moisASaisir, moisPrecedentDe, saisieOuverte } from '@/lib/social/calendrier'
+import { etapes, maintenantParis, moisASaisir, moisPrecedentDe, saisieOuverte } from '@/lib/social/calendrier'
+import { etatDispense } from '@/lib/social/dispense'
+import { dernieresDispenses } from '@/lib/social/donnees'
 import { lireParametres } from '@/lib/social/parametres'
 import { lireSaisie } from '@/lib/social/saisie'
 import { requireSalarie } from '@/lib/social/salarie'
@@ -21,6 +24,7 @@ const libelleMois = (m: string) =>
 export default async function ElementsPaiePage({ searchParams }: { searchParams: Promise<{ mois?: string }> }) {
   const { mois } = await searchParams
   const { salarie } = await requireSalarie()
+  const brandName = (await activeBrand()).company.name
   const { calendrier } = await lireParametres()
   const groupe = groupeDuProfil(salarie.profil)
   const enCours = moisASaisir(groupe, calendrier)
@@ -37,6 +41,8 @@ export default async function ElementsPaiePage({ searchParams }: { searchParams:
       .maybeSingle(),
   ])
   const saisie = data ? lireSaisie(data, period) : null
+  const dispense = (await dernieresDispenses([salarie.providerId])).get(salarie.providerId) ?? null
+  const etat = etatDispense(dispense, maintenantParis().date)
   const cloture = etapes(groupe, period, calendrier).find((e) => e.cle === 'cloture')!
   const modifiable =
     saisie?.status === 'a_corriger' ||
@@ -114,6 +120,8 @@ export default async function ElementsPaiePage({ searchParams }: { searchParams:
             precedent={avant ? { transport: Boolean(avant.transport), transport_amount: avant.transport_amount === null ? null : Number(avant.transport_amount) } : null}
             vacataire={salarie.profil === 'vacataire'}
             regle={calendrier.joursConge}
+            dispense={{ etat, echeance: dispense?.echeance ?? null, signe_le: dispense?.signe_le ?? null }}
+            societe={brandName}
           />
         ) : (
           <p className="flex items-center gap-2 text-sm text-navy/80">

@@ -205,3 +205,27 @@ test('durée en heures et minutes', () => {
   assert.equal(jo.formatHeures(1.5), '1 h 30')
   assert.equal(jo.formatHeures(2), '2 h')
 })
+
+// Dispense de mutuelle : signée une fois, redemandée un mois avant l'échéance.
+const di = await import(charger('./dispense.ts'))
+
+test('dispense : jamais signée, valable, à renouveler, échue', () => {
+  assert.equal(di.etatDispense(null, '2026-11-26'), 'aucune')
+  assert.equal(di.etatDispense({ echeance: null }, '2030-01-01'), 'valide')
+  assert.equal(di.etatDispense({ echeance: '2027-03-31' }, '2027-02-27'), 'valide')
+  assert.equal(di.dateDeRenouvellement('2027-03-31'), '2027-02-28')
+  assert.equal(di.etatDispense({ echeance: '2027-03-31' }, '2027-02-28'), 'a_renouveler')
+  assert.equal(di.etatDispense({ echeance: '2027-03-31' }, '2027-03-31'), 'a_renouveler')
+  assert.equal(di.etatDispense({ echeance: '2027-03-31' }, '2027-04-01'), 'expiree')
+  assert.equal(di.dateDeRenouvellement('2027-01-15'), '2026-12-15')
+})
+
+test('dispense : l’alerte ne sort que sans dispense valable', () => {
+  const x = sa.lireSaisie({ status: 'a_valider', submitted_at: 'x', mutuelle: 'dispense' }, '2026-12')
+  const codes = (etat) => sa.controler(SAL, x, 0, etat).map((a) => a.code)
+  assert.deepEqual(codes('aucune'), ['justif_mutuelle'])
+  assert.deepEqual(codes('expiree'), ['justif_mutuelle'])
+  assert.deepEqual(codes('valide'), [])
+  assert.deepEqual(codes('a_renouveler'), [])
+  assert.deepEqual(codes(undefined), ['justif_mutuelle'])
+})

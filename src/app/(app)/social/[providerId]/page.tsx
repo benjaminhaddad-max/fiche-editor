@@ -14,6 +14,8 @@ import { formatHeures, type PeriodeConge } from '@/lib/social/jours'
 import { lireParametres, requireEquipeSocial } from '@/lib/social/parametres'
 import { MUTUELLE_LABEL, priseEnChargeTransport, PROFIL_LABEL, STATUT_LABEL, STATUT_STYLE } from '@/lib/social/types'
 
+const fr = (d: string) => d.split('-').reverse().join('/')
+
 const libelleMois = (m: string) =>
   new Date(`${m}-15T12:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
@@ -158,6 +160,13 @@ export default async function FicheSocialPage({
                   <Ligne titre="Mutuelle">
                     {MUTUELLE_LABEL[s.mutuelle]}
                     {s.mutuelle_detail && ` — ${s.mutuelle_detail}`}
+                  </Ligne>
+                  <Ligne titre="Dispense signée">
+                    {l.dispense
+                      ? `Oui, le ${fr(l.dispense.signe_le)} par « ${l.dispense.signature} » — ${l.dispense.echeance ? `échéance le ${fr(l.dispense.echeance)}` : 'sans échéance'}${
+                          l.etatDispense === 'a_renouveler' ? ' (à renouveler : redemandée au salarié)' : l.etatDispense === 'expiree' ? ' (échue)' : ''
+                        }`
+                      : 'Jamais signée'}
                   </Ligne>
                   {s.comment && <Ligne titre="Remarque">{s.comment}</Ligne>}
                   {s.leave_detail && <Ligne titre="Détail (ancien formulaire)">{s.leave_detail}</Ligne>}

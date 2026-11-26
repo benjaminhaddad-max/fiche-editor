@@ -9,10 +9,74 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { money } from '@/lib/format'
 import type { Saisie } from '@/lib/social/saisie'
 import { joursDeConge, REGLE_DEFAUT, type PeriodeConge, type RegleJours } from '@/lib/social/jours'
+import { CHAPEAU, RENONCIATION, SITUATIONS, TITRE_DISPENSE, type EtatDispense } from '@/lib/social/dispense'
 import { priseEnChargeTransport, VALIDEURS_HEURES_SUP, type LigneHeuresSup } from '@/lib/social/types'
 
 const fichier =
   'block text-sm text-navy/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-cream-deep file:px-3 file:py-2 file:text-sm file:font-medium file:text-navy/80'
+
+const fr = (d: string | null) => (d ? d.split('-').reverse().join('/') : '')
+
+/**
+ * L'attestation sur l'honneur du modèle d'Odile, remplie et signée en
+ * ligne. Elle est gardée : les mois suivants, rien à refaire jusqu'à son
+ * échéance.
+ */
+function AttestationDispense({ societe }: { societe: string }) {
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-lg border border-line bg-cream-muted/40 p-4 text-sm text-navy">
+      <div>
+        {societe && <p className="text-xs font-semibold uppercase tracking-wide text-muted">{societe}</p>}
+        <p className="font-semibold">{TITRE_DISPENSE}</p>
+        <p className="mt-1 text-xs text-muted">À signer une seule fois : elle vaudra les mois suivants, jusqu’à la date d’échéance que vous indiquez.</p>
+      </div>
+      <p>{CHAPEAU}</p>
+      <div className="flex flex-col gap-2">
+        {SITUATIONS.map((s) => (
+          <label key={s.cle} className="flex cursor-pointer items-start gap-2">
+            <input type="radio" name="dispense_situation" value={s.cle} required className="mt-1 accent-navy" />
+            <span>{s.texte}</span>
+          </label>
+        ))}
+      </div>
+      <Textarea
+        id="dispense_organisme"
+        name="dispense_organisme"
+        label="L’organisme auprès duquel je suis affilié(e) (nom et coordonnées)"
+        rows={2}
+        required
+        placeholder="Ex : Harmonie Mutuelle, 143 rue Blomet, 75015 Paris"
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input
+          id="dispense_echeance"
+          name="dispense_echeance"
+          type="date"
+          label="Ma couverture arrivera à échéance le"
+          hint="Laissez vide s’il n’y a pas d’échéance : la dispense restera valable."
+        />
+        <div>
+          <span className="field-label">Justificatif (facultatif)</span>
+          <input type="file" name="mutuelle_piece" accept="application/pdf,image/*" className={fichier} />
+          <p className="field-hint">Attestation de votre autre mutuelle.</p>
+        </div>
+      </div>
+      {RENONCIATION.map((p, i) => (
+        <p key={i} className="text-xs leading-relaxed text-navy/80">
+          {p}
+        </p>
+      ))}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input id="dispense_fait_a" name="dispense_fait_a" label="Fait à" required placeholder="Paris" />
+        <Input id="dispense_signature" name="dispense_signature" label="Signature : vos nom et prénom" required placeholder="Prénom Nom" />
+      </div>
+      <label className="flex cursor-pointer items-start gap-2">
+        <input type="checkbox" name="dispense_accord" required className="mt-1 accent-navy" />
+        <span>J’atteste sur l’honneur l’exactitude de ces informations et je signe cette demande de dispense. Elle est datée d’aujourd’hui.</span>
+      </label>
+    </div>
+  )
+}
 
 function Section({ titre, aide, children }: { titre: string; aide?: string; children: React.ReactNode }) {
   return (
@@ -122,7 +186,13 @@ export function ElementsForm({
   vacataire,
   correction,
   regle = REGLE_DEFAUT,
+  dispense = null,
+  societe = '',
 }: {
+  /** La dispense de mutuelle déjà signée, et où elle en est. */
+  dispense?: { etat: EtatDispense; echeance: string | null; signe_le: string | null } | null
+  /** La société qui figure en tête de l'attestation. */
+  societe?: string
   /** Décompte des jours : ouvrés (défaut) ou ouvrables, réglé dans l'admin. */
   regle?: RegleJours
   /** Shirel corrige à la place du salarié : autre action, trace au journal. */
@@ -137,7 +207,14 @@ export function ElementsForm({
   const [rien, actionRien] = useActionState<ElementsResult, FormData>(rienASignaler, {})
   const [transport, setTransport] = useState(existant?.transport ? 'oui' : existant?.transport_annuel ? 'annuel' : 'non')
   const [montant, setMontant] = useState(existant?.transport_amount != null ? String(existant.transport_amount) : '')
-  const [mutuelle, setMutuelle] = useState(existant && existant.mutuelle !== 'inconnu' && existant.mutuelle !== 'refus' ? existant.mutuelle : '')
+  const dispenseValable = dispense?.etat === 'valide' || dispense?.etat === 'a_renouveler'
+  // Une dispense signée se reprend d'office : on ne la redemande pas.
+  const [mutuelle, setMutuelle] = useState(
+    existant && existant.mutuelle !== 'inconnu' && existant.mutuelle !== 'refus' ? existant.mutuelle : dispenseValable ? 'dispense' : ''
+  )
+  // L'attestation à signer : seulement pour le salarié, quand il n'en a pas
+  // de valable ou qu'elle arrive à échéance dans le mois.
+  const aSigner = !correction && mutuelle === 'dispense' && dispense?.etat !== 'valide'
   const [hs, setHs] = useState<LigneHS[]>(
     (existant?.overtime_lines ?? []).map((l: LigneHeuresSup) => ({
       heures: String(l.heures),
@@ -298,7 +375,13 @@ export function ElementsForm({
               <option value="dispense">Je demande une dispense</option>
               <option value="changement">Changement de situation</option>
             </Select>
-            {(mutuelle === 'dispense' || mutuelle === 'changement') && (
+            {mutuelle === 'dispense' && !correction && dispense?.etat === 'valide' && (
+              <p className="self-end rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900 sm:col-span-2">
+                Votre dispense signée le {fr(dispense.signe_le)} est enregistrée
+                {dispense.echeance ? ` (valable jusqu’au ${fr(dispense.echeance)})` : ''} : rien à refaire.
+              </p>
+            )}
+            {mutuelle === 'changement' || (mutuelle === 'dispense' && correction) ? (
               <>
                 <Input
                   id="mutuelle_detail"
@@ -315,8 +398,19 @@ export function ElementsForm({
                   </p>
                 </div>
               </>
-            )}
+            ) : null}
           </div>
+          {!correction && dispense?.etat === 'a_renouveler' && dispense.echeance && (
+            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Votre dispense de mutuelle arrive à échéance le {fr(dispense.echeance)} : merci d’en signer une nouvelle ci-dessous.
+            </p>
+          )}
+          {!correction && dispense?.etat === 'expiree' && dispense.echeance && (
+            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+              Votre dispense de mutuelle a pris fin le {fr(dispense.echeance)}. Pour rester dispensé, signez-en une nouvelle.
+            </p>
+          )}
+          {aSigner && <AttestationDispense societe={societe} />}
         </Section>
 
         <Textarea

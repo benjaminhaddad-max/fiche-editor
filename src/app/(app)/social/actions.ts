@@ -130,7 +130,7 @@ export async function renvoyerSaisie(_p: Resultat, fd: FormData): Promise<Result
       { onConflict: 'provider_id,period' }
     )
   if (error) return { error: error.message }
-  if (l.salarie.email) {
+  if (l.salarie.email && !l.salarie.sansRelance) {
     await deliver({
       to: { email: l.salarie.email, name: l.salarie.nom },
       ...(await templates()).socialRetour({ name: l.salarie.nom, label: libelleMois(mois), commentaire }),
@@ -149,7 +149,9 @@ export async function renvoyerSaisie(_p: Resultat, fd: FormData): Promise<Result
     payload: { periode: mois, commentaire },
   })
   rafraichir(providerId)
-  return { success: `Renvoyé à ${l.salarie.nom}${l.salarie.email ? ', prévenu par email et SMS' : ' (pas d’adresse : prévenez-le)'}.` }
+  return {
+    success: `Renvoyé à ${l.salarie.nom}${l.salarie.sansRelance ? ' (exclu des relances : il n’est pas prévenu)' : l.salarie.email ? ', prévenu par email et SMS' : ' (pas d’adresse : prévenez-le)'}.`,
+  }
 }
 
 const CHAMPS_TRACES = [
@@ -260,6 +262,7 @@ export async function relancerSalaries(_p: Resultat, fd: FormData): Promise<Resu
   return {
     success: `${r.envoyes} relance(s) envoyée(s).`,
     ...(r.sansCompte.length ? { error: `Sans adresse, non relancés : ${r.sansCompte.join(', ')}.` } : {}),
+    ...(r.exclus ? { success: `${r.envoyes} relance(s) envoyée(s) (${r.exclus} exclu(s) volontairement, non relancé(s)).` } : {}),
   }
 }
 
@@ -501,11 +504,12 @@ export async function envoyerAcces(_p: Resultat, fd: FormData): Promise<Resultat
   const brand = await activeBrandId()
   const { data: fiche } = await db
     .from('inv_providers')
-    .select('id, user_id, legal_name, phone, social_profile')
+    .select('id, user_id, legal_name, phone, social_profile, social_sans_relance')
     .eq('id', providerId)
     .eq('brand', brand)
     .maybeSingle()
   if (!fiche?.social_profile) return { error: 'Fiche introuvable.' }
+  if (fiche.social_sans_relance) return { error: 'Cette personne est volontairement exclue des envois : aucun accès ne lui est envoyé.' }
   let userId = fiche.user_id as string | null
   if (!userId) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Indiquez l’adresse email du salarié.' }

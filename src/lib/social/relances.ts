@@ -25,7 +25,7 @@ export async function demanderElements(
   period: string,
   relance: boolean,
   seulement?: string[]
-): Promise<{ envoyes: number; sansCompte: string[] }> {
+): Promise<{ envoyes: number; sansCompte: string[]; exclus: number }> {
   const { calendrier } = await lireParametres()
   const lignes = (await tableauDuMois(period, groupe)).filter(
     (l) => !aRepondu(l.saisie) && (!seulement || seulement.includes(l.salarie.providerId))
@@ -38,9 +38,16 @@ export async function demanderElements(
   const db = createServiceClient()
   const sansCompte: string[] = []
   let envoyes = 0
+  let exclus = 0
 
   for (const l of lignes) {
     const s = l.salarie
+    // Exclu volontairement (migration 66) : rien ne part, ni email ni SMS,
+    // même s'il avait un jour une adresse ou un téléphone.
+    if (s.sansRelance) {
+      exclus++
+      continue
+    }
     if (!s.email) {
       sansCompte.push(s.nom)
       continue
@@ -66,5 +73,5 @@ export async function demanderElements(
       .upsert({ provider_id: s.providerId, period, reminded_at: new Date().toISOString() }, { onConflict: 'provider_id,period' })
     envoyes++
   }
-  return { envoyes, sansCompte }
+  return { envoyes, sansCompte, exclus }
 }

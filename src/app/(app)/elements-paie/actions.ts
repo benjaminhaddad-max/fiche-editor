@@ -1,9 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
+import { activeBrand } from '@/lib/brand/actif'
 import { logAudit } from '@/lib/audit'
 import { createServiceClient } from '@/lib/supabase/service'
-import { moisASaisir } from '@/lib/social/calendrier'
+import { maintenantParis, moisASaisir } from '@/lib/social/calendrier'
+import { dispenseEnCours, etatDispense, SITUATIONS, texteSigne, type SituationDispense } from '@/lib/social/dispense'
+import { dernieresDispenses } from '@/lib/social/donnees'
 import { lireConges, lireHeuresSup, SchemaFormulaire } from '@/lib/social/formulaire'
 import { lireParametres } from '@/lib/social/parametres'
 import { deposerPiece } from '@/lib/social/pieces'
@@ -40,12 +44,23 @@ async function moisOuvert(providerId: string, period: string, profil: Parameters
   return data?.status === 'a_corriger'
 }
 
+/** La dispense signée en cours, s'il y en a une. */
+async function dispenseDe(providerId: string) {
+  const d = (await dernieresDispenses([providerId])).get(providerId) ?? null
+  return { d, etat: etatDispense(d, maintenantParis().date) }
+}
+
 /** « Rien à signaler ce mois-ci » : une réponse, qui arrête les relances. */
 export async function rienASignaler(_prev: ElementsResult, fd: FormData): Promise<ElementsResult> {
   const { user, salarie } = await requireSalarie()
   const period = String(fd.get('period') ?? '')
   if (!/^\d{4}-\d{2}$/.test(period)) return { error: 'Mois invalide.' }
   if (!(await moisOuvert(salarie.providerId, period, salarie.profil))) return { error: 'Ce mois est clos.' }
+  // Une dispense signée et valable vaut pour ce mois aussi.
+  const { etat } = await dispenseDe(salarie.providerId)
+  if (etat === 'a_renouveler') {
+    return { error: 'Votre dispense de mutuelle arrive à échéance : renouvelez-la dans le formulaire ci-dessous (rubrique Mutuelle).' }
+  }
   const { error } = await createServiceClient()
     .from('inv_payroll_inputs')
     .upsert(
@@ -70,6 +85,7 @@ export async function rienASignaler(_prev: ElementsResult, fd: FormData): Promis
         transport: false,
         transport_annuel: false,
         transport_amount: null,
+        ...(dispenseEnCours(etat) ? { mutuelle: 'dispense' } : {}),
         status: 'a_valider',
         submitted_at: new Date().toISOString(),
         submitted_by: user.id,
@@ -122,6 +138,49 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
   const mutuelleDoc = await piece('mutuelle_piece', 'mutuelle', 'Justificatif mutuelle')
   if ('erreur' in mutuelleDoc) return { error: mutuelleDoc.erreur }
 
+  // Dispense de mutuelle : signée une fois, gardée jusqu'à son échéance. On
+  // la (re)signe quand il n'y en a pas, qu'elle est échue, ou qu'elle arrive
+  // à échéance dans le mois.
+  const { etat } = await dispenseDe(salarie.providerId)
+  let signature: Record<string, unknown> | null = null
+  if (v.mutuelle === 'dispense' && etat !== 'valide') {
+    const situation = String(fd.get('dispense_situation') ?? '') as SituationDispense
+    const organisme = String(fd.get('dispense_organisme') ?? '').trim()
+    const echeance = String(fd.get('dispense_echeance') ?? '').trim()
+    const faitA = String(fd.get('dispense_fait_a') ?? '').trim()
+    const nom = String(fd.get('dispense_signature') ?? '').trim()
+    if (!SITUATIONS.some((s) => s.cle === situation)) return { error: 'Dispense de mutuelle : cochez votre situation.' }
+    if (organisme.length < 3) return { error: 'Dispense de mutuelle : indiquez l’organisme qui vous couvre (nom et coordonnées).' }
+    if (echeance && !/^\d{4}-\d{2}-\d{2}$/.test(echeance)) return { error: 'Dispense de mutuelle : date d’échéance invalide.' }
+    const aujourdhui = maintenantParis().date
+    if (echeance && echeance <= aujourdhui) return { error: 'Dispense de mutuelle : la date d’échéance est déjà passée.' }
+    if (faitA.length < 2) return { error: 'Dispense de mutuelle : indiquez la ville (« Fait à »).' }
+    if (nom.length < 3) return { error: 'Dispense de mutuelle : signez en tapant vos nom et prénom.' }
+    if (fd.get('dispense_accord') !== 'on') return { error: 'Dispense de mutuelle : cochez la case confirmant avoir lu l’attestation.' }
+    const h = await headers()
+    signature = {
+      provider_id: salarie.providerId,
+      situation,
+      organisme,
+      echeance: echeance || null,
+      fait_a: faitA,
+      signe_le: aujourdhui,
+      signature: nom,
+      signed_by: user.id,
+      ip: (h.get('x-forwarded-for') ?? '').split(',')[0].trim() || null,
+      document: mutuelleDoc.id ?? null,
+      texte: texteSigne({
+        societe: (await activeBrand()).company.name,
+        nom,
+        situation,
+        organisme,
+        echeance: echeance || null,
+        faitA,
+        le: aujourdhui,
+      }),
+    }
+  }
+
   const transport = v.transport === 'oui'
   const montant = v.transport_amount === '' || v.transport_amount === undefined ? null : Number(v.transport_amount)
   if (transport && !montant) return { error: 'Transport : indiquez le montant de l’abonnement.' }
@@ -133,6 +192,11 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
   // L'arrêt de travail aussi : pas de jours d'arrêt sans le document.
   if (conges.sick_leave_days > 0 && !arretDoc.id && !avant?.sick_leave_document) {
     return { error: 'Arrêt de travail : l’arrêt est obligatoire (PDF ou photo).' }
+  }
+
+  if (signature) {
+    const { error: e } = await db.from('inv_mutuelle_dispenses').insert(signature)
+    if (e) return { error: `Dispense de mutuelle : enregistrement impossible (${e.message}).` }
   }
 
   const heures = Math.round(hs.lignes.reduce((t, l) => t + l.heures, 0) * 100) / 100
@@ -151,7 +215,9 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
       transport_renewed: transport && v.transport_renewed === 'on',
       ...(transportDoc.id ? { transport_document: transportDoc.id } : {}),
       mutuelle: v.mutuelle,
-      mutuelle_detail: v.mutuelle_detail || null,
+      mutuelle_detail:
+        v.mutuelle_detail ||
+        (v.mutuelle === 'dispense' ? (signature ? 'Dispense signée en ligne' : 'Dispense déjà signée') : null),
       ...(mutuelleDoc.id ? { mutuelle_document: mutuelleDoc.id } : {}),
       comment: v.comment || null,
       status: 'a_valider',
@@ -176,6 +242,7 @@ export async function enregistrerElements(_prev: ElementsResult, fd: FormData): 
       periodes: { cp: conges.paid_leave_periods, sans_solde: conges.unpaid_leave_periods, arret: conges.sick_leave_periods },
       transport: transport ? montant : null,
       mutuelle: v.mutuelle,
+      ...(signature ? { dispense_signee: { situation: signature.situation, echeance: signature.echeance } } : {}),
     },
   })
 

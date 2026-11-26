@@ -171,7 +171,12 @@ export function TableauSocial({ mois, groupe, lignes }: { mois: string; groupe: 
                           ? formatHeures(s.overtime_hours)
                           : '—'}
                     </td>
-                    <td className="px-3 py-3 text-navy/80">{r ? MUTUELLE_LABEL[s.mutuelle] : '—'}</td>
+                    <td className="px-3 py-3 text-navy/80">
+                      {r ? MUTUELLE_LABEL[s.mutuelle] : '—'}
+                      {l.dispense && (l.etatDispense === 'valide' || l.etatDispense === 'a_renouveler') && (
+                        <span className="block text-xs text-muted">{l.etatDispense === 'a_renouveler' ? 'signée, à renouveler' : 'signée'}</span>
+                      )}
+                    </td>
                     <td className="px-3 py-3 text-xs">
                       {l.anomalies.length ? (
                         l.anomalies.map((a) => (

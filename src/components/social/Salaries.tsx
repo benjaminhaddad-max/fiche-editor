@@ -101,8 +101,14 @@ export function LigneSalarie({ s }: { s: Salarie }) {
             {s.aVerifier && (
               <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">à vérifier</span>
             )}
+            {s.sansRelance && (
+              <span className="ml-2 rounded-full bg-cream-muted px-2 py-0.5 text-xs font-medium text-navy/70">exclu des relances (voulu)</span>
+            )}
           </p>
-          <p className="truncate text-xs text-muted">{s.email ?? 'pas de compte ni d’email'}</p>
+          <p className="truncate text-xs text-muted">
+            {s.declarant ? `rempli par ${s.declarant} (compte partagé, voulu) · ` : ''}
+            {s.email ?? 'pas de compte ni d’email'}
+          </p>
         </div>
         <Input id={`m-${s.providerId}`} name="matricule" label="Matricule" defaultValue={s.matricule ?? ''} placeholder="00000" />
         <Select id={`p-${s.providerId}`} name="profil" label="Profil" defaultValue={s.profil}>
@@ -119,7 +125,7 @@ export function LigneSalarie({ s }: { s: Salarie }) {
           Enregistrer
         </SubmitButton>
       </form>
-      {!s.userId && (
+      {!s.userId && !s.sansRelance && (
         <form action={acces} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="provider_id" value={s.providerId} />
           <Input id={`a-${s.providerId}`} name="email" type="email" label="Email du salarié" placeholder="prenom.nom@…" required />
