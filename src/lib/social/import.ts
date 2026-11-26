@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
 import { memePersonne, type LigneImport } from './fichier'
 import { EMPLOI_DU_PROFIL, profilDeLEmploi, type ProfilSocial } from './types'
+import { texteErreur } from '@/lib/exclusivite'
 
 /**
  * Rattacher la liste des salariés de Silae aux fiches d'Invoice (§3).
@@ -122,7 +123,7 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
       if (appliquer) {
         const { error } = await db.from('inv_providers').update(maj).eq('id', fiche.id)
         if (error) {
-          r.conflits.push(`${l.nom} (${l.matricule}) : ${error.message}`)
+          r.conflits.push(`${l.nom} (${l.matricule}) : ${texteErreur(error.message)}`)
           continue
         }
       }
@@ -161,7 +162,7 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
         .select('id')
         .single()
       if (error || !data) {
-        r.conflits.push(`${l.nom} (${l.matricule}) : création impossible — ${error?.message}`)
+        r.conflits.push(`${l.nom} (${l.matricule}) : création impossible — ${texteErreur(error?.message)}`)
         continue
       }
       vus.add(data.id as string)

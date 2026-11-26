@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Employment } from '@/lib/types'
 import { activeBrandId } from '@/lib/brand/actif'
+import { dejaDeLAutreCote, texteErreur } from '@/lib/exclusivite'
 
 type Db = ReturnType<typeof createServiceClient>
 
@@ -41,9 +42,16 @@ export async function trouverOuCreerPrestataire(
     const id = Array.isArray(fiche) ? fiche[0]?.id : fiche?.id
     if (existant.role !== 'prestataire' || !id) return { error: 'Cet email appartient à un membre de l’équipe.' }
     if (!existant.is_active) return { error: 'Cette personne est désactivée. Réactivez-la dans Équipe.' }
-    if (p.employment) await db.from('inv_providers').update({ employment_type: p.employment }).eq('id', id)
+    if (p.employment) {
+      const { error } = await db.from('inv_providers').update({ employment_type: p.employment }).eq('id', id)
+      if (error) return { error: texteErreur(error.message) }
+    }
     return { providerId: id, userId: existant.id, cree: false }
   }
+
+  // Prestataire ou salarié, jamais les deux : on refuse avant de créer le compte.
+  const conflit = await dejaDeLAutreCote(db, { nom: p.nom, email, employment: p.employment ?? 'independant' })
+  if (conflit) return { error: conflit }
 
   const identite = await ouvrirIdentite(db, email)
   if ('error' in identite) return { error: identite.error }
@@ -76,7 +84,7 @@ export async function trouverOuCreerPrestataire(
     })
     .select('id')
     .single()
-  if (ficheError || !fiche) return { error: `Création de la fiche impossible : ${ficheError?.message}` }
+  if (ficheError || !fiche) return { error: `Création de la fiche impossible : ${texteErreur(ficheError?.message)}` }
 
   return { providerId: fiche.id, userId: user.id, cree: true }
 }

@@ -20,6 +20,7 @@ import { deposerPiece } from '@/lib/social/pieces'
 import { demanderElements } from '@/lib/social/relances'
 import { codesManquants, csvRecapTransport, csvSilae, lignesSilae, recapTransport } from '@/lib/social/saisie'
 import { EMPLOI_DU_PROFIL, GROUPE_LABEL, PROFILS, VARIABLES, type GroupeSocial, type ProfilSocial } from '@/lib/social/types'
+import { texteErreur } from '@/lib/exclusivite'
 
 export interface Resultat {
   error?: string
@@ -479,7 +480,7 @@ export async function modifierSalarie(_p: Resultat, fd: FormData): Promise<Resul
       social_a_verifier: false,
     })
     .eq('id', v.provider_id)
-  if (error) return { error: error.code === '23505' ? 'Ce matricule est déjà porté par une autre fiche.' : error.message }
+  if (error) return { error: error.code === '23505' ? 'Ce matricule est déjà porté par une autre fiche.' : texteErreur(error.message) }
   await logAudit(null, {
     actorId: user.id,
     entityType: 'provider',

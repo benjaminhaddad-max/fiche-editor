@@ -16,6 +16,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { EMPLOYMENTS } from '@/lib/types'
 import { estIntervenant } from '@/lib/intervenant'
 import { activeBrand, activeBrandId } from '@/lib/brand/actif'
+import { dejaDeLAutreCote, texteErreur } from '@/lib/exclusivite'
 
 export interface AdminResult {
   error?: string
@@ -67,6 +68,13 @@ export async function createUserAccount(
 
   const service = createServiceClient()
 
+  // Prestataire ou salarié, jamais les deux : on refuse avant de créer le compte.
+  if (v.role === 'prestataire') {
+    const conflit = await dejaDeLAutreCote(service, { nom: v.legal_name!.trim(), email: v.email, employment: v.employment_type })
+      ?? (v.full_name.trim() !== v.legal_name!.trim() ? await dejaDeLAutreCote(service, { nom: v.full_name, employment: v.employment_type }) : null)
+    if (conflit) return { error: conflit }
+  }
+
   // L'identité de connexion est commune aux écoles : si elle existe déjà,
   // on la réutilise au lieu d'échouer. C'est ce qui permet à quelqu'un de
   // travailler pour deux écoles avec une seule adresse.
@@ -111,7 +119,7 @@ export async function createUserAccount(
     })
     if (providerError) {
       return {
-        error: `Compte créé, mais la fiche de facturation a échoué : ${providerError.message}`,
+        error: `Compte créé, mais la fiche de facturation a échoué : ${texteErreur(providerError.message)}`,
       }
     }
   }
@@ -176,7 +184,7 @@ export async function updateProviderAdmin(
     .update(patch)
     .eq('id', provider_id)
 
-  if (error) return { error: `Enregistrement impossible : ${error.message}` }
+  if (error) return { error: `Enregistrement impossible : ${texteErreur(error.message)}` }
 
   await logAudit(supabase, {
     actorId: admin.id,

@@ -15,6 +15,7 @@ import { trouverOuCreerPrestataire } from '@/lib/personnes'
 import { deliver } from '@/lib/email/notify'
 import { templates } from '@/lib/email/templates'
 import { activeBrand, activeBrandScope } from '@/lib/brand/actif'
+import { texteErreur } from '@/lib/exclusivite'
 
 export interface ContractResult {
   error?: string
@@ -252,7 +253,8 @@ export async function creerDepuisModele(_prev: ContractResult, fd: FormData): Pr
     providerId = r.providerId
     cree = r.cree
   } else {
-    await db.from('inv_providers').update({ employment_type: m.employment }).eq('id', providerId)
+    const { error: statutError } = await db.from('inv_providers').update({ employment_type: m.employment }).eq('id', providerId)
+    if (statutError) return { error: texteErreur(statutError.message) }
   }
 
   const { data: fiche } = await db

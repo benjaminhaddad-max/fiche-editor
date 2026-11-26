@@ -3,6 +3,8 @@ import { ongletsSocial } from '@/components/social/onglets'
 import { Card, EmptyState, PageHeader } from '@/components/ui/Page'
 import { salaries } from '@/lib/social/donnees'
 import { requireEquipeSocial } from '@/lib/social/parametres'
+import { activeBrandId } from '@/lib/brand/actif'
+import { createServiceClient } from '@/lib/supabase/service'
 import { PROFIL_LABEL, PROFILS } from '@/lib/social/types'
 
 /**
@@ -16,6 +18,10 @@ export default async function SalariesPage() {
   const tous = (await salaries()).sort((a, b) => Number(!!b.aVerifier) - Number(!!a.aVerifier))
   const sansMatricule = tous.filter((s) => !s.matricule).length
   const aVerifier = tous.filter((s) => s.aVerifier).length
+  // Prestataire et salarié à la fois : interdit désormais (migration 64) ;
+  // les cas déjà en base restent ici, à trancher par l'équipe paie.
+  const { data: doublons } = await createServiceClient().rpc('inv_doublons_prestataire_salarie', { p_brand: await activeBrandId() })
+  const deuxCotes = (doublons ?? []) as { salarie_id: string; salarie_nom: string; salarie_statut: string; prestataire_nom: string; prestataire_statut: string; lien: string }[]
 
   return (
     <>
@@ -25,6 +31,20 @@ export default async function SalariesPage() {
         tabs={ongletsSocial(user.role === 'admin')}
         currentTab="salaries"
       />
+
+      {deuxCotes.length ? (
+        <Card className="mb-6 border-amber-300 bg-amber-50 p-5">
+          <p className="font-semibold text-amber-900">Anomalie : {deuxCotes.length} personne(s) à la fois prestataire et salariée</p>
+          <p className="mt-1 text-sm text-amber-900">Une personne est soit prestataire (facture), soit salariée (fiche de paie). Rien n’a été déplacé ni supprimé : à vous de trancher.</p>
+          <ul className="mt-3 space-y-1 text-sm text-amber-900">
+            {deuxCotes.map((d, i) => (
+              <li key={i}>
+                <strong>{d.salarie_nom}</strong> ({d.salarie_statut}) ↔ {d.prestataire_nom} ({d.prestataire_statut}) — {d.lien}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <Card className="mb-6 p-5">
         <ImportSalaries />
