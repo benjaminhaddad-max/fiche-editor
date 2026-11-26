@@ -45,8 +45,8 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
     <form action={action} className="flex flex-col gap-6">
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="flex flex-col gap-3 p-5">
-          <h2 className="font-semibold text-navy">Calendrier des fixes et alternants</h2>
-          <p className="-mt-1 text-xs text-muted">La demande et les relances valent aussi pour les vacataires (voir à droite pour la suite).</p>
+          <h2 className="font-semibold text-navy">Calendrier de la paie</h2>
+          <p className="-mt-1 text-xs text-muted">Le même pour tout le monde : fixes, alternants et vacataires.</p>
           <ChampMoment id="f_ouverture" label="Demande des éléments" m={f.ouverture} aide="email et SMS" />
           <ChampMoment id="f_relance" label="Relance des non-répondants" m={f.relance} />
           <ChampMoment id="f_derniere" label="Dernière relance" m={f.derniereRelance} />
@@ -60,18 +60,9 @@ export function FormParametres({ p, admin }: { p: ParametresSocial; admin: boole
           <h2 className="font-semibold text-navy">Comment ça se lit</h2>
           <p className="text-sm text-navy/80">
             Exemple pour novembre : la demande part le 25 novembre, chacun répond jusqu’au 26 au soir, vous validez le 27 et
-            envoyez à Net Paye, et tout le monde est payé le 30 novembre. C’est la paie de novembre pour tous.
+            envoyez à Net Paye, et tout le monde est payé le 30 novembre. C’est la paie de novembre pour tous, vacataires
+            compris : leurs missions de novembre partent avec la paie de novembre.
           </p>
-          <p className="text-sm text-navy/80">
-            Vacataires : même demande et mêmes relances, mais leurs missions du mois restent ouvertes jusqu’au 1er du mois suivant
-            à midi. Vous validez le 1er l’après-midi, l’envoi à Net Paye est le 2, et ils sont payés avec la paie du mois suivant.
-          </p>
-          <div className="flex flex-col gap-3 rounded-lg border border-line p-3">
-            <h3 className="text-sm font-semibold text-navy">Vacataires : dans le mois suivant les missions</h3>
-            <ChampMoment id="v_cloture" label="Clôture des missions" m={p.calendrier.vacataires.cloture} aide="un jour férié ou un week-end passe au jour ouvré suivant" />
-            <ChampMoment id="v_validation" label="Validation par l’équipe paie" m={p.calendrier.vacataires.validation} />
-            <ChampMoment id="v_envoi" label="Envoi à Net Paye" m={p.calendrier.vacataires.envoi} />
-          </div>
           <p className="text-xs text-muted">
             Une date qui tombe un week-end ou un jour férié est avancée au jour ouvré précédent.
           </p>

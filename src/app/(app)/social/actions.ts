@@ -559,11 +559,6 @@ export async function enregistrerParametres(_p: Resultat, fd: FormData): Promise
         limiteNetPaye: jour.parse(g('f_limite')),
         versement: jour.parse(g('f_versement')),
       },
-      vacataires: {
-        cloture: moment('v_cloture'),
-        validation: moment('v_validation'),
-        envoi: moment('v_envoi'),
-      },
       email: g('email') === 'on',
       sms: g('sms') === 'on',
       joursConge: g('jours_conge') === 'ouvrables' ? 'ouvrables' : 'ouvres',
