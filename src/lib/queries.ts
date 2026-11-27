@@ -46,7 +46,7 @@ export async function getManagers(): Promise<{ id: string; full_name: string }[]
   const { data } = await supabase
     .from('inv_users')
     .select('id, full_name')
-    .eq('brand', (await activeBrandId()))
+    .in('brand', (await activeBrandScope()))
     .in('role', ['manager', 'admin'])
     .eq('is_active', true)
     .order('full_name')
