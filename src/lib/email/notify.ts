@@ -79,14 +79,14 @@ export async function sendInvitation(
     .maybeSingle()
 
   // Fiche exclue des envois (migration 66) : pas d'invitation non plus.
-  const { data: exclu } = await supabase
+  const { data: fiches } = await supabase
     .from('inv_providers')
-    .select('id')
+    .select('id, social_sans_relance, social_profile')
     .eq('user_id', userId)
-    .eq('social_sans_relance', true)
-    .limit(1)
-    .maybeSingle()
-  if (exclu) return false
+  if ((fiches ?? []).some((f) => f.social_sans_relance)) return false
+  // Une personne payée en salaire (Espace Social) reçoit le message de la
+  // paie, pas celui de la facturation : SIRET et IBAN ne la concernent pas.
+  const paie = (fiches ?? []).some((f) => f.social_profile)
 
   if (!user?.is_active) return false
 
@@ -99,7 +99,7 @@ export async function sendInvitation(
   const renewed = options?.renewed ?? false
   const tpl =
     user.role === 'prestataire'
-      ? (await templates()).invitation({ fullName: user.full_name, link: href, renewed })
+      ? (await templates()).invitation({ fullName: user.full_name, link: href, renewed, paie })
       : (await templates()).invitationStaff({
           fullName: user.full_name,
           link: href,

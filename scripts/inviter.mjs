@@ -29,6 +29,8 @@ const EMAILS = args.includes('--email') ? args[args.indexOf('--email') + 1].spli
 // regroupent tout dans un fil et c'est le message le plus ancien — donc le
 // lien mort — que la personne rouvre.
 const RENVOI = args.includes('--renvoi')
+// --paie : le texte « votre espace paie est ouvert » (ancien prestataire passé en salaire).
+const PAIE = args.includes('--paie')
 const JOURS = Number(process.env.INVITATION_DAYS ?? 30)
 const APP = process.env.NEXT_PUBLIC_APP_URL ?? 'https://facturation.diploma-sante.fr'
 
@@ -67,12 +69,12 @@ const enveloppe = (titre, corps, lien) => `<!doctype html><html lang="fr"><body 
 <h1 style="margin:8px 0 0;font-size:19px;line-height:1.35;color:#0e1e35;">${titre}</h1></td></tr>
 <tr><td style="padding:16px 28px 4px;font-size:14px;line-height:1.65;color:#3b4c63;">${corps}</td></tr>
 <tr><td style="padding:12px 28px 24px;"><a href="${lien}" style="display:inline-block;background:#0e1e35;
- color:#fff;text-decoration:none;font-size:14px;font-weight:500;padding:11px 20px;border-radius:8px;">${RENVOI ? 'Ouvrir mon espace' : 'Créer mon accès'}</a></td></tr>
+ color:#fff;text-decoration:none;font-size:14px;font-weight:500;padding:11px 20px;border-radius:8px;">${RENVOI || PAIE ? 'Ouvrir mon espace' : 'Créer mon accès'}</a></td></tr>
 <tr><td style="padding:16px 28px 22px;border-top:1px solid #e5ddc8;font-size:12px;color:#a89e8a;">
 ${SOCIETE} — message automatique, merci de ne pas y répondre directement.</td></tr>
 </table></td></tr></table></body></html>`
 
-const SUJET = RENVOI
+const SUJET = PAIE ? `Votre espace paie ${PRODUIT}` : RENVOI
   ? `Votre nouveau lien ${PRODUIT} — ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' }).format(new Date())}`
   : `Créez votre accès à ${PRODUIT}`
 
@@ -85,6 +87,17 @@ const AVERTISSEMENT = RENVOI
 function corpsPour(role, nom) {
   const fin = `<p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel, ne fonctionne
      qu'une fois, et reste valable ${JOURS} jours.</p>`
+  if (role === 'prestataire' && PAIE) {
+    return {
+      titre: 'Votre espace paie est ouvert',
+      corps: `<p style="margin:0 0 12px;">Bonjour ${nom},</p>${AVERTISSEMENT}
+        <p style="margin:0 0 12px;">Vous êtes désormais rémunéré(e) en salaire par ${SOCIETE} : vos éléments de paie
+           se renseignent sur ${PRODUIT}, dans la rubrique <strong>Ma rémunération → Mes éléments de paie</strong>.</p>
+        <p style="margin:0 0 12px;">C’est <strong>le même accès</strong> que pour vos prestations, avec la même adresse
+           email : aucun nouveau compte à créer. Si vous n’avez plus votre mot de passe, le bouton ci-dessous vous
+           permet d’en choisir un.</p>${fin}`,
+    }
+  }
   if (role === 'prestataire') {
     return {
       titre: RENVOI ? 'Voici votre nouveau lien d’accès' : 'Votre espace de facturation est prêt',

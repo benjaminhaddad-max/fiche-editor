@@ -4,6 +4,7 @@ import type { Employment } from '@/lib/types'
 import { memePersonne, type LigneImport } from './fichier'
 import { EMPLOI_DU_PROFIL, profilDeLEmploi, type ProfilSocial } from './types'
 import { texteErreur } from '@/lib/exclusivite'
+import { sendInvitation } from '@/lib/email/notify'
 
 /**
  * Rattacher la liste des salariés de Silae aux fiches d'Invoice (§3).
@@ -125,6 +126,13 @@ export async function importerSalaries(lignes: LigneImport[], appliquer: boolean
         if (error) {
           r.conflits.push(`${l.nom} (${l.matricule}) : ${texteErreur(error.message)}`)
           continue
+        }
+        // Un ancien prestataire qui devient salarié a déjà un compte : sans ce
+        // message, personne ne lui dit que son espace paie existe (c'est ce
+        // qui est arrivé à Danial et Mhaude en novembre 2026).
+        if (!fiche.social_profile && fiche.user_id) {
+          const { data: compteExistant } = await db.from('inv_users').select('role').eq('id', fiche.user_id).maybeSingle()
+          if (compteExistant?.role === 'prestataire') await sendInvitation(fiche.user_id).catch(() => false)
         }
       }
       ;(fiche.silae_matricule === l.matricule ? r.mis_a_jour : r.rattaches).push(`${l.nom} → ${fiche.legal_name}`)

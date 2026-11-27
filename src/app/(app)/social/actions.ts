@@ -40,28 +40,33 @@ function rafraichir(providerId?: string) {
 /** Valider une saisie : seule une saisie validée part vers Silae. */
 async function valider(l: LigneSocial, userId: string): Promise<string | null> {
   // « valide » aussi : revalider refige le net des missions d'un vacataire.
-  if (!['a_valider', 'a_corriger', 'attente', 'valide'].includes(l.saisie.status) || !l.saisie.submitted_at) {
+  // Un vacataire qui n'a rien saisi mais dont les missions sont validées par
+  // les managers : l'équipe paie peut valider à sa place (« rien à signaler »,
+  // tracé au journal), sinon son net ne partirait jamais à Net Paye.
+  const sansReponse = !l.saisie.submitted_at && l.salarie.profil === 'vacataire' && l.netEnCours > 0 && l.saisie.status !== 'transmis'
+  if (!sansReponse && (!['a_valider', 'a_corriger', 'attente', 'valide'].includes(l.saisie.status) || !l.saisie.submitted_at)) {
     return `${l.salarie.nom} : rien à valider.`
   }
   const { error } = await createServiceClient()
     .from('inv_payroll_inputs')
-    .update({
+    .upsert({
+      provider_id: l.salarie.providerId,
+      period: l.saisie.period,
+      ...(sansReponse ? { nothing_to_report: true, submitted_at: new Date().toISOString(), submitted_by: userId } : {}),
       status: 'valide',
       validated_at: new Date().toISOString(),
       validated_by: userId,
       // Le net des missions est figé au moment de la validation : c'est lui
       // qui partira, même si une mission bouge ensuite.
       missions_total: l.salarie.profil === 'vacataire' ? l.netEnCours : null,
-    })
-    .eq('provider_id', l.salarie.providerId)
-    .eq('period', l.saisie.period)
+    }, { onConflict: 'provider_id,period' })
   if (error) return `${l.salarie.nom} : ${error.message}`
   await logAudit(null, {
     actorId: userId,
     entityType: 'provider',
     entityId: l.salarie.providerId,
     action: 'social_validation',
-    payload: { periode: l.saisie.period, anomalies: l.anomalies.map((a) => a.texte), net_missions: l.netEnCours },
+    payload: { periode: l.saisie.period, anomalies: l.anomalies.map((a) => a.texte), net_missions: l.netEnCours, ...(sansReponse ? { sans_reponse_du_salarie: true } : {}) },
   })
   return null
 }

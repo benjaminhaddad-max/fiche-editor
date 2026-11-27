@@ -104,11 +104,24 @@ export async function templates(brand?: BrandId) {
    * prestataire vient facturer, un manager vient contrôler. Leur envoyer le
    * même texte les perdrait tous les deux.
    */
-  invitation: (p: { fullName: string; link: string; renewed?: boolean }) => ({
-    subject: sujetInvitation(m, p.renewed),
-    html: layout(m, 
-      p.renewed ? 'Voici votre nouveau lien d’accès' : 'Votre espace de facturation est prêt',
-      `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
+  invitation: (p: { fullName: string; link: string; renewed?: boolean; paie?: boolean }) => ({
+    subject: p.paie ? `Votre espace paie ${m.appTitle}${p.renewed ? ' — nouveau lien' : ''}` : sujetInvitation(m, p.renewed),
+    html: layout(m,
+      p.paie
+        ? 'Votre espace paie est ouvert'
+        : p.renewed ? 'Voici votre nouveau lien d’accès' : 'Votre espace de facturation est prêt',
+      p.paie
+        ? `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
+       ${avertissementRemplacement(p.renewed)}
+       <p style="margin:0 0 12px;">Vous êtes désormais rémunéré(e) en salaire par ${m.company.name} :
+          vos éléments de paie se renseignent sur ${m.appTitle}, dans la rubrique
+          <strong>Ma rémunération → Mes éléments de paie</strong>.</p>
+       <p style="margin:0 0 12px;">C’est <strong>le même accès</strong> que pour vos prestations, avec la même
+          adresse email : aucun nouveau compte à créer. Si vous n’avez plus votre mot de passe, le bouton
+          ci-dessous vous permet d’en choisir un.</p>
+       <p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel, ne fonctionne
+          qu'une fois, et reste valable ${INVITATION_DAYS} jours.</p>`
+        : `<p style="margin:0 0 12px;">Bonjour ${p.fullName},</p>
        ${avertissementRemplacement(p.renewed)}
        <p style="margin:0 0 12px;">${m.company.name} met à votre disposition un espace pour
           suivre vos prestations et transmettre vos factures.</p>
@@ -117,7 +130,7 @@ export async function templates(brand?: BrandId) {
           adresse et IBAN — nécessaires pour être réglé.</p>
        <p style="margin:0;color:#7d8c9e;font-size:13px;">Ce lien est personnel, ne fonctionne
           qu'une fois, et reste valable ${INVITATION_DAYS} jours.</p>`,
-      { label: p.renewed ? 'Ouvrir mon espace' : 'Créer mon accès', href: p.link }
+      { label: p.renewed || p.paie ? 'Ouvrir mon espace' : 'Créer mon accès', href: p.link }
     ),
   }),
 

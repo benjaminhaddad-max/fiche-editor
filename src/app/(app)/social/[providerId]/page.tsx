@@ -223,7 +223,7 @@ export default async function FicheSocialPage({
               <ActionsFiche
                 providerId={providerId}
                 mois={mois}
-                peutValider={repondu && s.status !== 'transmis' && s.status !== 'valide'}
+                peutValider={(repondu || (l.salarie.profil === 'vacataire' && l.netEnCours > 0)) && s.status !== 'transmis' && s.status !== 'valide'}
                 peutRenvoyer={s.status !== 'transmis'}
                 anomalies={l.anomalies.length}
                 onCorriger={s.status !== 'transmis' && !corriger ? `/social/${providerId}?mois=${mois}&corriger=1` : undefined}
