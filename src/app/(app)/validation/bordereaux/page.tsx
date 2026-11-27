@@ -38,10 +38,10 @@ interface Ligne {
 export default async function BordereauxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mois?: string; q?: string; type?: string }>
+  searchParams: Promise<{ mois?: string; q?: string; type?: string; onglet?: string }>
 }) {
   const user = await requireRole('manager', 'admin')
-  const { mois, q, type: filtreType } = await searchParams
+  const { mois, q, type: filtreType, onglet: ongletDemande } = await searchParams
   const cherche = (q ?? '').trim()
   // La recherche suit le changement de mois : on cherche une personne, pas un mois.
   const suffixe = cherche ? `&q=${encodeURIComponent(cherche)}` : ''
@@ -65,7 +65,47 @@ export default async function BordereauxPage({
     .lte('start_date', cycle.periodEnd)
     .in('status', ['submitted', 'manager_approved', 'approved', 'invoiced'])
     .order('start_date')
-  const lignes = (lData ?? []) as unknown as Ligne[]
+  const lignesDuMois = (lData ?? []) as unknown as Ligne[]
+
+  // Ce qui est déclaré ou validé sur des mois précédents mais pas encore
+  // rattaché à un bordereau : c'est l'échéancier qui dit quand ça se règle,
+  // pas la date de validation.
+  const debutRecul = cycleForMonth(
+    (() => {
+      const [a, m] = cycle.month.split('-').map(Number)
+      const d = new Date(Date.UTC(a, m - 1 - 6, 1))
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+    })()
+  ).periodStart
+  const { data: lPrec } = await db
+    .from('inv_missions')
+    .select(
+      `id, provider_id, manager_id, detail, start_date, total_ht, status, statement_id,
+       provider:inv_providers(legal_name, employment_type, tags, intervenant_type, groupe:inv_echeancier_groupes(mois_sans_versement)),
+       category:inv_categories(name),
+       manager:inv_users!inv_missions_manager_id_fkey(full_name)`
+    )
+    .eq('brand', ecole)
+    .gte('start_date', debutRecul)
+    .lt('start_date', cycle.periodStart)
+    .is('statement_id', null)
+    .in('status', ['submitted', 'manager_approved', 'approved'])
+    .order('start_date')
+  const lignesAnterieures = (lPrec ?? []) as unknown as Ligne[]
+
+  // Mois de règlement de chaque ligne = celui de l'échéancier de la personne
+  // (groupe, ou tuteurs/coachs Medibox), à partir du mois de la mission.
+  const suivMois = nextCycle(cycle).month
+  const reglement = (l: Ligne) => moisDeVersement(l.start_date.slice(0, 7), l.provider, ecole)
+  const lignes: Ligne[] = []
+  const lignesSuivant: Ligne[] = []
+  const lignesFutures: Ligne[] = []
+  for (const l of [...lignesAnterieures, ...lignesDuMois]) {
+    const r = reglement(l)
+    if (r <= cycle.month) lignes.push(l)
+    else if (r === suivMois) lignesSuivant.push(l)
+    else lignesFutures.push(l)
+  }
 
   const { data: sData } = await db
     .from('inv_statements')
@@ -74,6 +114,25 @@ export default async function BordereauxPage({
        invoice:inv_invoices!inv_statements_invoice_id_fkey(id, number, status, ai_check)`
     )
     .eq('cycle_month', cycle.month)
+  const { data: hData } = await db
+    .from('inv_statements')
+    .select(
+      `id, provider_id, cycle_month, total_ht, status, sent_at,
+       provider:inv_providers!inner(legal_name, brand),
+       invoice:inv_invoices!inv_statements_invoice_id_fkey(number, status)`
+    )
+    .eq('provider.brand', ecole)
+    .lt('cycle_month', cycle.month)
+    .order('cycle_month', { ascending: false })
+    .limit(300)
+  const historique = ((hData ?? []) as unknown as {
+    id: string
+    cycle_month: string
+    total_ht: number
+    status: string
+    provider: { legal_name: string } | null
+    invoice: { number: string; status: InvoiceStatus } | null
+  }[]).filter((h) => correspondPrestataire(h.provider?.legal_name ?? '', cherche))
   const bordereaux = new Map(
     ((sData ?? []) as unknown as {
       id: string
@@ -176,6 +235,52 @@ export default async function BordereauxPage({
   const prec = previousCycle(cycle)
   const suiv = nextCycle(cycle)
 
+  // Onglets : ce qui se règle ce mois-ci, ce qui est programmé le mois
+  // suivant, plus tard, et ce qui a déjà été réglé.
+  const onglet: 'payer' | 'suivant' | 'futurs' | 'historique' =
+    ongletDemande === 'suivant' || ongletDemande === 'futurs' || ongletDemande === 'historique'
+      ? ongletDemande
+      : 'payer'
+  const ailleurs = (liste: Ligne[]) => {
+    const m = new Map<
+      string,
+      { nom: string; salarie: boolean; type: Intervenant | null; total: number; sienne: number; enAttente: number; versement: string; lignes: LigneDetail[] }
+    >()
+    for (const l of liste) {
+      const c = m.get(l.provider_id) ?? {
+        nom: l.provider?.legal_name ?? '—',
+        salarie: isSalaried(l.provider?.employment_type),
+        type: estIntervenant(l.provider?.intervenant_type) ? l.provider.intervenant_type : null,
+        total: 0,
+        sienne: 0,
+        enAttente: 0,
+        versement: cycleForMonth(reglement(l)).label,
+        lignes: [],
+      }
+      if (['approved', 'invoiced', 'manager_approved'].includes(l.status)) c.total += Number(l.total_ht)
+      if (l.manager_id === user.id) c.sienne += Number(l.total_ht)
+      if (l.status === 'submitted') c.enAttente++
+      c.lignes.push({
+        id: l.id,
+        detail: l.detail,
+        date: l.start_date,
+        categorie: l.category?.name ?? '—',
+        manager: l.manager?.full_name ?? '—',
+        sienne: l.manager_id === user.id,
+        montant: Number(l.total_ht),
+        status: l.status,
+      })
+      m.set(l.provider_id, c)
+    }
+    return [...m.entries()]
+      .filter(([, v]) => (user.role === 'admin' || v.sienne > 0) && correspondPrestataire(v.nom, cherche))
+      .sort((a, b) => a[1].nom.localeCompare(b[1].nom, 'fr'))
+  }
+  const entreesSuivant = ailleurs(lignesSuivant)
+  const entreesFutures = ailleurs(lignesFutures)
+  const somme = (e: ReturnType<typeof ailleurs>) => round2(e.reduce((n, [, v]) => n + v.total, 0))
+  const surOnglet = `&onglet=`
+
   return (
     <>
       <PrestationsNav
@@ -226,6 +331,114 @@ export default async function BordereauxPage({
         </p>
       )}
 
+      <nav className="mb-4 flex flex-wrap gap-1.5 border-b border-line pb-3 text-sm" aria-label="Période de règlement">
+        {(
+          [
+            ['payer', `À payer ce mois-ci (${visibles.length})`],
+            ['suivant', `Échéancier ${suiv.label.split(' ')[0]} (${entreesSuivant.length})`],
+            ['futurs', `Échéanciers futurs (${entreesFutures.length})`],
+            ['historique', `Historique des paiements (${historique.length})`],
+          ] as const
+        ).map(([k, libelle]) => (
+          <a
+            key={k}
+            href={`/validation/bordereaux?mois=${cycle.month}${suffixe}${k === 'payer' ? '' : `${surOnglet}${k}`}`}
+            className={`rounded-lg border px-3 py-1.5 font-medium ${
+              onglet === k ? 'border-navy bg-navy text-white' : 'border-line text-navy hover:bg-cream-muted'
+            }`}
+          >
+            {libelle}
+          </a>
+        ))}
+      </nav>
+
+      {onglet === 'suivant' || onglet === 'futurs' ? (
+        <>
+          <p className="mb-4 rounded-lg border border-line bg-cream-muted px-4 py-2.5 text-xs text-navy/80">
+            {onglet === 'suivant'
+              ? `Prestations déclarées ou validées dont le paiement est programmé en ${suiv.label}, d’après l’échéancier de chaque personne. Elles ne sont pas payées en ${cycle.label} : montants prévisionnels, nets inchangés.`
+              : 'Prestations déclarées ou validées dont le règlement tombe sur un mois plus lointain, d’après l’échéancier de chaque personne.'}{' '}
+            Total prévisionnel : <strong>{money(somme(onglet === 'suivant' ? entreesSuivant : entreesFutures))}</strong>.
+          </p>
+          {(onglet === 'suivant' ? entreesSuivant : entreesFutures).length === 0 ? (
+            <EmptyState title={onglet === 'suivant' ? `Rien de programmé en ${suiv.label}` : 'Aucun échéancier plus lointain'} />
+          ) : (
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Prestataire</th>
+                      <th className="px-4 py-3 text-right font-medium">Prévisionnel</th>
+                      {user.role === 'manager' && <th className="px-4 py-3 text-right font-medium">Dont vous</th>}
+                      <th className="px-4 py-3 font-medium">Règlement</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line/60">
+                    {(onglet === 'suivant' ? entreesSuivant : entreesFutures).map(([id, v]) => (
+                      <LigneBordereau
+                        key={id}
+                        nom={`${v.nom}${v.type ? ` · ${INTERVENANT_LABEL[v.type]}` : ''} — payé en ${v.versement}`}
+                        salarie={v.salarie}
+                        enAttente={v.enAttente}
+                        total={v.total}
+                        sienne={v.sienne}
+                        montrerSienne={user.role === 'manager'}
+                        lignes={v.lignes}
+                        facture={null}
+                        statementId={null}
+                        relanceCount={0}
+                        attendue={false}
+                        envoye={false}
+                        objetMessage={`Prestations de ${cycle.label}`}
+                        relancer={relancer}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      ) : onglet === 'historique' ? (
+        <>
+          <p className="mb-4 rounded-lg border border-line bg-cream-muted px-4 py-2.5 text-xs text-navy/80">
+            Bordereaux des mois précédents, déjà envoyés ou réglés (le plus récent d’abord).
+          </p>
+          {historique.length === 0 ? (
+            <EmptyState title="Aucun paiement sur les mois précédents" />
+          ) : (
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-line bg-cream-muted text-left text-xs uppercase tracking-wide text-muted">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Mois</th>
+                      <th className="px-4 py-3 font-medium">Prestataire</th>
+                      <th className="px-4 py-3 text-right font-medium">Montant</th>
+                      <th className="px-4 py-3 font-medium">Facture</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line/60">
+                    {historique.map((h) => (
+                      <tr key={h.id}>
+                        <td className="px-4 py-2.5 capitalize text-navy/80">{cycleForMonth(h.cycle_month).label}</td>
+                        <td className="px-4 py-2.5 font-medium text-navy">{h.provider?.legal_name ?? '—'}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold text-navy">{money(Number(h.total_ht))}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted">
+                          {h.invoice ? `${h.invoice.number} · ${h.invoice.status === 'paid' ? 'payée' : h.invoice.status}` : h.status === 'sent' ? 'bordereau envoyé' : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      ) : (
+      <>
       {parGroupe.size > 1 && (
         <nav className="mb-4 flex flex-wrap gap-1.5 text-xs">
           {[null, ...INTERVENANTS, SANS_TYPE].map((g) =>
@@ -392,6 +605,8 @@ export default async function BordereauxPage({
           </div>
         </Card>
         </>
+      )}
+      </>
       )}
     </>
   )
