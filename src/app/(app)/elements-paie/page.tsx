@@ -56,6 +56,17 @@ export default async function ElementsPaiePage({ searchParams }: { searchParams:
     salarie.profil === 'vacataire'
       ? (await lignesPaie(`${period}-01`, fin, { avecEnvoyees: true })).filter((l) => l.providerId === salarie.providerId)
       : []
+  // Après la clôture, la page ouvre le mois suivant : les missions du mois
+  // qui vient de se clore (déjà validées par les managers, pas encore parties
+  // à la paie) restent visibles, sinon le vacataire croit qu'elles ont disparu.
+  const moisClos = moisPrecedentDe(period)
+  const [yc, mc] = moisClos.split('-').map(Number)
+  const finClos = new Date(Date.UTC(yc, mc, 0)).toISOString().slice(0, 10)
+  const missionsClos =
+    salarie.profil === 'vacataire' && period === enCours && !saisieOuverte(groupe, moisClos, calendrier)
+      ? (await lignesPaie(`${moisClos}-01`, finClos)).filter((l) => l.providerId === salarie.providerId && estAcquise(l.status))
+      : []
+  const netClos = Math.round(missionsClos.reduce((t, l) => t + l.total, 0) * 100) / 100
   const net = Math.round(missions.filter((l) => estAcquise(l.status) || l.status === 'invoiced').reduce((t, l) => t + l.total, 0) * 100) / 100
 
   return (
@@ -80,6 +91,30 @@ export default async function ElementsPaiePage({ searchParams }: { searchParams:
           {saisie.nothing_to_report ? 'Rien à signaler ce mois-ci : c’est noté.' : 'Vos éléments sont enregistrés.'} Statut :{' '}
           {STATUT_LABEL[saisie.status].toLowerCase()}.
         </div>
+      )}
+
+      {missionsClos.length > 0 && (
+        <Card className="mb-5 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold text-navy">Missions de {libelleMois(moisClos)} — validées</h2>
+            <p className="text-sm text-navy">
+              Total : <strong>{money(netClos)}</strong> <span className="text-xs text-muted">net</span>
+            </p>
+          </div>
+          <ul className="mt-3 divide-y divide-line/60 text-sm">
+            {missionsClos.map((l) => (
+              <li key={l.id} className="flex flex-wrap justify-between gap-2 py-2">
+                <span className="text-navy/80">
+                  {formatDate(l.date)} — {l.detail}
+                </span>
+                <span>{money(l.total)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm text-muted">
+            Rien à faire pour {libelleMois(moisClos)} : ces missions sont déjà validées par vos managers et partent à la paie avec ce mois. L’équipe paie valide votre saisie à votre place.
+          </p>
+        </Card>
       )}
 
       {salarie.profil === 'vacataire' && (
@@ -107,8 +142,9 @@ export default async function ElementsPaiePage({ searchParams }: { searchParams:
             <p className="mt-2 text-sm text-muted">Aucune mission déclarée pour ce mois.</p>
           )}
           <Link href="/missions/new" className="mt-3 inline-block text-sm font-medium text-gold-dark hover:underline">
-            Déclarer une mission
+            Ajouter une mission oubliée (page Prestations)
           </Link>
+          <p className="mt-1 text-xs text-muted">Vos missions se déclarent dans Prestations ; elles remontent ici une fois validées par votre manager. Inutile de ressaisir le total.</p>
         </Card>
       )}
 
