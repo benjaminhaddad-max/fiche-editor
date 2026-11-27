@@ -100,7 +100,23 @@ export default async function BordereauxPage({
   const lignes: Ligne[] = []
   const lignesSuivant: Ligne[] = []
   const lignesFutures: Ligne[] = []
+  // Missions d'un intervenant dont le paiement est étalé : elles ne partent pas
+  // dans ce bordereau, leurs parts mensuelles y entrent à la place.
+  const { data: plansActifs } = await db
+    .from('inv_lissages')
+    .select('provider_id, mois_debut_source, mois_fin_source')
+    .eq('brand', ecole)
+    .eq('actif', true)
+  const etalee = (l: Ligne) =>
+    l.status !== 'invoiced' &&
+    (plansActifs ?? []).some(
+      (p) =>
+        p.provider_id === l.provider_id &&
+        l.start_date.slice(0, 7) >= p.mois_debut_source &&
+        l.start_date.slice(0, 7) <= p.mois_fin_source
+    )
   for (const l of [...lignesAnterieures, ...lignesDuMois]) {
+    if (etalee(l)) continue
     const r = reglement(l)
     if (r <= cycle.month) lignes.push(l)
     else if (r === suivMois) lignesSuivant.push(l)

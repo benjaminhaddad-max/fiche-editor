@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/service'
 import { activeBrandId } from '@/lib/brand/actif'
 import Link from 'next/link'
-import { enregistrerGroupeEcheancier, supprimerGroupeEcheancier } from '../actions'
+import { enregistrerGroupeEcheancier, supprimerGroupeEcheancier, creerLissage, arreterLissage } from '../actions'
 
 const MOIS = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.']
 
@@ -75,6 +75,16 @@ export default async function EcheanciersPage({ searchParams }: { searchParams: 
     db.from('inv_echeancier_groupes').select('id, name, mois_sans_versement').eq('brand', ecole).order('name'),
     db.from('inv_providers').select('id, legal_name, echeancier_groupe_id').eq('brand', ecole).order('legal_name'),
   ])
+  const { data: pl } = await db
+    .from('inv_lissages')
+    .select('id, titre, provider_id, beneficiaire_id, mois_debut_source, mois_fin_source, actif, echeances:inv_lissage_echeances(rang, mois, montant_ht, mission_id)')
+    .eq('brand', ecole)
+    .order('created_at', { ascending: false })
+  const plans = (pl ?? []) as unknown as {
+    id: string; titre: string; provider_id: string; beneficiaire_id: string
+    mois_debut_source: string; mois_fin_source: string; actif: boolean
+    echeances: { rang: number; mois: string; montant_ht: number; mission_id: string | null }[]
+  }[]
   const groupes = (g ?? []) as Groupe[]
   const fiches = (f ?? []) as Fiche[]
 
@@ -130,6 +140,71 @@ export default async function EcheanciersPage({ searchParams }: { searchParams: 
             <FormGroupe groupe={gr} fiches={visibles} groupes={groupes} depots={depots} />
           </Card>
         ))}
+        <Card>
+          <p className="mb-1 text-sm font-semibold text-navy">Étaler les paiements d’un intervenant</p>
+          <p className="mb-3 text-xs text-muted">
+            Pour un auto-entrepreneur qui ne doit pas dépasser son plafond. Il déclare et fait valider son travail comme
+            d’habitude ; au lieu d’être payé d’un coup, le total est réparti en parts mensuelles. Chaque mois, la part
+            arrive dans le bordereau de la personne qui facture (lui, ou un tiers comme son conjoint) et se facture au
+            montant exact du bordereau. Rien n’est payé ni validé à la création.
+          </p>
+          {plans.map((pn) => {
+            const nom = (id: string) => fiches.find((x) => x.id === id)?.legal_name ?? '—'
+            const total = pn.echeances.reduce((n, e) => n + Number(e.montant_ht), 0)
+            return (
+              <div key={pn.id} className="mb-3 rounded-lg border border-line p-3 text-xs text-navy">
+                <div className="flex items-start justify-between gap-3">
+                  <p>
+                    <strong>{nom(pn.provider_id)}</strong> → facture par <strong>{nom(pn.beneficiaire_id)}</strong> · travail de{' '}
+                    {pn.mois_debut_source} à {pn.mois_fin_source} · {pn.actif ? 'en cours' : 'arrêté'}
+                  </p>
+                  {pn.actif && (
+                    <form action={arreterLissage}>
+                      <input type="hidden" name="id" value={pn.id} />
+                      <button type="submit" className="cursor-pointer text-red-600 underline">Arrêter</button>
+                    </form>
+                  )}
+                </div>
+                <ul className="mt-2 grid gap-x-4 sm:grid-cols-2">
+                  {[...pn.echeances].sort((a, b) => a.rang - b.rang).map((e) => (
+                    <li key={e.rang}>
+                      Part {e.rang} · bordereau {e.mois} ·{' '}
+                      {e.mission_id ? `${Number(e.montant_ht).toFixed(2)} € HT portée` : Number(e.montant_ht) > 0 ? `${Number(e.montant_ht).toFixed(2)} € HT prévus` : 'montant connu après validation'}
+                    </li>
+                  ))}
+                </ul>
+                {total > 0 && <p className="mt-1 text-muted">Total réparti : {total.toFixed(2)} € HT</p>}
+              </div>
+            )
+          })}
+          <form action={creerLissage} className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs text-navy">Intervenant qui a fait le travail
+              <select name="provider_id" required className="mt-1 w-full rounded-lg border border-line px-2 py-1.5 text-sm">
+                {fiches.map((f) => <option key={f.id} value={f.id}>{f.legal_name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-navy">Fiche qui facture et reçoit (lui-même ou un tiers)
+              <select name="beneficiaire_id" className="mt-1 w-full rounded-lg border border-line px-2 py-1.5 text-sm">
+                <option value="">Le même intervenant</option>
+                {fiches.map((f) => <option key={f.id} value={f.id}>{f.legal_name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-navy">Travail du mois
+              <input type="month" name="mois_debut" required className="mt-1 w-full rounded-lg border border-line px-2 py-1.5 text-sm" />
+            </label>
+            <label className="text-xs text-navy">au mois
+              <input type="month" name="mois_fin" required className="mt-1 w-full rounded-lg border border-line px-2 py-1.5 text-sm" />
+            </label>
+            <label className="text-xs text-navy">Nombre de parts
+              <input type="number" name="parts" min={2} max={12} defaultValue={5} required className="mt-1 w-full rounded-lg border border-line px-2 py-1.5 text-sm" />
+            </label>
+            <label className="text-xs text-navy">Première part dans le bordereau du mois
+              <input type="month" name="premier_mois" required className="mt-1 w-full rounded-lg border border-line px-2 py-1.5 text-sm" />
+            </label>
+            <input name="titre" placeholder="Intitulé (ex. Missions nov.–déc. 2026)" className="rounded-lg border border-line px-3 py-2 text-sm sm:col-span-2" />
+            <button type="submit" className="cursor-pointer rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white sm:col-span-2">Créer l’étalement</button>
+          </form>
+        </Card>
         <Card>
           <p className="mb-3 text-sm font-semibold text-navy">Nouveau groupe</p>
           <FormGroupe groupe={null} fiches={visibles} groupes={groupes} depots={depots} />

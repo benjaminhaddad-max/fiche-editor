@@ -11,6 +11,7 @@ import { generateAndStorePdf } from '@/lib/invoice/store'
 import type { Provider } from '@/lib/types'
 import { versementCeMois } from '@/lib/echeancier'
 import { dansLesGroupes } from '@/lib/intervenant'
+import { appliquerLissages } from '@/lib/lissage'
 
 export interface EnvoiBordereaux {
   bordereaux: number
@@ -190,6 +191,10 @@ export async function envoyerBordereaux(
     .is('invoice_id', null)
   if (duGroupe) promotion = promotion.in('provider_id', duGroupe)
   const { data: promues } = await promotion.select('id')
+
+  // ---- 1 bis. Étalements : les missions étalées sortent du bordereau, la part
+  // du mois y entre à la place, sur la fiche de celui qui facture.
+  await appliquerLissages(db, ecole, cycle, auteurId)
 
   // ---- 2. Lignes à regrouper.
   const { data: lignes } = await db

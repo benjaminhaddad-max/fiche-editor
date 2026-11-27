@@ -10,6 +10,8 @@ export type MissionStatus =
   | 'rejected'
   | 'contested'
   | 'invoiced'
+  /** Étalée sur plusieurs mois : ne part dans aucun bordereau, ses parts sont portées mois par mois. */
+  | 'lissee'
 /** Origine d'une prestation : contrat, saisie manager, ajout du prestataire, bon de mission. */
 export type MissionOrigin = 'contract' | 'manager' | 'provider' | 'order'
 /** Une prestation, ou un bonus (salariés). */

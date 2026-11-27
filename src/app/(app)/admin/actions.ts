@@ -15,6 +15,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { EMPLOYMENTS } from '@/lib/types'
 import { estIntervenant } from '@/lib/intervenant'
+import { moisConsecutifs } from '@/lib/lissage-calcul'
 import { activeBrand, activeBrandId } from '@/lib/brand/actif'
 import { dejaDeLAutreCote, texteErreur } from '@/lib/exclusivite'
 
@@ -846,6 +847,72 @@ export async function supprimerGroupeEcheancier(fd: FormData): Promise<void> {
     action: 'groupe_echeancier_supprime',
     payload: {},
   })
+  revalidatePath('/admin/echeanciers')
+  revalidatePath('/validation/bordereaux')
+}
+
+/**
+ * Étale le paiement d'un intervenant sur plusieurs mois. Le travail reste
+ * déclaré et validé comme d'habitude ; chaque mois, une part est portée sur
+ * la fiche de celui qui facture (le prestataire lui-même ou un tiers, comme
+ * son conjoint). Rien n'est payé ni validé ici.
+ */
+export async function creerLissage(fd: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const providerId = String(fd.get('provider_id') ?? '')
+  const beneficiaireId = String(fd.get('beneficiaire_id') ?? '') || providerId
+  const debut = String(fd.get('mois_debut') ?? '')
+  const fin = String(fd.get('mois_fin') ?? '')
+  const premier = String(fd.get('premier_mois') ?? '')
+  const n = Math.round(Number(fd.get('parts') ?? 0))
+  const moisOk = (m: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(m)
+  if (!providerId || !moisOk(debut) || !moisOk(fin) || !moisOk(premier) || fin < debut || !(n >= 2 && n <= 12)) return
+  const titre = String(fd.get('titre') ?? '').trim().slice(0, 120) || 'Paiement étalé'
+
+  const db = createServiceClient()
+  const ecole = await activeBrandId()
+  const { data: fiches } = await db.from('inv_providers').select('id').eq('brand', ecole).in('id', [providerId, beneficiaireId])
+  if ((fiches ?? []).length < (providerId === beneficiaireId ? 1 : 2)) return
+
+  const { data: plan } = await db
+    .from('inv_lissages')
+    .insert({
+      brand: ecole,
+      provider_id: providerId,
+      beneficiaire_id: beneficiaireId,
+      titre,
+      mois_debut_source: debut,
+      mois_fin_source: fin,
+      created_by: user.id,
+    })
+    .select('id')
+    .single()
+  if (!plan) return
+  await db
+    .from('inv_lissage_echeances')
+    .insert(moisConsecutifs(premier, n).map((mois, i) => ({ lissage_id: plan.id, rang: i + 1, mois, montant_ht: 0 })))
+  await logAudit(null, {
+    actorId: user.id,
+    entityType: 'user',
+    entityId: plan.id,
+    action: 'lissage_cree',
+    payload: { provider_id: providerId, beneficiaire_id: beneficiaireId, debut, fin, premier, parts: n },
+  })
+  revalidatePath('/admin/echeanciers')
+  revalidatePath('/validation/bordereaux')
+}
+
+/** Arrête l'étalement : ce qui est déjà porté reste, le reste revient au bordereau normal. */
+export async function arreterLissage(fd: FormData): Promise<void> {
+  const user = await requireRole('admin')
+  const id = String(fd.get('id') ?? '')
+  if (!id) return
+  const db = createServiceClient()
+  const ecole = await activeBrandId()
+  const { data: plan } = await db.from('inv_lissages').update({ actif: false }).eq('id', id).eq('brand', ecole).select('id').maybeSingle()
+  if (!plan) return
+  await db.from('inv_missions').update({ status: 'approved' }).eq('lissage_id', id).eq('status', 'lissee')
+  await logAudit(null, { actorId: user.id, entityType: 'user', entityId: id, action: 'lissage_arrete', payload: {} })
   revalidatePath('/admin/echeanciers')
   revalidatePath('/validation/bordereaux')
 }

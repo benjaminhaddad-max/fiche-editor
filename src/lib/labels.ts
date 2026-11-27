@@ -17,6 +17,7 @@ export const MISSION_STATUS_LABEL: Record<MissionStatus, string> = {
   rejected: 'Refusée',
   contested: 'Contestée',
   invoiced: 'Facturée',
+  lissee: 'Étalée sur plusieurs mois',
 }
 
 export const MISSION_STATUS_STYLE: Record<MissionStatus, string> = {
@@ -27,6 +28,7 @@ export const MISSION_STATUS_STYLE: Record<MissionStatus, string> = {
   rejected: 'bg-red-50 text-red-700 ring-red-200',
   contested: 'bg-orange-50 text-orange-700 ring-orange-200',
   invoiced: 'bg-gold/15 text-gold-dark ring-gold/30',
+  lissee: 'bg-sky-50 text-sky-700 ring-sky-200',
 }
 
 export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
